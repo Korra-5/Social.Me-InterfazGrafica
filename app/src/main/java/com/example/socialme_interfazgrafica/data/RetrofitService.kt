@@ -1,5 +1,6 @@
 package com.example.socialme_interfazgrafica.data
 
+import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.RegistroResponse
@@ -27,11 +28,29 @@ interface RetrofitService {
         @Body usuario: UsuarioLoginDTO
     ): Response<LoginResponse>
 
-    @GET("/Comunidad/verComunidadPorUsername/{username}")
+    @GET("Comunidad/verComunidadPorUsuario/{username}")
     suspend fun verComunidadPorUsuario(
         @Header("Authorization") token: String,
         @Path("username") username: String
-    ):Response<List<ComunidadDTO>>
+    ): Response<List<ComunidadDTO>>
+
+    @GET("Actividad/verActividadPorUsername/{username}")
+    suspend fun verActividadPorUsername(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<ActividadDTO>>
+
+    @GET("Actividad/verActividadesPublicasEnZona")
+    suspend fun verActividadesPublicasEnZona(
+        @Header("Authorization") token: String
+    ): Response<List<ActividadDTO>>
+
+    @GET("Actividad/verActividadPorComunidad/{username}")
+    suspend fun verActividadesPorComunidad(
+        @Header("Authorization") token: String,
+        @Path("username") username:String
+    ): Response<List<ActividadDTO>>
+
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {
