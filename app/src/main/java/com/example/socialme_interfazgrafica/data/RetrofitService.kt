@@ -45,11 +45,23 @@ interface RetrofitService {
         @Header("Authorization") token: String
     ): Response<List<ActividadDTO>>
 
-    @GET("Actividad/verActividadPorComunidad/{username}")
+    @GET("Actividad/verActividadNoParticipaUsuario/{username}")
     suspend fun verActividadesPorComunidad(
         @Header("Authorization") token: String,
         @Path("username") username:String
     ): Response<List<ActividadDTO>>
+
+    @GET("Actividad/verActividadPorId/{id}")
+    suspend fun verActividadPorId(
+        @Header("Authorization") token: String,
+        @Path("id") username:String
+    ): Response<List<ActividadDTO>>
+
+    @GET("Actividad/verComunidadPorUrl/{url}")
+    suspend fun verComunidadPorUrl(
+        @Header("Authorization") token: String,
+        @Path("username") username:String
+    ): Response<List<ComunidadDTO>>
 
 
     object RetrofitServiceFactory {
