@@ -428,7 +428,7 @@ fun ActividadCarousel(username: String,navController:NavController) {
 }
 
 @Composable
-fun CarrouselActvidadesPorComunidad(username: String){
+fun CarrouselActvidadesPorComunidad(username: String, navController:NavController){
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -458,7 +458,7 @@ fun CarrouselActvidadesPorComunidad(username: String){
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 Log.d("CarrouselActvidadesPorComunidad", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadesPorComunidad(username = username,token=authToken)
+                val response = apiService.verActividadNoParticipaUsuario(username = username,token=authToken)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -492,11 +492,7 @@ fun CarrouselActvidadesPorComunidad(username: String){
         }
     }
 
-    // Cargar actividades cuando se inicializa el componente
-    LaunchedEffect(username) {
-        Log.d("CarrouselActvidadesPorComunidad", "LaunchedEffect iniciado para usuario: $username")
-        carrouselActvidadesPorComunidad(navController)
-    }
+
 
     Column(
         modifier = Modifier
@@ -548,7 +544,7 @@ fun CarrouselActvidadesPorComunidad(username: String){
                         Button(
                             onClick = {
                                 Log.d("CarrouselActvidadesPorComunidad", "Botón 'Intentar de nuevo' pulsado")
-                                carrouselActvidadesPorComunidad()
+                                carrouselActvidadesPorComunidad(navController)
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)

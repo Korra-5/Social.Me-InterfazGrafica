@@ -3,6 +3,8 @@ package com.example.socialme_interfazgrafica.data
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
+import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
+import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
@@ -46,7 +48,7 @@ interface RetrofitService {
     ): Response<List<ActividadDTO>>
 
     @GET("Actividad/verActividadNoParticipaUsuario/{username}")
-    suspend fun verActividadesPorComunidad(
+    suspend fun verActividadNoParticipaUsuario(
         @Header("Authorization") token: String,
         @Path("username") username:String
     ): Response<List<ActividadDTO>>
@@ -55,14 +57,37 @@ interface RetrofitService {
     suspend fun verActividadPorId(
         @Header("Authorization") token: String,
         @Path("id") username:String
-    ): Response<List<ActividadDTO>>
+    ): Response <ActividadDTO>
 
-    @GET("Actividad/verComunidadPorUrl/{url}")
+    @GET("Comunidad/verComunidadPorUrl/{url}")
     suspend fun verComunidadPorUrl(
         @Header("Authorization") token: String,
-        @Path("username") username:String
-    ): Response<List<ComunidadDTO>>
+        @Path("url") username:String
+    ): Response <ComunidadDTO>
 
+    @POST("/Comunidad/unirseComunidad")
+    suspend fun unirseComunidad(
+        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
+
+    @POST("/Comunidad/salirComunidad")
+    suspend fun salirComunidad(
+        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
+
+    @POST("/Actividad/unirseActividad")
+    suspend fun unirseActividad(
+        @Body participantesActividadDTO: ParticipantesActividadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
+
+    @POST("/Actividad/salirActividad")
+    suspend fun salirActividad(
+        @Body participantesActividadDTO: ParticipantesActividadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {
