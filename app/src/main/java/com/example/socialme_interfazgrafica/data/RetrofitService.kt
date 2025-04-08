@@ -14,6 +14,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -65,26 +66,20 @@ interface RetrofitService {
         @Path("url") username:String
     ): Response <ComunidadDTO>
 
-    @POST("/Comunidad/unirseComunidad")
-    suspend fun unirseComunidad(
-        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
-        @Header("Authorization") token: String,
-    ): Response<RegistroResponse>
-
-    @POST("/Comunidad/salirComunidad")
-    suspend fun salirComunidad(
-        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
-        @Header("Authorization") token: String,
-    ): Response<RegistroResponse>
-
     @POST("/Actividad/unirseActividad")
     suspend fun unirseActividad(
         @Body participantesActividadDTO: ParticipantesActividadDTO,
         @Header("Authorization") token: String,
     ): Response<RegistroResponse>
 
-    @POST("/Actividad/salirActividad")
+    @DELETE("/Actividad/salirActividad")
     suspend fun salirActividad(
+        @Body participantesActividadDTO: ParticipantesActividadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
+
+    @GET("/Actividad/booleanUsuarioApuntadoActividad")
+    suspend fun booleanUsuarioApuntadoActividad(
         @Body participantesActividadDTO: ParticipantesActividadDTO,
         @Header("Authorization") token: String,
     ): Response<RegistroResponse>
