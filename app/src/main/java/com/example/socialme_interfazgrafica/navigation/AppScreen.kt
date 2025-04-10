@@ -14,4 +14,8 @@ sealed class AppScreen(val route: String) {
     object ComunidadDetalleScreen : AppScreen("comunidadDetalle/{comunidadUrl}") {
         fun createRoute(comunidadUrl: String) = "comunidadDetalle/$comunidadUrl"
     }
+
+    object UsuarioDetalleScreen : AppScreen("usuarioDetalle/{username}") {
+        fun createRoute(username: String) = "usuarioDetalle/$username"
+    }
 }

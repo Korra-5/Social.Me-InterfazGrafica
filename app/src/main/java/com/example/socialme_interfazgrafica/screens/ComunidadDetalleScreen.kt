@@ -1,5 +1,8 @@
 package com.example.socialme_interfazgrafica.screens
 
+import android.content.Context
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,23 +21,35 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +60,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -54,17 +71,75 @@ import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.socialme_interfazgrafica.R
+import com.example.socialme_interfazgrafica.data.RetrofitService
+import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
+import com.example.socialme_interfazgrafica.model.RegistroResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
-
+import retrofit2.Response
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navController: NavController) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
+
+    // Estado para controlar si el usuario está participando en la comunidad
+    val isUserParticipating = remember { mutableStateOf(false) }
+    // Estado de carga para el botón
+    val isLoading = remember { mutableStateOf(false) }
+    // Para almacenar el nombre de usuario actual
+    val username = remember { mutableStateOf("") }
+
+    // Obtener el nombre de usuario actual desde SharedPreferences
+    LaunchedEffect(Unit) {
+        val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+        username.value = sharedPreferences.getString("USERNAME", "") ?: ""
+    }
+
+    // Verificar si el usuario ya participa en la comunidad
+    val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+    val scope = rememberCoroutineScope()
+
+    // Verificar participación cuando se cargue la pantalla
+    LaunchedEffect(username.value) {
+        if (username.value.isEmpty()) return@LaunchedEffect
+
+        isLoading.value = true
+        try {
+            supervisorScope {
+                val participantesComunidadDTO = ParticipantesComunidadDTO(
+                    username = username.value,
+                    comunidad = comunidad.url,
+                )
+
+                val participacionResponseDeferred = async(Dispatchers.IO) {
+                    retrofitService.booleanUsuarioApuntadoComunidad(
+                        participantesComunidadDTO = participantesComunidadDTO,
+                        token = authToken
+                    )
+                }
+
+                val participacionResponse = withTimeout(8000) { participacionResponseDeferred.await() }
+                isUserParticipating.value = participacionResponse.isSuccessful &&
+                        participacionResponse.body() == true
+            }
+        } catch (e: Exception) {
+            Log.e("ComunidadDetalle", "Error verificando participación: ${e.message}")
+        } finally {
+            isLoading.value = false
+        }
+    }
 
     // Configurar cliente HTTP con timeouts para imágenes
     val okHttpClient = OkHttpClient.Builder()
@@ -123,6 +198,22 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         modifier = Modifier
                             .fillMaxSize()
                             .background(colorResource(R.color.azulPrimario))
+                    )
+                }
+
+                // Botón de retroceso en la esquina superior
+                IconButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                        .size(36.dp)
+                        .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = colorResource(R.color.azulPrimario),
                     )
                 }
             }
@@ -357,46 +448,105 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = Color.LightGray, thickness = 1.dp)
 
-                // Botones de acción - Similar a la pantalla de actividades
+                // Botón de unirse/abandonar con estado actualizado
                 Button(
-                    onClick = { /* Implementar lógica para unirse */ },
+                    onClick = {
+                        if (!isLoading.value && username.value.isNotEmpty()) {
+                            isLoading.value = true
+                            scope.launch {
+                                try {
+                                    val participantesComunidadDTO = ParticipantesComunidadDTO(
+                                        username = username.value,
+                                        comunidad = comunidad.url,
+                                    )
+
+                                    withContext(Dispatchers.IO) {
+                                        if (!isUserParticipating.value) {
+                                            // Unirse a la comunidad
+                                            val response = withTimeout(5000) {
+                                                retrofitService.unirseComunidad(
+                                                    participantesComunidadDTO = participantesComunidadDTO,
+                                                    token = authToken
+                                                )
+                                            }
+
+                                            withContext(Dispatchers.Main) {
+                                                if (response.isSuccessful) {
+                                                    isUserParticipating.value = true
+                                                    Toast.makeText(context, "Te has unido a la comunidad", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } else {
+                                            // Salir de la comunidad
+                                            val response = withTimeout(5000) {
+                                                retrofitService.salirComunidad(
+                                                    participantesComunidadDTO = participantesComunidadDTO,
+                                                    token = authToken
+                                                )
+                                            }
+
+                                            withContext(Dispatchers.Main) {
+                                                if (response.isSuccessful) {
+                                                    isUserParticipating.value = false
+                                                    Toast.makeText(context, "Has abandonado la comunidad", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        Log.e("ComunidadDetalle", "Error: $e")
+                                    }
+                                } finally {
+                                    isLoading.value = false
+                                }
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(R.color.azulPrimario)
+                        containerColor = if (isUserParticipating.value)
+                            Color.Gray
+                        else
+                            colorResource(R.color.azulPrimario)
                     ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "UNIRSE",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedButton(
-                    onClick = { /* Implementar lógica para ver actividades */ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = colorResource(R.color.azulPrimario)
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 2.dp
                     )
                 ) {
-                    Text(
-                        text = "VER ACTIVIDADES",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isLoading.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = if (isUserParticipating.value) "ABANDONAR" else "UNIRSE",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUserParticipating.value) Color.DarkGray else Color.White
+                        )
+                    }
                 }
+
+                // Carrusel de actividades de la comunidad
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = Color.LightGray, thickness = 1.dp)
+
+                // Añadir el carrusel de actividades de la comunidad
+                CarruselActividadesComunidad(comunidadUrl = comunidad.url, navController = navController)
 
                 // Espacio adicional al final
                 Spacer(modifier = Modifier.height(16.dp))
@@ -491,6 +641,172 @@ fun CarruselImagenes(
                         .background(color)
                         .size(8.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+    var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Función para cargar las actividades de la comunidad
+    fun cargarActividadesComunidad() {
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+            try {
+                // Obtener el token desde SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+                if (token.isEmpty()) {
+                    Log.e("CarruselActividadesComunidad", "Token vacío, no se puede proceder")
+                    errorMessage = "No se ha encontrado un token de autenticación"
+                    isLoading = false
+                    return@launch
+                }
+
+                // Realizar la petición con el token formateado correctamente
+                val authToken = "Bearer $token"
+                Log.d("CarruselActividadesComunidad", "Realizando petición API con token: ${token.take(5)}... para comunidad: $comunidadUrl")
+                val response = apiService.verActividadesPorComunidad(authToken, comunidadUrl)
+
+                if (response.isSuccessful) {
+                    val actividadesRecibidas = response.body() ?: emptyList()
+                    Log.d("CarruselActividadesComunidad", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
+                    actividades = actividadesRecibidas
+                } else {
+                    // Tratamiento especial para el error 500 cuando no hay actividades
+                    if (response.code() == 500) {
+                        // Asumimos que es porque la comunidad no tiene actividades
+                        Log.w("CarruselActividadesComunidad", "Código 500 recibido, asumiendo lista vacía")
+                        actividades = emptyList()
+                    } else {
+                        val errorCode = response.code()
+                        Log.e("CarruselActividadesComunidad", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
+                        errorMessage = when (errorCode) {
+                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                            404 -> "No se encontraron actividades en esta comunidad."
+                            else -> "Error al cargar actividades: ${response.message()}"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Mostrar un mensaje más específico en caso de error de conexión
+                Log.e("CarruselActividadesComunidad", "Excepción al cargar actividades", e)
+                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                e.printStackTrace() // Imprime la traza completa para depuración
+            } finally {
+                isLoading = false
+                Log.d("CarruselActividadesComunidad", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
+            }
+        }
+    }
+
+    // Cargar actividades cuando se inicializa el componente
+    LaunchedEffect(comunidadUrl) {
+        Log.d("CarruselActividadesComunidad", "LaunchedEffect iniciado para comunidad: $comunidadUrl")
+        cargarActividadesComunidad()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+    ) {
+        // Título de sección
+        Text(
+            text = "Actividades de esta comunidad",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorResource(R.color.azulPrimario),
+            modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
+        )
+
+        // Mostrar estado de carga, error o el carrusel
+        when {
+            isLoading -> {
+                Log.d("CarruselActividadesComunidad", "Mostrando indicador de carga")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = colorResource(R.color.azulPrimario)
+                    )
+                }
+            }
+            errorMessage != null -> {
+                Log.d("CarruselActividadesComunidad", "Mostrando mensaje de error: $errorMessage")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = errorMessage!!,
+                            color = colorResource(R.color.error),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                Log.d("CarruselActividadesComunidad", "Botón 'Intentar de nuevo' pulsado")
+                                cargarActividadesComunidad()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.azulPrimario)
+                            )
+                        ) {
+                            Text("Intentar de nuevo")
+                        }
+                    }
+                }
+            }
+            actividades.isEmpty() -> {
+                Log.d("CarruselActividadesComunidad", "Mostrando mensaje de lista vacía")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No hay actividades en esta comunidad",
+                        color = colorResource(R.color.textoSecundario),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            else -> {
+                // Carrusel de actividades optimizado
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        items = actividades,
+                        key = { it.nombre }
+                    ) { actividad ->
+                        Log.d("CarruselActividadesComunidad", "Cargando actividad: ${actividad.nombre}")
+                        ActividadCard(actividad = actividad, navController = navController)
+                    }
+                }
             }
         }
     }

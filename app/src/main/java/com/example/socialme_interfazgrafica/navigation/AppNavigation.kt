@@ -23,6 +23,7 @@ import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.RegistroUsuarioScreen
+import com.example.socialme_interfazgrafica.screens.UsuarioDetallesScreen
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import kotlinx.coroutines.launch
 
@@ -111,5 +112,19 @@ fun AppNavigation(viewModel: UserViewModel) {
                 ComunidadDetalleScreen(comunidad = it, authToken = authToken, navController = navController)
             }
         }
+
+        // Nueva ruta para detalles de usuario
+        composable(
+            route = AppScreen.UsuarioDetalleScreen.route,
+            arguments = listOf(
+                navArgument("username") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val username = backStackEntry.arguments?.getString("username") ?: ""
+            UsuarioDetallesScreen(navController = navController, username = username)
+        }
     }
+
 }

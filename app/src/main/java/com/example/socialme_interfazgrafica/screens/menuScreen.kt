@@ -12,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -68,13 +71,8 @@ fun MenuScreen(navController: NavController) {
                 .verticalScroll(scrollState)
                 .padding(top = 16.dp, bottom = 80.dp)
         ) {
-            Text(
-                text = "Hola, ${username.value}",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorResource(R.color.azulPrimario),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+            // Nuevo componente de perfil en la parte superior
+            UserProfileHeader(username = username.value, navController = navController)
 
             Divider(
                 color = colorResource(R.color.cyanSecundario),
@@ -83,7 +81,13 @@ fun MenuScreen(navController: NavController) {
             )
 
             if (username.value.isNotEmpty()) {
-                ComunidadCarousel(username = username.value,navController)
+                ComunidadCarousel(username = username.value, navController)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (username.value.isNotEmpty()) {
+                ActividadCarousel(username = username.value, navController)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1168,5 +1172,89 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                 }
             }
         }
+    }
+}
+@Composable
+fun UserProfileHeader(username: String, navController: NavController) {
+    val context = LocalContext.current
+    // Obtener el token de autenticación
+    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString("TOKEN", "") ?: ""
+    val authToken = "Bearer $token"
+
+    // Configurar cliente HTTP con timeouts
+    val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    // Configurar ImageLoader
+    val imageLoader = ImageLoader.Builder(context)
+        .memoryCachePolicy(CachePolicy.ENABLED)
+        .diskCachePolicy(CachePolicy.ENABLED)
+        .networkCachePolicy(CachePolicy.ENABLED)
+        .memoryCache {
+            MemoryCache.Builder(context)
+                .maxSizePercent(0.25)
+                .build()
+        }
+        .diskCache {
+            DiskCache.Builder()
+                .directory(context.cacheDir.resolve("user_profile_images"))
+                .maxSizeBytes(50 * 1024 * 1024)
+                .build()
+        }
+        .okHttpClient(okHttpClient)
+        .build()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .clickable {
+                // Navegar a la pantalla de detalles del usuario
+                navController.navigate(AppScreen.UsuarioDetalleScreen.createRoute(username))
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Avatar del usuario
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(colorResource(R.color.cyanSecundario)),
+            contentAlignment = Alignment.Center
+        ) {
+            // Por defecto mostramos un icono de usuario
+            Icon(
+                painter = painterResource(id = R.drawable.ic_user),
+                contentDescription = "Usuario",
+                tint = colorResource(R.color.azulPrimario),
+                modifier = Modifier.size(24.dp)
+            )
+
+            // Si se implementa la carga de imágenes de perfil, aquí se podría cargar
+            // la imagen del usuario usando AsyncImage similar a los otros componentes
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Nombre de usuario
+        Text(
+            text = username,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorResource(R.color.azulPrimario)
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Icono de flecha para indicar que es clickable
+        Icon(
+            imageVector = Icons.Filled.ArrowBack,
+            contentDescription = "Ver perfil",
+            tint = colorResource(R.color.azulPrimario),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }

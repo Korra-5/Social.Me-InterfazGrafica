@@ -6,6 +6,7 @@ import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.model.RegistroResponse
+import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
 import okhttp3.OkHttpClient
@@ -16,6 +17,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -72,17 +74,48 @@ interface RetrofitService {
         @Header("Authorization") token: String,
     ): Response<RegistroResponse>
 
-    @DELETE("/Actividad/salirActividad")
+    @HTTP(method = "DELETE", path = "/Actividad/salirActividad", hasBody = true)
     suspend fun salirActividad(
         @Body participantesActividadDTO: ParticipantesActividadDTO,
         @Header("Authorization") token: String,
     ): Response<RegistroResponse>
 
-    @GET("/Actividad/booleanUsuarioApuntadoActividad")
+    @POST("/Comunidad/unirseComunidad")
+    suspend fun unirseComunidad(
+        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
+
+    @POST("/Comunidad/booleanUsuarioApuntadoComunidad")
+    suspend fun booleanUsuarioApuntadoComunidad(
+        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
+        @Header("Authorization") token: String,
+    ): Response<Boolean>
+
+
+    @HTTP(method = "DELETE", path = "/Comunidad/salirComunidad", hasBody = true)
+    suspend fun salirComunidad(
+        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
+        @Header("Authorization") token: String,
+    ): Response<RegistroResponse>
+
+    @POST("/Actividad/booleanUsuarioApuntadoActividad")
     suspend fun booleanUsuarioApuntadoActividad(
         @Body participantesActividadDTO: ParticipantesActividadDTO,
         @Header("Authorization") token: String,
-    ): Response<RegistroResponse>
+    ): Response<Boolean>
+
+    @GET("Usuario/verUsuarioPorUsername/{username}")
+    suspend fun verUsuarioPorUsername(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<UsuarioDTO>
+
+    @GET("Actividad/verActividadesPorComunidad/{comunidad}")
+    suspend fun verActividadesPorComunidad(
+        @Header("Authorization") token: String,
+        @Path("comunidad") username: String
+    ): Response<List<ActividadDTO>>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

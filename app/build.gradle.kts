@@ -69,4 +69,7 @@ dependencies {
         // Optional: If you want to support loading images from URLs
     implementation ("io.coil-kt:coil-compose-base:2.4.0")
 
+    implementation ("com.google.accompanist:accompanist-flowlayout:0.28.0")
+
+
 }

@@ -1,6 +1,7 @@
 package com.example.socialme_interfazgrafica.screens
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -63,8 +64,12 @@ import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -81,45 +86,73 @@ fun ActividadDetalleScreen(
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val participantes = remember { mutableStateOf(0) }
+    val isParticipating = remember { mutableStateOf(false) } // Estado de participación
+    val username = remember { mutableStateOf("") } // Para almacenar el nombre de usuario actual
 
-    LaunchedEffect(actividadId) {
+    val context = LocalContext.current
+
+    // Obtener el nombre de usuario actual desde SharedPreferences
+    LaunchedEffect(Unit) {
+        val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+        username.value = sharedPreferences.getString("USERNAME", "") ?: ""
+    }
+
+    // Cargar datos de la actividad
+    LaunchedEffect(actividadId, username.value) {
+        if (username.value.isEmpty()) return@LaunchedEffect
+
         isLoading.value = true
         error.value = null
 
         try {
             val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-            val actividadResponse = withContext(Dispatchers.IO) {
-                retrofitService.verActividadPorId(
-                    token = authToken,
-                    username = actividadId
-                )
-            }
-
-            if (actividadResponse.isSuccessful && actividadResponse.body() != null) {
-                actividad.value = actividadResponse.body()
-
-                // Simular número de participantes (esto debería venir del backend)
-                participantes.value = (5..25).random()
-
-                val comunidadUrl = actividadResponse.body()?.creador
-                if (!comunidadUrl.isNullOrEmpty()) {
-                    val comunidadResponse = withContext(Dispatchers.IO) {
-                        retrofitService.verComunidadPorUrl(
+            // Use supervisorScope to prevent child coroutine failures from canceling the parent
+            supervisorScope {
+                try {
+                    // Obtain data with timeout to prevent hanging
+                    val actividadResponseDeferred = async(Dispatchers.IO) {
+                        retrofitService.verActividadPorId(
                             token = authToken,
-                            username = comunidadUrl
+                            username = actividadId
                         )
                     }
 
-                    if (comunidadResponse.isSuccessful && comunidadResponse.body() != null) {
-                        comunidad.value = comunidadResponse.body()
+                    val actividadResponse = withTimeout(10000) { actividadResponseDeferred.await() }
+
+                    if (actividadResponse.isSuccessful && actividadResponse.body() != null) {
+                        actividad.value = actividadResponse.body()
+                        participantes.value = (5..25).random()
+
+                        // If the activity is loaded successfully, check participation status
+                        val participantesDTO = ParticipantesActividadDTO(
+                            username = username.value,
+                            actividadId = actividadId,
+                            nombreActividad = actividadResponse.body()?.nombre ?: ""
+                        )
+
+                        val participacionResponseDeferred = async(Dispatchers.IO) {
+                            retrofitService.booleanUsuarioApuntadoActividad(
+                                participantesActividadDTO = participantesDTO,
+                                token = authToken
+                            )
+                        }
+
+                        val participacionResponse = withTimeout(8000) { participacionResponseDeferred.await() }
+                        isParticipating.value = participacionResponse.isSuccessful &&
+                                participacionResponse.body() == true
+                    } else {
+                        error.value = "No se pudo cargar la actividad: ${actividadResponse.message()}"
+                    }
+                } catch (e: Exception) {
+                    error.value = when (e) {
+                        is TimeoutCancellationException -> "Tiempo de espera agotado. Comprueba tu conexión."
+                        else -> "Error de red: ${e.message}"
                     }
                 }
-            } else {
-                error.value = "No se pudo cargar la actividad: ${actividadResponse.message()}"
             }
         } catch (e: Exception) {
-            error.value = "Error: ${e.message}"
+            error.value = "Error general: ${e.message}"
         } finally {
             isLoading.value = false
         }
@@ -173,43 +206,41 @@ fun ActividadDetalleScreen(
                     comunidad = comunidad.value,
                     authToken = authToken,
                     navController = navController,
-                    participantes = participantes.value
+                    participantes = participantes.value,
+                    isParticipating = isParticipating.value,
+                    username = username.value
                 )
             }
         }
     }
 }
+
 @Composable
 fun ActividadDetalleContent(
     actividad: ActividadDTO,
     comunidad: ComunidadDTO?,
     authToken: String,
     navController: NavController,
-    participantes: Int
+    participantes: Int,
+    isParticipating: Boolean,
+    username: String
 ) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
 
-    // State to track if user is participating
-    val isParticipating = remember { mutableStateOf(false) }
-    // Get current username from SharedPreferences
-    val username = remember { mutableStateOf("") }
+    // Estado para controlar si el usuario está participando
+    val isUserParticipating = remember { mutableStateOf(isParticipating) }
 
-    // ViewModel for API operations
+    // ViewModel para operaciones API
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val scope = rememberCoroutineScope()
 
-    // Loading state for button
+    // Estado de carga para el botón
     val isLoading = remember { mutableStateOf(false) }
 
-    // Get username from SharedPreferences
-    LaunchedEffect(Unit) {
-        val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-        username.value = sharedPreferences.getString("USERNAME", "") ?: ""
-
-        // TODO: Check if user is already participating in this activity
-        // This would require an additional API endpoint to check participation status
-        // For now, we're assuming the user is not participating
+    // Calculamos el total de participantes basado en el estado actual
+    val totalParticipantes = remember(isUserParticipating.value, participantes) {
+        participantes
     }
 
     val okHttpClient = OkHttpClient.Builder()
@@ -541,7 +572,7 @@ fun ActividadDetalleContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = (if (isParticipating.value) participantes else participantes).toString(),
+                        text = totalParticipantes.toString(),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -559,55 +590,61 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botón de unirse/abandonar
+            // Botón de unirse/abandonar con estado actualizado
             Button(
                 onClick = {
                     if (!isLoading.value) {
                         isLoading.value = true
                         scope.launch {
                             try {
-                                if (!isParticipating.value) {
-                                    // Unirse a la actividad
-                                    val participantesDTO = ParticipantesActividadDTO(
-                                        username = username.value,
-                                        actividadId = actividad._id,
-                                        nombreActividad = actividad.nombre
-                                    )
+                                val participantesDTO = ParticipantesActividadDTO(
+                                    username = username,
+                                    actividadId = actividad._id,
+                                    nombreActividad = actividad.nombre
+                                )
 
-                                    val response = retrofitService.unirseActividad(
-                                        participantesActividadDTO = participantesDTO,
-                                        token = authToken
-                                    )
+                                withContext(Dispatchers.IO) {
+                                    if (!isUserParticipating.value) {
+                                        // Unirse a la actividad
+                                        val response = withTimeout(5000) {
+                                            retrofitService.unirseActividad(
+                                                participantesActividadDTO = participantesDTO,
+                                                token = authToken
+                                            )
+                                        }
 
-                                    if (response.isSuccessful) {
-                                        isParticipating.value = true
-                                        Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
+                                        withContext(Dispatchers.Main) {
+                                            if (response.isSuccessful) {
+                                                isUserParticipating.value = true
+                                                Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     } else {
-                                        Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    val participantesDTO = ParticipantesActividadDTO(
-                                        username = username.value,
-                                        actividadId = actividad._id,
-                                        nombreActividad = actividad.nombre
-                                    )
+                                        // Salir de la actividad
+                                        val response = withTimeout(5000) {
+                                            retrofitService.salirActividad(
+                                                participantesActividadDTO = participantesDTO,
+                                                token = authToken
+                                            )
+                                        }
 
-                                    val response = retrofitService.salirActividad(
-                                        participantesActividadDTO = participantesDTO,
-                                        token = authToken
-                                    )
-
-                                    isParticipating.value = false
-                                    Toast.makeText(context, "Has abandonado la actividad", Toast.LENGTH_SHORT).show()
-                                    if (response.isSuccessful) {
-                                        isParticipating.value = true
-                                        Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                        withContext(Dispatchers.Main) {
+                                            if (response.isSuccessful) {
+                                                isUserParticipating.value = false
+                                                Toast.makeText(context, "Has abandonado la actividad", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
                                 }
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    Log.d("ActividadCarousel", "Error:"+e)
+                                }
                             } finally {
                                 isLoading.value = false
                             }
@@ -618,7 +655,7 @@ fun ActividadDetalleContent(
                     .fillMaxWidth()
                     .height(48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isParticipating.value)
+                    containerColor = if (isUserParticipating.value)
                         Color.Gray
                     else
                         colorResource(R.color.azulPrimario)
@@ -636,10 +673,10 @@ fun ActividadDetalleContent(
                     )
                 } else {
                     Text(
-                        text = if (isParticipating.value) "ABANDONAR" else "UNIRSE",
+                        text = if (isUserParticipating.value) "ABANDONAR" else "UNIRSE",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isParticipating.value) Color.DarkGray else Color.White
+                        color = if (isUserParticipating.value) Color.DarkGray else Color.White
                     )
                 }
             }
