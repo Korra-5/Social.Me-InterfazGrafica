@@ -1,6 +1,4 @@
-
 package com.example.socialme_interfazgrafica.navigation
-
 
 import android.content.Context
 import androidx.compose.runtime.Composable
@@ -24,8 +22,13 @@ import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.RegistroUsuarioScreen
 import com.example.socialme_interfazgrafica.screens.UsuarioDetallesScreen
+import com.example.socialme_interfazgrafica.screens.VerUsuariosPorActividadScreen
+import com.example.socialme_interfazgrafica.screens.VerUsuariosPorComunidadScreen
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 //App navigation
 @Composable
@@ -48,7 +51,7 @@ fun AppNavigation(viewModel: UserViewModel) {
             MenuScreen(navController)
         }
 
-        // Nueva ruta para detalles de actividad con argumento de ID
+        // Ruta para detalles de actividad con argumento de ID
         composable(
             route = AppScreen.ActividadDetalleScreen.route,
             arguments = listOf(
@@ -67,7 +70,7 @@ fun AppNavigation(viewModel: UserViewModel) {
             ActividadDetalleScreen(navController=navController, authToken = authToken , actividadId =  actividadId)
         }
 
-        // Nueva ruta para detalles de comunidad con argumento de URL
+        // Ruta para detalles de comunidad con argumento de URL
         composable(
             route = AppScreen.ComunidadDetalleScreen.route,
             arguments = listOf(
@@ -113,7 +116,7 @@ fun AppNavigation(viewModel: UserViewModel) {
             }
         }
 
-        // Nueva ruta para detalles de usuario
+        // Ruta para detalles de usuario
         composable(
             route = AppScreen.UsuarioDetalleScreen.route,
             arguments = listOf(
@@ -125,6 +128,51 @@ fun AppNavigation(viewModel: UserViewModel) {
             val username = backStackEntry.arguments?.getString("username") ?: ""
             UsuarioDetallesScreen(navController = navController, username = username)
         }
-    }
 
+        // Ruta para ver usuarios por actividad
+        composable(
+            route = AppScreen.VerUsuariosPorActividadScreen.route,
+            arguments = listOf(
+                navArgument("actividadId") {
+                    type = NavType.StringType
+                },
+                navArgument("nombreActividad") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val actividadId = backStackEntry.arguments?.getString("actividadId") ?: ""
+            val nombreActividadEncoded = backStackEntry.arguments?.getString("nombreActividad") ?: ""
+            val nombreActividad = URLDecoder.decode(nombreActividadEncoded, StandardCharsets.UTF_8.toString())
+
+            VerUsuariosPorActividadScreen(
+                navController = navController,
+                actividadId = actividadId,
+                nombreActividad = nombreActividad
+            )
+        }
+
+        // Nueva ruta para ver usuarios por comunidad
+        composable(
+            route = AppScreen.VerUsuariosPorComunidadScreen.route,
+            arguments = listOf(
+                navArgument("comunidadId") {
+                    type = NavType.StringType
+                },
+                navArgument("nombreComunidad") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val comunidadId = backStackEntry.arguments?.getString("comunidadId") ?: ""
+            val nombreComunidadEncoded = backStackEntry.arguments?.getString("nombreComunidad") ?: ""
+            val nombreComunidad = URLDecoder.decode(nombreComunidadEncoded, StandardCharsets.UTF_8.toString())
+
+            VerUsuariosPorComunidadScreen(
+                navController = navController,
+                comunidadId = comunidadId,
+                nombreComunidad = nombreComunidad
+            )
+        }
+    }
 }

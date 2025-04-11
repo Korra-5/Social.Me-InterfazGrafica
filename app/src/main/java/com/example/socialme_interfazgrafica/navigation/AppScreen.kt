@@ -18,4 +18,15 @@ sealed class AppScreen(val route: String) {
     object UsuarioDetalleScreen : AppScreen("usuarioDetalle/{username}") {
         fun createRoute(username: String) = "usuarioDetalle/$username"
     }
+
+    // Nueva ruta para ver usuarios por actividad
+    object VerUsuariosPorActividadScreen : AppScreen("verUsuariosPorActividad/{actividadId}/{nombreActividad}") {
+        fun createRoute(actividadId: String, nombreActividad: String) =
+            "verUsuariosPorActividad/$actividadId/${nombreActividad}"
+    }
+
+    object VerUsuariosPorComunidadScreen : AppScreen("verUsuariosPorComunidad/{comunidadId}/{nombreComunidad}") {
+        fun createRoute(comunidadId: String, nombreComunidad: String) =
+            "verUsuariosPorComunidad/$comunidadId/${nombreComunidad}"
+    }
 }

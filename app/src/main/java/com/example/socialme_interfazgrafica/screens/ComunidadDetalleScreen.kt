@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,6 +77,7 @@ import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.model.RegistroResponse
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -88,6 +90,9 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import retrofit2.Response
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navController: NavController) {
@@ -100,6 +105,11 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     val isLoading = remember { mutableStateOf(false) }
     // Para almacenar el nombre de usuario actual
     val username = remember { mutableStateOf("") }
+
+    // Estado para almacenar el número de usuarios en la comunidad
+    val cantidadUsuarios = remember { mutableStateOf(0) }
+    // Estado para controlar si está cargando el contador de usuarios
+    val isLoadingUsuarios = remember { mutableStateOf(true) }
 
     // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
@@ -138,6 +148,36 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             Log.e("ComunidadDetalle", "Error verificando participación: ${e.message}")
         } finally {
             isLoading.value = false
+        }
+    }
+
+    // Cargar el número de usuarios en la comunidad
+    LaunchedEffect(comunidad.url) {
+        isLoadingUsuarios.value = true
+        scope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    withTimeout(5000) {
+                        retrofitService.contarUsuariosEnUnaComunidad(
+                            token = authToken,
+                            comunidad = comunidad.url
+                        )
+                    }
+                }
+
+                if (response.isSuccessful) {
+                    cantidadUsuarios.value = response.body() ?: 0
+                    Log.d("ComunidadDetalle", "Usuarios en la comunidad: ${cantidadUsuarios.value}")
+                } else {
+                    Log.e("ComunidadDetalle", "Error al contar usuarios: ${response.message()}")
+                    cantidadUsuarios.value = 0
+                }
+            } catch (e: Exception) {
+                Log.e("ComunidadDetalle", "Excepción al contar usuarios: ${e.message}")
+                cantidadUsuarios.value = 0
+            } finally {
+                isLoadingUsuarios.value = false
+            }
         }
     }
 
@@ -276,6 +316,48 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                             color = colorResource(R.color.textoSecundario)
                         )
                     }
+                }
+
+// En algún lugar de tu ComunidadDetalleScreen
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            // Navegar a la pantalla de usuarios por comunidad
+                            val nombreComunidadEncoded = URLEncoder.encode(comunidad.nombre, StandardCharsets.UTF_8.toString())
+                            navController.navigate(
+                                AppScreen.VerUsuariosPorComunidadScreen.createRoute(
+                                    comunidadId = comunidad.url,
+                                    nombreComunidad = nombreComunidadEncoded
+                                )
+                            )
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(colorResource(R.color.cyanSecundario)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = cantidadUsuarios.value.toString(),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "miembros se han unido ya",
+                        fontSize = 15.sp,
+                        color = Color.DarkGray
+                    )
                 }
 
                 // Divider
@@ -451,7 +533,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
-                // Botón de unirse/abandonar con estado actualizado
+                // Botón de unirse/abandonar con estado actualizado y actualización del contador
                 Button(
                     onClick = {
                         if (!isLoading.value && username.value.isNotEmpty()) {
@@ -477,6 +559,9 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                 if (response.isSuccessful) {
                                                     isUserParticipating.value = true
                                                     Toast.makeText(context, "Te has unido a la comunidad", Toast.LENGTH_SHORT).show()
+
+                                                    // Incrementar el contador de usuarios
+                                                    cantidadUsuarios.value += 1
                                                 } else {
                                                     Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
                                                 }
@@ -494,6 +579,11 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                 if (response.isSuccessful) {
                                                     isUserParticipating.value = false
                                                     Toast.makeText(context, "Has abandonado la comunidad", Toast.LENGTH_SHORT).show()
+
+                                                    // Decrementar el contador de usuarios
+                                                    if (cantidadUsuarios.value > 0) {
+                                                        cantidadUsuarios.value -= 1
+                                                    }
                                                 } else {
                                                     Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
                                                 }
@@ -554,6 +644,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         }
     }
 }
+
 
 // Función auxiliar para mostrar carrusel de imágenes
 @Composable

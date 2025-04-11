@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +64,7 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -74,6 +76,8 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun ActividadDetalleScreen(
@@ -238,9 +242,40 @@ fun ActividadDetalleContent(
     // Estado de carga para el botón
     val isLoading = remember { mutableStateOf(false) }
 
-    // Calculamos el total de participantes basado en el estado actual
-    val totalParticipantes = remember(isUserParticipating.value, participantes) {
-        participantes
+    // Estado para almacenar el número de participantes
+    val cantidadParticipantes = remember { mutableStateOf(0) }
+    // Estado para controlar si está cargando el contador de participantes
+    val isLoadingParticipantes = remember { mutableStateOf(true) }
+
+    // Cargar el número de participantes
+    LaunchedEffect(actividad._id) {
+        isLoadingParticipantes.value = true
+        scope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    withTimeout(5000) {
+                        retrofitService.contarUsuariosEnUnaActividad(
+                            actividadId = actividad._id,
+                            token = authToken
+                        )
+                    }
+                }
+
+                if (response.isSuccessful) {
+                    cantidadParticipantes.value = response.body() ?: 0
+                } else {
+                    Log.e("ActividadDetalle", "Error al contar participantes: ${response.message()}")
+                    // Fallback a un valor predeterminado en caso de error
+                    cantidadParticipantes.value = participantes
+                }
+            } catch (e: Exception) {
+                Log.e("ActividadDetalle", "Excepción al contar participantes: ${e.message}")
+                // Fallback a un valor predeterminado en caso de error
+                cantidadParticipantes.value = participantes
+            } finally {
+                isLoadingParticipantes.value = false
+            }
+        }
     }
 
     val okHttpClient = OkHttpClient.Builder()
@@ -556,13 +591,26 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Número de usuarios unidos
+            // Este código debe reemplazar el bloque de código que muestra el contador de participantes en ActividadDetalleScreen.kt
+// dentro de la función ActividadDetalleContent
+
+// Número de usuarios unidos
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
+                    .clickable {
+                        // Navegar a la pantalla de usuarios por actividad
+                        val nombreActividadEncoded = URLEncoder.encode(actividad.nombre, StandardCharsets.UTF_8.toString())
+                        navController.navigate(
+                            AppScreen.VerUsuariosPorActividadScreen.createRoute(
+                                actividadId = actividad._id,
+                                nombreActividad = nombreActividadEncoded
+                            )
+                        )
+                    }
             ) {
                 Box(
                     modifier = Modifier
@@ -571,12 +619,20 @@ fun ActividadDetalleContent(
                         .background(colorResource(R.color.cyanSecundario)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = totalParticipantes.toString(),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (isLoadingParticipantes.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = cantidadParticipantes.value.toString(),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -617,6 +673,9 @@ fun ActividadDetalleContent(
                                             if (response.isSuccessful) {
                                                 isUserParticipating.value = true
                                                 Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
+
+                                                // Actualizar el contador de participantes
+                                                cantidadParticipantes.value += 1
                                             } else {
                                                 Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
                                             }
@@ -634,6 +693,11 @@ fun ActividadDetalleContent(
                                             if (response.isSuccessful) {
                                                 isUserParticipating.value = false
                                                 Toast.makeText(context, "Has abandonado la actividad", Toast.LENGTH_SHORT).show()
+
+                                                // Actualizar el contador de participantes
+                                                if (cantidadParticipantes.value > 0) {
+                                                    cantidadParticipantes.value -= 1
+                                                }
                                             } else {
                                                 Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
                                             }

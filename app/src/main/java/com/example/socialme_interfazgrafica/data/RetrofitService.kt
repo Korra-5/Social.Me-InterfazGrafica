@@ -117,6 +117,30 @@ interface RetrofitService {
         @Path("comunidad") username: String
     ): Response<List<ActividadDTO>>
 
+    @GET("Actividad/contarUsuariosEnUnaActividad/{actividadId}")
+    suspend fun contarUsuariosEnUnaActividad(
+        @Header("Authorization") token: String,
+        @Path("actividadId") actividadId: String
+    ): Response<Int>
+
+    @GET("Comunidad/contarUsuariosEnUnaComunidad/{comunidad}")
+    suspend fun contarUsuariosEnUnaComunidad(
+        @Header("Authorization") token: String,
+        @Path("comunidad") comunidad: String
+    ): Response<Int>
+
+    @GET("Usuario/verUsuariosPorComunidad/{comunidad}")
+    suspend fun verUsuariosPorComunidad(
+        @Header("Authorization") token: String,
+        @Path("comunidad") comunidad: String
+    ): Response<List<UsuarioDTO>>
+
+    @GET("Usuario/verUsuariosPorActividad/{actividadId}")
+    suspend fun verUsuariosPorActividad(
+        @Header("Authorization") token: String,
+        @Path("actividadId") actividadId: String
+    ): Response<List<UsuarioDTO>>
+
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {
             val loggingInterceptor = HttpLoggingInterceptor().apply {

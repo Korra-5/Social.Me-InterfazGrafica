@@ -93,11 +93,6 @@ fun MenuScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (username.value.isNotEmpty()) {
-                ActividadCarousel(username = username.value,navController)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (username.value.isNotEmpty()) {
                 CarrouselActvidadesPorComunidad(username = username.value, navController)
             }
 
