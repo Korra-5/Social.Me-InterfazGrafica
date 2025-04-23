@@ -1,7 +1,9 @@
 package com.example.socialme_interfazgrafica.data
 
+import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
@@ -20,7 +22,9 @@ import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface RetrofitService {
     @POST("/Usuario/register")
@@ -59,13 +63,13 @@ interface RetrofitService {
     @GET("Actividad/verActividadPorId/{id}")
     suspend fun verActividadPorId(
         @Header("Authorization") token: String,
-        @Path("id") username:String
+        @Path("id") username: String,
     ): Response <ActividadDTO>
 
     @GET("Comunidad/verComunidadPorUrl/{url}")
     suspend fun verComunidadPorUrl(
         @Header("Authorization") token: String,
-        @Path("url") username:String
+        @Path("url") url:String
     ): Response <ComunidadDTO>
 
     @POST("/Actividad/unirseActividad")
@@ -140,6 +144,25 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("actividadId") actividadId: String
     ): Response<List<UsuarioDTO>>
+
+    @GET("Comunidad/verificarCreadorAdministradorComunidad/{username}/{comunidadUrl}")
+    suspend fun verificarCreadorAdministradorComunidad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("comunidadUrl") comunidadUrl: String
+    ): Response<Boolean>
+
+    @PUT("Comunidad/modificarComunidad")
+    suspend fun modificarComunidad(
+        @Header("Authorization") token: String,
+        @Body comunidadUpdateDTO: ComunidadUpdateDTO
+    ): Response<ComunidadDTO>
+
+    @POST("/Actividad/crearActividad")
+    suspend fun crearActividad(
+        @Header("Authorization") token: String,
+        @Body actividadCreateDTO: ActividadCreateDTO
+    ): Response<ActividadCreateDTO>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

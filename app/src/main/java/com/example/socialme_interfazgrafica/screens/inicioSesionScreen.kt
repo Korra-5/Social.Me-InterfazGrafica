@@ -137,7 +137,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                 painter = painterResource(id = R.drawable.app_icon),
                 contentDescription = "Logo",
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(200.dp)
                     .padding(bottom = 30.dp)
             )
 

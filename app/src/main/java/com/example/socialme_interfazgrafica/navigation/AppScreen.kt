@@ -20,13 +20,30 @@ sealed class AppScreen(val route: String) {
     }
 
     // Nueva ruta para ver usuarios por actividad
-    object VerUsuariosPorActividadScreen : AppScreen("verUsuariosPorActividad/{actividadId}/{nombreActividad}") {
+    object VerUsuariosPorActividadScreen :
+        AppScreen("verUsuariosPorActividad/{actividadId}/{nombreActividad}") {
         fun createRoute(actividadId: String, nombreActividad: String) =
             "verUsuariosPorActividad/$actividadId/${nombreActividad}"
     }
 
-    object VerUsuariosPorComunidadScreen : AppScreen("verUsuariosPorComunidad/{comunidadId}/{nombreComunidad}") {
+    object VerUsuariosPorComunidadScreen :
+        AppScreen("verUsuariosPorComunidad/{comunidadId}/{nombreComunidad}") {
         fun createRoute(comunidadId: String, nombreComunidad: String) =
             "verUsuariosPorComunidad/$comunidadId/${nombreComunidad}"
     }
+
+
+    object ModificarComunidadScreen : AppScreen("modificar_comunidad/{comunidadUrl}") {
+        fun createRoute(comunidadUrl: String): String {
+            return "modificar_comunidad/$comunidadUrl"
+        }
+    }
+
+    object CrearActividadScreen : AppScreen("crear_actividad/{comunidadUrl}") {
+        fun createRoute(comunidadUrl: String): String {
+            return "crear_actividad/$comunidadUrl"
+        }
+    }
+
+
 }

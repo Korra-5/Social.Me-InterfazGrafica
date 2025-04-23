@@ -92,7 +92,6 @@ import okhttp3.OkHttpClient
 import retrofit2.Response
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navController: NavController) {
@@ -110,6 +109,10 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     val cantidadUsuarios = remember { mutableStateOf(0) }
     // Estado para controlar si está cargando el contador de usuarios
     val isLoadingUsuarios = remember { mutableStateOf(true) }
+
+    // Estado para controlar si el usuario es creador o administrador
+    val isCreadorOAdmin = remember { mutableStateOf(false) }
+    val isLoadingVerificacion = remember { mutableStateOf(true) }
 
     // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
@@ -178,6 +181,31 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             } finally {
                 isLoadingUsuarios.value = false
             }
+        }
+    }
+
+    // Verificar si el usuario es creador o administrador
+    LaunchedEffect(username.value, comunidad.url) {
+        if (username.value.isEmpty()) return@LaunchedEffect
+
+        isLoadingVerificacion.value = true
+        try {
+            supervisorScope {
+                val response = withContext(Dispatchers.IO) {
+                    withTimeout(5000) {
+                        val response = retrofitService.verificarCreadorAdministradorComunidad(
+                            token = authToken,
+                            username = username.value,
+                            comunidadUrl = comunidad.url
+                        )
+                        isCreadorOAdmin.value = response.isSuccessful && response.body() == true
+                    }
+                }
+                }
+        } catch (e: Exception) {
+            Log.e("ComunidadDetalle", "Error verificando permisos: ${e.message}")
+        } finally {
+            isLoadingVerificacion.value = false
         }
     }
 
@@ -318,7 +346,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     }
                 }
 
-// En algún lugar de tu ComunidadDetalleScreen
+                // En algún lugar de tu ComunidadDetalleScreen
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -638,13 +666,118 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 // Añadir el carrusel de actividades de la comunidad
                 CarruselActividadesComunidad(comunidadUrl = comunidad.url, navController = navController)
 
+                // Botón para modificar la comunidad (solo visible para creadores/administradores)
+                if (isCreadorOAdmin.value) {
+                    Log.e("Boton modificar", "El usuario es admin o creador")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            // Navegar a la pantalla de modificación de comunidad
+                            navController.navigate(
+                                AppScreen.ModificarComunidadScreen.createRoute(comunidad.url)
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.azulPrimario)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp
+                        )
+                    ) {
+                        if (isLoadingVerificacion.value) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "MODIFICAR COMUNIDAD",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
                 // Espacio adicional al final
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (isCreadorOAdmin.value) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            // Navegar a la pantalla de modificación de comunidad
+                            navController.navigate(
+                                AppScreen.ModificarComunidadScreen.createRoute(comunidad.url)
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.azulPrimario)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp
+                        )
+                    ) {
+                        if (isLoadingVerificacion.value) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "MODIFICAR COMUNIDAD",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Nuevo botón CREAR ACTIVIDAD
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            // Navegar a la pantalla de creación de actividad
+                            navController.navigate(
+                                AppScreen.CrearActividadScreen.createRoute(
+                                    comunidadUrl = comunidad.url
+                                )
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.cyanSecundario)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp
+                        )
+                    ) {
+                        Text(
+                            text = "CREAR ACTIVIDAD",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.azulPrimario)
+                        )
+                    }
+                }
             }
         }
     }
 }
-
 
 // Función auxiliar para mostrar carrusel de imágenes
 @Composable
