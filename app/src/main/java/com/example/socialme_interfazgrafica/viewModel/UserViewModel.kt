@@ -1,4 +1,5 @@
 package com.example.socialme_interfazgrafica.viewModel
+
 import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.LiveData
@@ -16,12 +17,14 @@ import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 
 sealed class RegistroState {
+    object Initial : RegistroState()  // Nuevo estado inicial
     object Loading : RegistroState()
     data class Success(val data: RegistroResponse) : RegistroState()
     data class Error(val code: Int, val message: String) : RegistroState()
 }
 
 sealed class LoginState {
+    object Initial : LoginState()  // Nuevo estado inicial
     object Loading : LoginState()
     data class Success(val token: String, val role: String?) : LoginState()
     data class Error(val code: Int, val message: String) : LoginState()
@@ -31,10 +34,10 @@ class UserViewModel : ViewModel() {
     private val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
     // Estados LiveData que la UI puede observar
-    private val _registroState = MutableLiveData<RegistroState>()
+    private val _registroState = MutableLiveData<RegistroState>(RegistroState.Initial) // Estado inicial
     val registroState: LiveData<RegistroState> = _registroState
 
-    private val _loginState = MutableLiveData<LoginState>()
+    private val _loginState = MutableLiveData<LoginState>(LoginState.Initial) // Estado inicial
     val loginState: LiveData<LoginState> = _loginState
 
     private val _registroExitoso = MutableLiveData<Boolean>()
@@ -52,27 +55,33 @@ class UserViewModel : ViewModel() {
     // Método para decodificar el JWT y extraer el username y el rol
     private fun decodeJwt(token: String): Pair<String, String?> {
         try {
-            // El token tiene tres partes separadas por puntos. Tomamos la segunda parte (payload)
             val parts = token.split(".")
-            if (parts.size >= 2) {
-                val payload = parts[1]
-                // Decodificar el payload de Base64
-                val decodedBytes = Base64.decode(payload, Base64.URL_SAFE)
-                val decodedString = String(decodedBytes, StandardCharsets.UTF_8)
-
-                // Parsear el JSON del payload
-                val json = JSONObject(decodedString)
-
-                // Extraer username y rol
-                val username = if (json.has("sub")) json.getString("sub") else ""
-                val role = if (json.has("role")) json.getString("role") else null
-
-                return Pair(username, role)
+            if (parts.size != 3) {
+                Log.e("JWT_DECODE", "Token inválido: no tiene 3 partes")
+                return Pair("", null)
             }
+
+            val payload = parts[1]
+            val decodedBytes = Base64.decode(payload, Base64.URL_SAFE)
+            val decodedPayload = String(decodedBytes, StandardCharsets.UTF_8)
+
+            val jsonPayload = JSONObject(decodedPayload)
+            val username = jsonPayload.optString("sub", "")
+            val roles = jsonPayload.optString("roles", "")
+
+            val role = when {
+                roles.contains("ROLE_ADMIN") -> "ADMIN"
+                roles.contains("ADMIN") -> "ADMIN"
+                roles.contains("ROLE_USER") -> "USER"
+                roles.contains("USER") -> "USER"
+                else -> null
+            }
+
+            return Pair(username, role)
         } catch (e: Exception) {
-            Log.e("JWT_DECODE", "Error decodificando JWT: ${e.message}")
+            Log.e("JWT_DECODE", "Error decodificando token: ${e.message}")
+            return Pair("", null)
         }
-        return Pair("", null)
     }
 
     fun registrarUsuario(
@@ -182,34 +191,19 @@ class UserViewModel : ViewModel() {
             }
         }
     }
-}
-    private fun decodeJwt(token: String): Pair<String, String?> {
-        try {
-            val parts = token.split(".")
-            if (parts.size != 3) {
-                Log.e("JWT_DECODE", "Token inválido: no tiene 3 partes")
-                return Pair("", null)
-            }
 
-            val payload = parts[1]
-            val decodedBytes = Base64.decode(payload, Base64.URL_SAFE)
-            val decodedPayload = String(decodedBytes)
+    /**
+     * Resetea el estado de login para evitar inicios de sesión automáticos indeseados
+     * cuando el usuario cierra sesión
+     */
+    fun resetLoginState() {
+        _loginState.value = LoginState.Initial
+        _tokenLogin.value = ""
+        _userRole.value = ""
 
-            val jsonPayload = JSONObject(decodedPayload)
-            val username = jsonPayload.optString("sub", "")
-            val roles = jsonPayload.optString("roles", "")
+        // También podemos limpiar los mensajes de error si hay alguno
+        _mensajeError.value = ""
 
-            val role = when {
-                roles.contains("ROLE_ADMIN") -> "ADMIN"
-                roles.contains("ADMIN") -> "ADMIN"
-                roles.contains("ROLE_USER") -> "USER"
-                roles.contains("USER") -> "USER"
-                else -> null
-            }
-
-            return Pair(username, role)
-        } catch (e: Exception) {
-            Log.e("JWT_DECODE", "Error decodificando token: ${e.message}")
-            return Pair("", null)
-        }
+        Log.d("UserViewModel", "Estado de login reseteado correctamente")
     }
+}

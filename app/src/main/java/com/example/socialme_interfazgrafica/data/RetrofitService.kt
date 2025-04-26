@@ -2,6 +2,7 @@ package com.example.socialme_interfazgrafica.data
 
 import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.ActividadDTO
+import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
@@ -11,6 +12,7 @@ import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
+import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -24,7 +26,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
-import retrofit2.http.Query
+import java.util.concurrent.TimeUnit
 
 interface RetrofitService {
     @POST("/Usuario/register")
@@ -50,9 +52,19 @@ interface RetrofitService {
     ): Response<List<ActividadDTO>>
 
     @GET("Actividad/verActividadesPublicasEnZona")
-    suspend fun verActividadesPublicasEnZona(
+    suspend fun verActividadesPublicas(
         @Header("Authorization") token: String
     ): Response<List<ActividadDTO>>
+
+    @GET("Comunidad/verTodasComunidades")
+    suspend fun verTodasComunidadesPublicas(
+        @Header("Authorization") token: String,
+    ): Response<List<ComunidadDTO>>
+
+    @GET("Usuario/verTodosLosUsuarios")
+    suspend fun verTodosLosUsuarios(
+        @Header("Authorization") token: String,
+    ): Response<List<UsuarioDTO>>
 
     @GET("Actividad/verActividadNoParticipaUsuario/{username}")
     suspend fun verActividadNoParticipaUsuario(
@@ -152,11 +164,34 @@ interface RetrofitService {
         @Path("comunidadUrl") comunidadUrl: String
     ): Response<Boolean>
 
+
+    @GET("Actividad/verificarCreadorAdministradorActividad/{username}/{idActividad}")
+    suspend fun verificarCreadorAdministradorActividad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("idActividad") idActvidad: String
+    ): Response<Boolean>
+
+
     @PUT("Comunidad/modificarComunidad")
     suspend fun modificarComunidad(
         @Header("Authorization") token: String,
         @Body comunidadUpdateDTO: ComunidadUpdateDTO
     ): Response<ComunidadDTO>
+
+    @PUT("Actividad/modificarActividad")
+    suspend fun modificarActividad(
+        @Header("Authorization") token: String,
+        @Body actividadUpdateDTO: ActividadUpdateDTO
+    ): Response<ActividadDTO>
+
+
+    @DELETE("Actividad/eliminarActividad/{id}")
+    suspend fun eliminarActividad(
+        @Header("Authorization") token: String,
+        @Path("id") id : String
+    ): Response<ActividadDTO>
+
 
     @POST("/Actividad/crearActividad")
     suspend fun crearActividad(
@@ -164,18 +199,34 @@ interface RetrofitService {
         @Body actividadCreateDTO: ActividadCreateDTO
     ): Response<ActividadCreateDTO>
 
+    @DELETE("/Comunidad/eliminarComunidad/{url}")
+    suspend fun eliminarComunidad(
+        @Header("Authorization") token: String,
+        @Path("url") url:String
+    ): Response<ActividadCreateDTO>
+
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {
+            // Configurar Gson para formatear correctamente las fechas
+            val gson = GsonBuilder()
+                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS")  // Formato ISO 8601 compatible con Java
+                .create()
+
             val loggingInterceptor = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             }
+
             val client = OkHttpClient.Builder()
                 .addInterceptor(loggingInterceptor)
+                .connectTimeout(30, TimeUnit.SECONDS)  // Añadido para evitar timeouts
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
                 .build()
+
             return Retrofit.Builder()
                 .baseUrl("https://social-me-tfg.onrender.com")
                 .client(client)
-                .addConverterFactory(GsonConverterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create(gson))  // Usar el Gson personalizado
                 .build()
                 .create(RetrofitService::class.java)
         }

@@ -218,7 +218,6 @@ fun ActividadDetalleScreen(
         }
     }
 }
-
 @Composable
 fun ActividadDetalleContent(
     actividad: ActividadDTO,
@@ -247,6 +246,11 @@ fun ActividadDetalleContent(
     // Estado para controlar si está cargando el contador de participantes
     val isLoadingParticipantes = remember { mutableStateOf(true) }
 
+    // Estado para verificar si el usuario es creador o administrador de la actividad
+    val isCreadorOAdmin = remember { mutableStateOf(false) }
+    // Estado para controlar si está cargando la verificación
+    val isLoadingVerificacion = remember { mutableStateOf(true) }
+
     // Cargar el número de participantes
     LaunchedEffect(actividad._id) {
         isLoadingParticipantes.value = true
@@ -274,6 +278,46 @@ fun ActividadDetalleContent(
                 cantidadParticipantes.value = participantes
             } finally {
                 isLoadingParticipantes.value = false
+            }
+        }
+    }
+
+    // Verificar si el usuario es creador o administrador de la actividad
+    LaunchedEffect(actividad._id) {
+        isLoadingVerificacion.value = true
+        scope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    withTimeout(10000) { // Increase timeout to 10 seconds
+                        retrofitService.verificarCreadorAdministradorActividad(
+                            idActvidad = actividad._id, // Fix the parameter name if needed
+                            token = authToken,
+                            username = username
+                        )
+                    }
+                }
+
+                if (response.isSuccessful) {
+                    isCreadorOAdmin.value = response.isSuccessful && response.body() == true
+                } else {
+                    // More detailed error logging
+                    Log.e(
+                        "ActividadDetalle",
+                        "Error al verificar permisos: ${response.code()} - ${response.message()}"
+                    )
+                    Log.e("ActividadDetalle", "Error body: ${response.errorBody()?.string()}")
+                    isCreadorOAdmin.value = false
+                }
+            } catch (e: Exception) {
+                // More detailed exception logging
+                Log.e(
+                    "ActividadDetalle",
+                    "Excepción al verificar permisos: ${e.javaClass.simpleName} - ${e.message}"
+                )
+                e.printStackTrace()
+                isCreadorOAdmin.value = false
+            } finally {
+                isLoadingVerificacion.value = false
             }
         }
     }
@@ -591,10 +635,7 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Este código debe reemplazar el bloque de código que muestra el contador de participantes en ActividadDetalleScreen.kt
-// dentro de la función ActividadDetalleContent
-
-// Número de usuarios unidos
+            // Número de usuarios unidos
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -742,6 +783,44 @@ fun ActividadDetalleContent(
                         fontWeight = FontWeight.Bold,
                         color = if (isUserParticipating.value) Color.DarkGray else Color.White
                     )
+                }
+            }
+
+            // Botón MODIFICAR ACTIVIDAD - Solo visible si el usuario es creador o administrador
+            if (isCreadorOAdmin.value) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        // Navegar a la pantalla de modificación de actividad
+                        navController.navigate(
+                            AppScreen.ModificarActividadScreen.createRoute(actividad._id)
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 2.dp
+                    )
+                ) {
+                    if (isLoadingVerificacion.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "MODIFICAR ACTIVIDAD",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 

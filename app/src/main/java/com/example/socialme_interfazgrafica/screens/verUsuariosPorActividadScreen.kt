@@ -284,8 +284,7 @@ fun VerUsuariosPorActividadScreen(
 fun UsuarioItem(
     usuario: UsuarioDTO,
     authToken: String,
-    imageLoader: ImageLoader,
-    onClick: () -> Unit
+    navController: NavController // Añadir el NavController
 ) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
@@ -293,7 +292,10 @@ fun UsuarioItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable {
+                // Navegar a la pantalla de detalle del usuario
+                navController.navigate("usuario_detalle/${usuario.username}")
+            },
         colors = CardDefaults.cardColors(
             containerColor = Color.White
         ),
@@ -327,7 +329,6 @@ fun UsuarioItem(
                         contentDescription = "Foto de perfil de ${usuario.nombre}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        imageLoader = imageLoader
                     )
                 } else {
                     Image(
@@ -359,6 +360,15 @@ fun UsuarioItem(
                     fontSize = 14.sp,
                     color = Color.Gray
                 )
+
+                if (usuario.intereses.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = usuario.intereses.take(3).joinToString(", "),
+                        fontSize = 12.sp,
+                        color = colorResource(R.color.azulPrimario)
+                    )
+                }
             }
         }
     }

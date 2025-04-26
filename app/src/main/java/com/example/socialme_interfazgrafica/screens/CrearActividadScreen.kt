@@ -25,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Place
@@ -61,7 +60,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     // Obtener SharedPreferences en lugar de usar SessionManager
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
-    val userId = sharedPreferences.getString("USER_ID", "") ?: ""
+    val username = sharedPreferences.getString("USERNAME", "") ?: ""
 
     // Estado para los campos del formulario
     var nombre by remember { mutableStateOf("") }
@@ -69,13 +68,20 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     var lugar by remember { mutableStateOf("") }
     var privada by remember { mutableStateOf(false) }
 
-    // Estado para las fechas
-    var fechaInicio by remember { mutableStateOf<Date?>(null) }
-    var fechaFinalizacion by remember { mutableStateOf<Date?>(null) }
+    // Estado para fechas con MutableState para poder actualizarlas desde los pickers
+    val fechaInicio = remember { mutableStateOf<Date?>(null) }
+    val fechaFinalizacion = remember { mutableStateOf<Date?>(null) }
 
-    // Estado para mostrar los selectores de fecha
-    var showFechaInicioDialog by remember { mutableStateOf(false) }
-    var showFechaFinDialog by remember { mutableStateOf(false) }
+    // Estados para mostrar los pickers de fecha y hora
+    val showFechaInicioDatePicker = remember { mutableStateOf(false) }
+    val showFechaInicioTimePicker = remember { mutableStateOf(false) }
+    val showFechaFinDatePicker = remember { mutableStateOf(false) }
+    val showFechaFinTimePicker = remember { mutableStateOf(false) }
+
+    // Formatos para mostrar fecha y hora
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val dateTimeFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
     // Estado para las imágenes
     var imagenes by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -100,8 +106,49 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         }
     }
 
-    // Formato para mostrar las fechas
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    // Función para actualizar fecha manteniendo la hora existente
+    fun updateDate(date: Long, currentDateTime: MutableState<Date?>) {
+        val calendar = Calendar.getInstance()
+
+        // Si ya hay una fecha, conservar la hora
+        currentDateTime.value?.let {
+            calendar.time = it
+            val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+
+            // Establecer nueva fecha
+            calendar.timeInMillis = date
+
+            // Restaurar hora previa
+            calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+            calendar.set(Calendar.MINUTE, minute)
+        } ?: run {
+            // Si no hay fecha previa, usar mediodía como hora por defecto
+            calendar.timeInMillis = date
+            calendar.set(Calendar.HOUR_OF_DAY, 12)
+            calendar.set(Calendar.MINUTE, 0)
+        }
+
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        currentDateTime.value = calendar.time
+    }
+
+    // Función para actualizar hora manteniendo la fecha existente
+    fun updateTime(hour: Int, minute: Int, currentDateTime: MutableState<Date?>) {
+        val calendar = Calendar.getInstance()
+
+        // Si ya hay una fecha, mantenerla
+        if (currentDateTime.value != null) {
+            calendar.time = currentDateTime.value!!
+        }
+
+        calendar.set(Calendar.HOUR_OF_DAY, hour)
+        calendar.set(Calendar.MINUTE, minute)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        currentDateTime.value = calendar.time
+    }
 
     Scaffold(
         topBar = {
@@ -182,7 +229,9 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                         text = "Descripción",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
+                        modifier = Modifier.padding(bottom = 4.dp),
+                        color= Color.Black
+
                     )
 
                     OutlinedTextField(
@@ -225,68 +274,96 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                         )
                     )
 
-                    // Fecha de inicio
+                    // Fecha y hora de inicio
                     Text(
-                        text = "Fecha de inicio",
+                        text = "Fecha y hora de inicio",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
 
-                    OutlinedCard(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showFechaInicioDialog = true },
-                        border = BorderStroke(1.dp, Color.Gray)
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
+                        // Botón para seleccionar fecha de inicio
+                        OutlinedButton(
+                            onClick = { showFechaInicioDatePicker.value = true },
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = "Fecha de inicio",
-                                tint = colorResource(R.color.azulPrimario)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
                             Text(
-                                text = fechaInicio?.let { dateFormat.format(it) } ?: "Seleccionar fecha de inicio",
-                                fontSize = 16.sp
+                                text = if (fechaInicio.value != null)
+                                    dateFormat.format(fechaInicio.value!!)
+                                else "Seleccionar fecha",
+                                color = colorResource(R.color.azulPrimario)
+                            )
+                        }
+
+                        // Botón para seleccionar hora de inicio
+                        OutlinedButton(
+                            onClick = { showFechaInicioTimePicker.value = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp),
+                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
+                        ) {
+                            Text(
+                                text = if (fechaInicio.value != null)
+                                    timeFormat.format(fechaInicio.value!!)
+                                else "Seleccionar hora",
+                                color = colorResource(R.color.azulPrimario)
                             )
                         }
                     }
 
-                    // Fecha de finalización
+                    // Fecha y hora de finalización
                     Text(
-                        text = "Fecha de finalización",
+                        text = "Fecha y hora de finalización",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
 
-                    OutlinedCard(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showFechaFinDialog = true },
-                        border = BorderStroke(1.dp, Color.Gray)
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
+                        // Botón para seleccionar fecha de finalización
+                        OutlinedButton(
+                            onClick = { showFechaFinDatePicker.value = true },
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = "Fecha de finalización",
-                                tint = colorResource(R.color.azulPrimario)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
                             Text(
-                                text = fechaFinalizacion?.let { dateFormat.format(it) } ?: "Seleccionar fecha de finalización",
-                                fontSize = 16.sp
+                                text = if (fechaFinalizacion.value != null)
+                                    dateFormat.format(fechaFinalizacion.value!!)
+                                else "Seleccionar fecha",
+                                color = colorResource(R.color.azulPrimario)
+                            )
+                        }
+
+                        // Botón para seleccionar hora de finalización
+                        OutlinedButton(
+                            onClick = { showFechaFinTimePicker.value = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp),
+                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
+                        ) {
+                            Text(
+                                text = if (fechaFinalizacion.value != null)
+                                    timeFormat.format(fechaFinalizacion.value!!)
+                                else "Seleccionar hora",
+                                color = colorResource(R.color.azulPrimario)
                             )
                         }
                     }
@@ -301,7 +378,8 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                         Text(
                             text = "Actividad privada",
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color= Color.Black
                         )
 
                         Switch(
@@ -383,7 +461,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                     // Botón para crear actividad
                     Button(
                         onClick = {
-                            if (validarCampos(nombre, descripcion, lugar, fechaInicio, fechaFinalizacion)) {
+                            if (validarCampos(nombre, descripcion, lugar, fechaInicio.value, fechaFinalizacion.value)) {
                                 scope.launch {
                                     isLoading = true
                                     try {
@@ -393,10 +471,10 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                             nombre = nombre,
                                             descripcion = descripcion,
                                             comunidad = comunidadUrl,
-                                            creador = userId,
+                                            creador = username,
                                             lugar = lugar,
-                                            fechaInicio = fechaInicio!!,
-                                            fechaFinalizacion = fechaFinalizacion!!,
+                                            fechaInicio = fechaInicio.value!!,
+                                            fechaFinalizacion = fechaFinalizacion.value!!,
                                             fotosCarruselBase64 = if (imagenesBase64.isNotEmpty()) imagenesBase64 else null,
                                             fotosCarruselIds = null,
                                             privada = privada
@@ -480,36 +558,96 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         }
     }
 
-    // Dialog para seleccionar fecha de inicio
-    if (showFechaInicioDialog) {
+    // Date Picker para fecha de inicio
+    if (showFechaInicioDatePicker.value) {
         DatePickerDialog(
-            onDismissRequest = { showFechaInicioDialog = false },
-            onDateSelected = { date ->
-                fechaInicio = date
-                showFechaInicioDialog = false
+            onDismissRequest = { showFechaInicioDatePicker.value = false },
+            confirmButton = {
+                Button(onClick = { showFechaInicioDatePicker.value = false }) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFechaInicioDatePicker.value = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            val datePickerState = rememberDatePickerState()
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = false
+            )
+
+            // Cuando selecciona una fecha, actualizar el estado
+            LaunchedEffect(datePickerState.selectedDateMillis) {
+                datePickerState.selectedDateMillis?.let { date ->
+                    updateDate(date, fechaInicio)
+                }
+            }
+        }
+    }
+
+    // Time Picker para hora de inicio
+    if (showFechaInicioTimePicker.value) {
+        TimePickerDialog(
+            onDismissRequest = { showFechaInicioTimePicker.value = false },
+            onTimeSelected = { hour, minute ->
+                updateTime(hour, minute, fechaInicio)
+                showFechaInicioTimePicker.value = false
             }
         )
     }
 
-    // Dialog para seleccionar fecha de finalización
-    if (showFechaFinDialog) {
+    // Date Picker para fecha de finalización
+    if (showFechaFinDatePicker.value) {
         DatePickerDialog(
-            onDismissRequest = { showFechaFinDialog = false },
-            onDateSelected = { date ->
-                fechaFinalizacion = date
-                showFechaFinDialog = false
+            onDismissRequest = { showFechaFinDatePicker.value = false },
+            confirmButton = {
+                Button(onClick = { showFechaFinDatePicker.value = false }) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFechaFinDatePicker.value = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            val datePickerState = rememberDatePickerState()
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = false
+            )
+
+            // Cuando selecciona una fecha, actualizar el estado
+            LaunchedEffect(datePickerState.selectedDateMillis) {
+                datePickerState.selectedDateMillis?.let { date ->
+                    updateDate(date, fechaFinalizacion)
+                }
+            }
+        }
+    }
+
+    // Time Picker para hora de finalización
+    if (showFechaFinTimePicker.value) {
+        TimePickerDialog(
+            onDismissRequest = { showFechaFinTimePicker.value = false },
+            onTimeSelected = { hour, minute ->
+                updateTime(hour, minute, fechaFinalizacion)
+                showFechaFinTimePicker.value = false
             }
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DatePickerDialog(
+fun TimePickerDialog(
     onDismissRequest: () -> Unit,
-    onDateSelected: (Date) -> Unit
+    onTimeSelected: (Int, Int) -> Unit
 ) {
-    val datePickerState = rememberDatePickerState()
+    var selectedHour by remember { mutableStateOf(12) }
+    var selectedMinute by remember { mutableStateOf(0) }
 
     Dialog(onDismissRequest = onDismissRequest) {
         Card(
@@ -522,10 +660,73 @@ fun DatePickerDialog(
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                DatePicker(
-                    state = datePickerState,
-                    showModeToggle = false
+                Text(
+                    "Seleccionar hora",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
+
+                // Time picker
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Hour selector
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Hora:", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        IconButton(onClick = {
+                            if (selectedHour > 0) selectedHour-- else selectedHour = 23
+                        }) {
+                            Text("+", fontSize = 24.sp)
+                        }
+
+                        Text(
+                            text = String.format("%02d", selectedHour),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        IconButton(onClick = {
+                            if (selectedHour < 23) selectedHour++ else selectedHour = 0
+                        }) {
+                            Text("-", fontSize = 24.sp)
+                        }
+                    }
+
+                    Text(":", fontWeight = FontWeight.Bold, fontSize = 24.sp)
+
+                    // Minute selector
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Minuto:", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        IconButton(onClick = {
+                            if (selectedMinute > 0) selectedMinute-- else selectedMinute = 59
+                        }) {
+                            Text("+", fontSize = 24.sp)
+                        }
+
+                        Text(
+                            text = String.format("%02d", selectedMinute),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        IconButton(onClick = {
+                            if (selectedMinute < 59) selectedMinute++ else selectedMinute = 0
+                        }) {
+                            Text("-", fontSize = 24.sp)
+                        }
+                    }
+                }
 
                 Row(
                     modifier = Modifier
@@ -537,12 +738,10 @@ fun DatePickerDialog(
                         Text("Cancelar")
                     }
 
-                    TextButton(
-                        onClick = {
-                            datePickerState.selectedDateMillis?.let { millis ->
-                                onDateSelected(Date(millis))
-                            }
-                        }
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = { onTimeSelected(selectedHour, selectedMinute) }
                     ) {
                         Text("Aceptar")
                     }
@@ -551,6 +750,7 @@ fun DatePickerDialog(
         }
     }
 }
+
 
 // Función para validar los campos obligatorios
 private fun validarCampos(

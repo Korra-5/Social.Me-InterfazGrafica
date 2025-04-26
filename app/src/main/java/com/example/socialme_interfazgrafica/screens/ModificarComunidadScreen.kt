@@ -79,7 +79,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController) {
@@ -105,6 +104,10 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
+
+    // Estado para confirmar eliminación
+    val showDeleteConfirmation = remember { mutableStateOf(false) }
+    val isDeleting = remember { mutableStateOf(false) }
 
     // Estados para manejo de imágenes
     val fotoPerfilBase64 = remember { mutableStateOf<String?>(null) }
@@ -234,37 +237,58 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Barra superior con botón de retroceso y título
+            // Barra superior con botón de retroceso, título y botón de eliminar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
-                    onClick = {
-                        navController.popBackStack()
-                    },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Color.LightGray.copy(alpha = 0.3f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = colorResource(R.color.azulPrimario)
+                // Grupo del botón de retroceso y título
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            navController.popBackStack()
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color.LightGray.copy(alpha = 0.3f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = colorResource(R.color.azulPrimario)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Text(
+                        text = "Modificar Comunidad",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorResource(R.color.azulPrimario)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = "Modificar Comunidad",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorResource(R.color.azulPrimario)
-                )
+                // Botón de eliminar comunidad
+                IconButton(
+                    onClick = {
+                        showDeleteConfirmation.value = true
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color.Red.copy(alpha = 0.1f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar comunidad",
+                        tint = Color.Red
+                    )
+                }
             }
+
 
             if (isLoading.value) {
                 Box(
@@ -784,7 +808,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     }
                                 }
 
-// Enviar actualización
+                                // Enviar actualización
                                 isSaving.value = true
                                 scope.launch {
                                     try {
@@ -920,8 +944,155 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
             }
         }
     }
+
+    if (showDeleteConfirmation.value) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable { showDeleteConfirmation.value = false },
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(0.8f)
+                    .clickable { /* Evitar que se cierre al hacer clic en la card */ },
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "¿Estás seguro?",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Esta acción eliminará la comunidad '${comunidadOriginal.value?.nombre ?: ""}' y todos sus datos asociados. Esta acción no se puede deshacer.",
+                        fontSize = 14.sp,
+                        color = Color.DarkGray,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = { showDeleteConfirmation.value = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Gray
+                            ),
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        ) {
+                            Text("Cancelar", color = Color.White)
+                        }
+
+                        Button(
+                            onClick = {
+                                isDeleting.value = true
+                                scope.launch {
+                                    try {
+                                        val response = withContext(Dispatchers.IO) {
+                                            retrofitService.eliminarComunidad(
+                                                "Bearer $authToken",
+                                                comunidadUrl
+                                            )
+                                        }
+
+                                        if (response.isSuccessful) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Comunidad eliminada correctamente",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                navController.popBackStack()
+                                            }
+                                        } else {
+                                            val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
+                                            Log.e("EliminarComunidad", "Error: ${response.code()} - $errorBody")
+                                            errorMessage.value = "Error al eliminar: ${response.code()} - ${response.message()}"
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("EliminarComunidad", "Excepción", e)
+                                        errorMessage.value = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
+                                    } finally {
+                                        isDeleting.value = false
+                                        showDeleteConfirmation.value = false
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Red
+                            ),
+                            modifier = Modifier.weight(1f).padding(start = 8.dp),
+                            enabled = !isDeleting.value
+                        ) {
+                            if (isDeleting.value) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Eliminar", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Overlay de carga existente
+    if (isSaving.value || isDeleting.value) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.4f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .size(100.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = colorResource(R.color.azulPrimario)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = if (isDeleting.value) "Eliminando..." else "Guardando...",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+        }
+    }
 }
-private suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
+
+suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
     return withContext(Dispatchers.IO) {
         try {
             val inputStream = context.contentResolver.openInputStream(uri)

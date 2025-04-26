@@ -14,6 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,11 +46,9 @@ import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
-
 @Composable
 fun MenuScreen(navController: NavController) {
     val context = LocalContext.current
@@ -86,9 +87,16 @@ fun MenuScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+
             if (username.value.isNotEmpty()) {
                 ActividadCarousel(username = username.value, navController)
             }
+
+            if (username.value.isNotEmpty()){
+                VerTodasComunidadesCarrousel(username=username.value,navController)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -103,9 +111,76 @@ fun MenuScreen(navController: NavController) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+
         }
 
+        // Bottom Navigation Bar
+        BottomNavBar(
+            navController = navController,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
 
+@Composable
+fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(60.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = colorResource(R.color.background)
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Botón Home
+            IconButton(
+                onClick = {
+                    navController.navigate(AppScreen.MenuScreen.route) {
+                        // Pop hasta el inicio de la pila y luego añade la pantalla destino
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Home",
+                    tint = colorResource(R.color.cyanSecundario)
+                )
+            }
+
+            // Botón Buscar
+            IconButton(
+                onClick = {
+                    navController.navigate(AppScreen.BusquedaScreen.route)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Buscar",
+                    tint = colorResource(R.color.cyanSecundario)
+                )
+            }
+
+            // Botón Opciones
+            IconButton(
+                onClick = {
+                    navController.navigate(AppScreen.OpcionesScreen.route)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Opciones",
+                    tint = colorResource(R.color.cyanSecundario)
+                )
+            }
+        }
     }
 }
 
@@ -620,7 +695,7 @@ fun CarrouselActividadesEnZona(username: String, navController:NavController){
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 Log.d("CarrouselActividadesEnZona", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadesPublicasEnZona(authToken)
+                val response = apiService.verActividadesPublicas(authToken)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -1251,5 +1326,156 @@ fun UserProfileHeader(username: String, navController: NavController) {
             tint = colorResource(R.color.azulPrimario),
             modifier = Modifier.size(20.dp)
         )
+    }
+}
+
+
+@Composable
+fun VerTodasComunidadesCarrousel(username: String,navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+    var comunidades by remember { mutableStateOf<List<ComunidadDTO>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Función para cargar las comunidades
+    fun cargarComunidades() {
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+
+            try {
+                // Obtener el token desde SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+                if (token.isEmpty()) {
+                    errorMessage = "No se ha encontrado un token de autenticación"
+                    isLoading = false
+                    return@launch
+                }
+
+                // Realizar la petición con el token formateado correctamente
+                val authToken = "Bearer $token"
+                val response = apiService.verTodasComunidadesPublicas(authToken)
+
+                if (response.isSuccessful) {
+                    comunidades = response.body() ?: emptyList()
+                } else {
+                    // Tratamiento especial para el error 500 cuando no hay comunidades
+                    if (response.code() == 500) {
+                        // Asumimos que es porque el usuario no tiene comunidades
+                        comunidades = emptyList()
+                    } else {
+                        errorMessage = when (response.code()) {
+                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                            404 -> "No se encontraron comunidades para este usuario."
+                            else -> "Error al cargar comunidades: ${response.message()}"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Mostrar un mensaje más específico en caso de error de conexión
+                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                e.printStackTrace() // Imprime la traza completa para depuración
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Cargar comunidades cuando se inicializa el componente
+    LaunchedEffect(username) {
+        cargarComunidades()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+    ) {
+        // Título de sección
+        Text(
+            text = "Tus Comunidades",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorResource(R.color.azulPrimario),
+            modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
+        )
+
+        // Mostrar estado de carga, error o el carrusel
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = colorResource(R.color.azulPrimario)
+                    )
+                }
+            }
+            errorMessage != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = errorMessage!!,
+                            color = colorResource(R.color.error),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { cargarComunidades() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.azulPrimario)
+                            )
+                        ) {
+                            Text("Intentar de nuevo")
+                        }
+                    }
+                }
+            }
+            comunidades.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No perteneces a ninguna comunidad",
+                        color = colorResource(R.color.textoSecundario),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            else -> {
+                // Carrusel de comunidades optimizado
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        items = comunidades,
+                        key = { it.url }
+                    ) { comunidad ->
+                        ComunidadCard(comunidad = comunidad, navController = navController)
+                    }
+                }
+            }
+        }
     }
 }

@@ -15,13 +15,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.socialme_interfazgrafica.ModificarActividadScreen
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.screens.ActividadDetalleScreen
+import com.example.socialme_interfazgrafica.screens.BusquedaScreen
 import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.ModificarComunidadScreen
+import com.example.socialme_interfazgrafica.screens.OpcionesScreen
 import com.example.socialme_interfazgrafica.screens.RegistroUsuarioScreen
 import com.example.socialme_interfazgrafica.screens.UsuarioDetallesScreen
 import com.example.socialme_interfazgrafica.screens.VerUsuariosPorActividadScreen
@@ -51,6 +54,14 @@ fun AppNavigation(viewModel: UserViewModel) {
 
         composable(AppScreen.MenuScreen.route) {
             MenuScreen(navController)
+        }
+
+        composable(AppScreen.BusquedaScreen.route) {
+            BusquedaScreen(navController)
+        }
+
+        composable(AppScreen.OpcionesScreen.route) {
+            OpcionesScreen(navController, viewModel)
         }
 
         // Ruta para detalles de actividad con argumento de ID
@@ -186,11 +197,6 @@ fun AppNavigation(viewModel: UserViewModel) {
         ) { backStackEntry ->
             val comunidadUrl = backStackEntry.arguments?.getString("comunidadUrl") ?: ""
 
-            // Obtain authentication token
-            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("TOKEN", "") ?: ""
-            val authToken = "Bearer $token"
-
             ModificarComunidadScreen(comunidadUrl = comunidadUrl, navController = navController)
         }
         composable(
@@ -203,16 +209,26 @@ fun AppNavigation(viewModel: UserViewModel) {
         ) { backStackEntry ->
             val comunidadUrl = backStackEntry.arguments?.getString("comunidadUrl") ?: ""
 
-            // Obtener el token de autenticación
-            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("TOKEN", "") ?: ""
-            val authToken = "Bearer $token"
-
             CrearActividadScreen(
                 comunidadUrl = comunidadUrl,
                 navController = navController
             )
         }
+        composable(
+            route = AppScreen.ModificarActividadScreen.route,
+            arguments = listOf(
+                navArgument("idActividad") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val idActividad = backStackEntry.arguments?.getString("idActividad") ?: ""
 
+            ModificarActividadScreen(
+                actividadId = idActividad,
+                navController = navController
+            )
+
+    }
     }
 }

@@ -666,45 +666,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 // Añadir el carrusel de actividades de la comunidad
                 CarruselActividadesComunidad(comunidadUrl = comunidad.url, navController = navController)
 
-                // Botón para modificar la comunidad (solo visible para creadores/administradores)
-                if (isCreadorOAdmin.value) {
-                    Log.e("Boton modificar", "El usuario es admin o creador")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            // Navegar a la pantalla de modificación de comunidad
-                            navController.navigate(
-                                AppScreen.ModificarComunidadScreen.createRoute(comunidad.url)
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorResource(R.color.azulPrimario)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 2.dp
-                        )
-                    ) {
-                        if (isLoadingVerificacion.value) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = "MODIFICAR COMUNIDAD",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-
                 // Espacio adicional al final
                 Spacer(modifier = Modifier.height(16.dp))
 
