@@ -3,6 +3,7 @@ package com.example.socialme_interfazgrafica.data
 import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
+import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
@@ -193,11 +194,17 @@ interface RetrofitService {
     ): Response<ActividadDTO>
 
 
+    @POST("/Comunidad/crearComunidad")
+    suspend fun crearComunidad(
+        @Header("Authorization") token: String,
+        @Body comunidadCreateDTO: ComunidadCreateDTO
+    ): Response<ComunidadDTO>
+
     @POST("/Actividad/crearActividad")
     suspend fun crearActividad(
         @Header("Authorization") token: String,
         @Body actividadCreateDTO: ActividadCreateDTO
-    ): Response<ActividadCreateDTO>
+    ): Response<ActividadDTO>
 
     @DELETE("/Comunidad/eliminarComunidad/{url}")
     suspend fun eliminarComunidad(

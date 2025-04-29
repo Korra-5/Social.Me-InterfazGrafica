@@ -21,6 +21,7 @@ import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.screens.ActividadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.BusquedaScreen
 import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
+import com.example.socialme_interfazgrafica.screens.CrearComunidadScreen
 import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.ModificarComunidadScreen
@@ -46,6 +47,10 @@ fun AppNavigation(viewModel: UserViewModel) {
     NavHost(navController = navController, startDestination = AppScreen.InicioSesionScreen.route) {
         composable(AppScreen.InicioSesionScreen.route) {
             InicioSesionScreen(navController, viewModel)
+        }
+
+        composable(AppScreen.CrearComunidadScreen.route) {
+            CrearComunidadScreen(navController)
         }
 
         composable(AppScreen.RegistroUsuarioScreen.route) {

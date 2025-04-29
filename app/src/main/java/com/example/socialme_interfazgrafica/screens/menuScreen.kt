@@ -1341,7 +1341,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController) 
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Función para cargar las comunidades
-    fun cargarComunidades() {
+    fun cargarTodasComunidades() {
         scope.launch {
             isLoading = true
             errorMessage = null
@@ -1388,7 +1388,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController) 
 
     // Cargar comunidades cuando se inicializa el componente
     LaunchedEffect(username) {
-        cargarComunidades()
+        cargarTodasComunidades()
     }
 
     Column(
@@ -1437,7 +1437,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController) 
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = { cargarComunidades() },
+                            onClick = { cargarTodasComunidades() },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
                             )

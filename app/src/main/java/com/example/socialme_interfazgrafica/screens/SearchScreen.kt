@@ -43,7 +43,6 @@ enum class SearchType {
     COMMUNITIES,
     USERS
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BusquedaScreen(
@@ -58,6 +57,9 @@ fun BusquedaScreen(
     var comunidades by remember { mutableStateOf<List<ComunidadDTO>>(emptyList()) }
     var usuarios by remember { mutableStateOf<List<UsuarioDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var showJoinDialog by remember { mutableStateOf(false) }
+    var joinCode by remember { mutableStateOf("") }
+
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken= sharedPreferences.getString("TOKEN", "") ?: ""
@@ -68,7 +70,6 @@ fun BusquedaScreen(
         SearchType.COMMUNITIES,
         SearchType.USERS
     )
-
 
     // Función para cargar datos según el tipo seleccionado
     fun loadData(searchType: SearchType) {
@@ -103,6 +104,61 @@ fun BusquedaScreen(
                 isLoading = false
             }
         }
+    }
+
+    // Diálogo para introducir código de unión
+    if (showJoinDialog) {
+        AlertDialog(
+            onDismissRequest = { showJoinDialog = false },
+            title = { Text("Unirse a comunidad") },
+            text = {
+                Column {
+                    Text("Inserte código de unión a la comunidad")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = joinCode,
+                        onValueChange = { joinCode = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = colorResource(R.color.cyanSecundario),
+                            unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Implementar lógica para unirse con el código
+                        coroutineScope.launch {
+                            try {
+                                // Aquí iría la llamada a la API para unirse con el código
+                                // Por ejemplo: retrofitService.unirseConCodigo(token, joinCode)
+                                showJoinDialog = false
+                                joinCode = ""
+                            } catch (e: Exception) {
+                                // Manejar error al unirse
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.cyanSecundario)
+                    )
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showJoinDialog = false
+                        joinCode = ""
+                    }
+                ) {
+                    Text("Cancelar", color = colorResource(R.color.cyanSecundario))
+                }
+            }
+        )
     }
 
     // Cargar datos iniciales
@@ -207,7 +263,7 @@ fun BusquedaScreen(
                                 ActividadItem(
                                     actividad = actividad,
                                     authToken = authToken,
-                                    navController = navController // Pasar el navController
+                                    navController = navController
                                 )
                             }
                         }
@@ -225,7 +281,7 @@ fun BusquedaScreen(
                                 ComunidadItem(
                                     comunidad = comunidad,
                                     authToken = authToken,
-                                    navController = navController // Pasar el navController
+                                    navController = navController
                                 )
                             }
                         }
@@ -249,14 +305,29 @@ fun BusquedaScreen(
                             }
                         }
                     }
-            }
-
+                }
 
                 // Bottom Navigation Bar
                 BottomNavBar(
                     navController = navController,
                 )
             }
+        }
+
+        // Botón flotante para introducir código de unión
+        FloatingActionButton(
+            onClick = { showJoinDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = colorResource(R.color.cyanSecundario),
+            contentColor = Color.White
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lock),
+                contentDescription = "Código de unión",
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -569,6 +640,6 @@ fun UsuarioSearchItem(
                     )
                 }
             }
-            }
         }
     }
+}
