@@ -1,11 +1,14 @@
 package com.example.socialme_interfazgrafica.screens
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,14 +38,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -53,10 +60,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,8 +75,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -74,10 +87,15 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
 import com.example.socialme_interfazgrafica.data.RetrofitService
+import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import java.io.ByteArrayOutputStream
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -109,11 +127,49 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     val showDeleteConfirmation = remember { mutableStateOf(false) }
     val isDeleting = remember { mutableStateOf(false) }
 
+    // Estado para el mapa y coordenadas
+    var mapView by remember { mutableStateOf<MapView?>(null) }
+    var ubicacionSeleccionada by remember { mutableStateOf<GeoPoint?>(null) }
+    var marker by remember { mutableStateOf<Marker?>(null) }
+    var isMapExpanded by remember { mutableStateOf(false) }
+    var isLoadingLocation by remember { mutableStateOf(false) }
+
     // Estados para manejo de imágenes
     val fotoPerfilBase64 = remember { mutableStateOf<String?>(null) }
     val fotoPerfilUri = remember { mutableStateOf<Uri?>(null) }
     val fotosCarruselBase64 = remember { mutableStateOf<List<String>>(emptyList()) }
     val fotosCarruselUri = remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+
+    // Estado para controlar los permisos
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    // Lanzador para solicitar permisos de ubicación
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasLocationPermission = isGranted
+        if (isGranted) {
+            obtenerUbicacionActual(context) { location ->
+                val geoPoint = GeoPoint(location.latitude, location.longitude)
+                ubicacionSeleccionada = geoPoint
+                mapView?.let { actualizarMarcador(it, geoPoint) }
+            }
+        } else {
+            Toast.makeText(
+                context,
+                "Se necesitan permisos de ubicación para mostrar tu ubicación actual",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     // Carga inicial de datos de la comunidad
     LaunchedEffect(comunidadUrl) {
@@ -378,6 +434,153 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 unfocusedBorderColor = Color.Gray
                             )
                         )
+
+
+                        // Sección del mapa
+                        Text(
+                            text = "Ubicación",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (isMapExpanded) 300.dp else 200.dp)
+                                .clickable { isMapExpanded = !isMapExpanded },
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                // Configuración y visualización del mapa
+                                DisposableEffect(Unit) {
+                                    val map = MapView(context).apply {
+                                        setMultiTouchControls(true)
+                                        setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+
+                                        // Configurar el controlador del mapa
+                                        controller.setZoom(15.0)
+
+                                        // Posición inicial (Madrid como ejemplo)
+                                        val startPoint = GeoPoint(40.416775, -3.703790)
+                                        controller.setCenter(startPoint)
+
+                                        // Configurar listener para clics en el mapa
+                                        overlays.add(object : Overlay() {
+                                            override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
+                                                mapView?.let {
+                                                    val projection = it.projection
+                                                    val geoPoint = projection.fromPixels(
+                                                        e?.x?.toInt() ?: 0,
+                                                        e?.y?.toInt() ?: 0
+                                                    ) as GeoPoint
+                                                    ubicacionSeleccionada = geoPoint
+                                                    actualizarMarcador(it, geoPoint)
+                                                }
+                                                return true
+                                            }
+                                        })
+                                    }
+
+                                    mapView = map
+
+                                    // Intentar obtener la ubicación actual si tenemos permisos
+                                    if (hasLocationPermission) {
+                                        obtenerUbicacionActual(context) { location ->
+                                            val geoPoint = GeoPoint(location.latitude, location.longitude)
+                                            ubicacionSeleccionada = geoPoint
+                                            actualizarMarcador(map, geoPoint)
+                                        }
+                                    }
+
+                                    onDispose {
+                                        map.onDetach()
+                                    }
+                                }
+
+                                // Vista del mapa
+                                mapView?.let { map ->
+                                    AndroidView(
+                                        factory = { map },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // Botón para obtener ubicación actual
+                                FloatingActionButton(
+                                    onClick = {
+                                        if (hasLocationPermission) {
+                                            obtenerUbicacionActual(context) { location ->
+                                                val geoPoint = GeoPoint(location.latitude, location.longitude)
+                                                ubicacionSeleccionada = geoPoint
+                                                mapView?.let { actualizarMarcador(it, geoPoint) }
+                                            }
+                                        } else {
+                                            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(16.dp)
+                                        .size(48.dp),
+                                    containerColor = colorResource(R.color.azulPrimario)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Call,
+                                        contentDescription = "Mi ubicación",
+                                        tint = Color.White
+                                    )
+                                }
+
+                                // Indicador de carga de ubicación
+                                if (isLoadingLocation) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(50.dp)
+                                            .align(Alignment.Center),
+                                        color = colorResource(R.color.azulPrimario)
+                                    )
+                                }
+
+                                // Ícono para expandir/contraer el mapa
+                                IconButton(
+                                    onClick = { isMapExpanded = !isMapExpanded },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(32.dp)
+                                        .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                                ) {
+                                    Icon(
+                                        if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
+                                        contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
+                                        tint = colorResource(R.color.azulPrimario)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Mostrar coordenadas seleccionadas
+                        ubicacionSeleccionada?.let { ubicacion ->
+                            Text(
+                                text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } ?: run {
+                            Text(
+                                text = "Toca en el mapa para seleccionar una ubicación o usa el botón de ubicación actual",
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
 
                         // Switch para comunidad privada
                         Row(
@@ -766,6 +969,13 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     return@Button
                                 }
 
+                                val coordenadas = ubicacionSeleccionada?.let {
+                                    Coordenadas(
+                                        latitud = it.latitude.toString(),
+                                        longitud = it.longitude.toString()
+                                    )
+                                }
+
                                 // Log de los datos que se van a enviar
                                 Log.d("ModificarComunidad", "Enviando datos: nombre=${nombre.value}, desc=${descripcion.value}")
                                 Log.d("ModificarComunidad", "¿Hay foto de perfil base64? ${fotoPerfilBase64.value != null}")
@@ -787,7 +997,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     fotoCarruselBase64 = if (fotosCarruselBase64.value.isNotEmpty()) fotosCarruselBase64.value else null,
                                     fotoCarruselIds = comunidadOriginal.value?.fotoCarruselIds,
                                     administradores = administradores.value,
-                                    privada = isPrivada.value
+                                    privada = isPrivada.value,
+                                    coordenadas=coordenadas
                                 )
 
 // Añadir logs para depuración

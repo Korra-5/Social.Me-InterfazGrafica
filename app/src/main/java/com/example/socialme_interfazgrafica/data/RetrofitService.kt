@@ -52,12 +52,26 @@ interface RetrofitService {
         @Path("username") username: String
     ): Response<List<ActividadDTO>>
 
-    @GET("Actividad/verActividadesPublicasEnZona")
+    @GET("/Actividad/verActividadesPublicasEnZona/{distanciaKm}/{username}")
     suspend fun verActividadesPublicas(
-        @Header("Authorization") token: String
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("distanciaKm") distanciaKm: Float
     ): Response<List<ActividadDTO>>
 
-    @GET("Comunidad/verTodasComunidades")
+    @GET("/Comunidad/verComunidadesPublicas/{distanciaKm}/{username}")
+    suspend fun verComunidadesPublicas(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("distanciaKm") distanciaKm: Float
+    ): Response<List<ComunidadDTO>>
+
+    @GET("/Actividad/verTodasActividadesPublicas")
+    suspend fun verTodasActividadesPublicas(
+        @Header("Authorization") token: String,
+    ): Response<List<ActividadDTO>>
+
+    @GET("/Comunidad/verTodasComunidadesPublicas")
     suspend fun verTodasComunidadesPublicas(
         @Header("Authorization") token: String,
     ): Response<List<ComunidadDTO>>

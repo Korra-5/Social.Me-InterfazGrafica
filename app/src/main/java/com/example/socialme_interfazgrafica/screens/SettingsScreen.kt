@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,23 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import kotlin.math.roundToInt
+
+// Objeto para almacenar constantes de SharedPreferences
+object PreferenciasUsuario {
+    const val SHARED_PREFS_NAME = "UserPrefs"
+    const val DISTANCIA_KEY = "RADAR_DISTANCIA"
+
+    // Otras claves que podrías necesitar
+    const val TOKEN_KEY = "TOKEN"
+    const val USERNAME_KEY = "USERNAME"
+    const val ROLE_KEY = "ROLE"
+
+    // Función de utilidad para obtener la distancia desde cualquier parte del código
+    fun getDistanciaRadar(context: Context): Int {
+        val sharedPreferences = context.getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getFloat(DISTANCIA_KEY, 50f).roundToInt()
+    }
+}
 
 @Composable
 fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
@@ -449,8 +467,27 @@ fun ComunidadesSection(navController: NavController) {
 @Composable
 fun RadarDistanciaSection() {
     var expandedRadar by remember { mutableStateOf(false) }
-    var sliderPosition by remember { mutableFloatStateOf(50f) }
+    val context = LocalContext.current
+
+    // Cargar el valor guardado en SharedPreferences
+    val sharedPreferences = remember {
+        context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    val valorGuardado = sharedPreferences.getFloat(PreferenciasUsuario.DISTANCIA_KEY, 50f)
+
+    // Inicializar el slider con el valor guardado
+    var sliderPosition by remember { mutableFloatStateOf(valorGuardado) }
     val distanciaKm = sliderPosition.roundToInt()
+
+    // Guardar el valor cuando cambia
+    DisposableEffect(distanciaKm) {
+        with(sharedPreferences.edit()) {
+            putFloat(PreferenciasUsuario.DISTANCIA_KEY, sliderPosition)
+            apply()
+        }
+
+        onDispose { }
+    }
 
     Column {
         Row(
@@ -484,7 +521,14 @@ fun RadarDistanciaSection() {
             ) {
                 Slider(
                     value = sliderPosition,
-                    onValueChange = { sliderPosition = it },
+                    onValueChange = { newValue ->
+                        sliderPosition = newValue
+                        // Guardar en SharedPreferences cuando cambia el valor
+                        with(sharedPreferences.edit()) {
+                            putFloat(PreferenciasUsuario.DISTANCIA_KEY, newValue)
+                            apply()
+                        }
+                    },
                     valueRange = 10f..100f,
                     steps = 9,  // Crear 9 pasos para tener intervalos de 10 km
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -535,7 +579,7 @@ fun OptionItem(text: String, onClick: () -> Unit) {
  */
 private fun cerrarSesion(context: Context, navController: NavController, viewModel: UserViewModel) {
     // 1. Limpiar datos de SharedPreferences
-    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
     with(sharedPreferences.edit()) {
         clear() // Elimina todos los datos almacenados
         apply()

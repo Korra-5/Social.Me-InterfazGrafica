@@ -10,6 +10,7 @@ class ActividadUpdateDTO(
     val fotosCarruselIds: List<String>? = null,     // Used if files already uploaded
     val fechaInicio: Date,
     val fechaFinalizacion: Date,
-    val lugar: String,
+    val coordenadas: Coordenadas?,
+    var lugar: String
 ) {
 }

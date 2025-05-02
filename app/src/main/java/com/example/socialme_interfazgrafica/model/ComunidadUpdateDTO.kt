@@ -12,5 +12,7 @@ data class ComunidadUpdateDTO(
     val fotoCarruselBase64: List<String>? = null,
     val fotoCarruselIds: List<String>? = null,
     val administradores: List<String>?,
-    val privada: Boolean
+    val privada: Boolean,
+    val coordenadas: Coordenadas?,  // Coordenadas geográficas
+
 )

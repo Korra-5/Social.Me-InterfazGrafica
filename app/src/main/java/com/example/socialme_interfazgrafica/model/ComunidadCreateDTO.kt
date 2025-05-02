@@ -9,7 +9,9 @@ class ComunidadCreateDTO(
     val fotoPerfilId: String? = null,      // Used if file already uploaded
     val creador: String,
     val comunidadGlobal: Boolean,
-    val privada: Boolean
+    val privada: Boolean,
+    val coordenadas: Coordenadas?,  // Coordenadas geográficas
+
 ) {
 
 }

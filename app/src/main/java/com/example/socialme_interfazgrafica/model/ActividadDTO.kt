@@ -3,7 +3,7 @@ package com.example.socialme_interfazgrafica.model
 import java.util.Date
 
 class ActividadDTO(
-    val _id:String,
+    val _id: String,
     val nombre: String,
     val descripcion: String,
     val privada: Boolean,
@@ -11,6 +11,7 @@ class ActividadDTO(
     val fechaInicio: Date,
     val fechaFinalizacion: Date,
     val fotosCarruselIds: List<String>,
-    val lugar: String,
+    val coordenadas: Coordenadas,
+    var lugar: String
 ){
 }

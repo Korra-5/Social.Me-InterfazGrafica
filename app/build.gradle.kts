@@ -53,6 +53,10 @@ dependencies {
     implementation(libs.androidx.runtime.livedata)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.play.services.cast.framework)
+    implementation(libs.androidx.compiler)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+    implementation(libs.firebase.firestore.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -71,6 +75,17 @@ dependencies {
     implementation ("io.coil-kt:coil-compose-base:2.4.0")
 
     implementation ("com.google.accompanist:accompanist-flowlayout:0.28.0")
+    implementation ("org.osmdroid:osmdroid-android:6.1.17")
+    implementation ("org.osmdroid:osmdroid-mapsforge:6.1.17")
+    implementation ("org.osmdroid:osmdroid-geopackage:6.1.17")
 
+    // Si necesitas formatos de tiles adicionales
+    implementation ("org.osmdroid:osmdroid-wms:6.1.17")
+
+    // Para compatibilidad con Mapquest, etc.
+    implementation ("org.osmdroid:osmdroid-third-party:6.1.17")
+
+    // Para geocodificación (opcional)
+    implementation ("com.github.MKergall:osmbonuspack:6.9.0")
 
 }

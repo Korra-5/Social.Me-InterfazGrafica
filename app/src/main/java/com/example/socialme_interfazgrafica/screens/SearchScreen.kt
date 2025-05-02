@@ -78,7 +78,7 @@ fun BusquedaScreen(
             try {
                 when (searchType) {
                     SearchType.ACTIVITIES -> {
-                        val response = retrofitService.verActividadesPublicas(token)
+                        val response = retrofitService.verTodasActividadesPublicas(token)
                         if (response.isSuccessful) {
                             actividades = response.body() ?: emptyList()
                         }

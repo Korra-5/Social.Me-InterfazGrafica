@@ -53,12 +53,14 @@ import java.util.concurrent.TimeUnit
 fun MenuScreen(navController: NavController) {
     val context = LocalContext.current
     val username = remember { mutableStateOf("") }
+    val radar = remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
 
     // Recuperar datos guardados
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
+        radar.value=sharedPreferences.getString("RADAR_DISTANCIA","") ?:""
     }
 
     Box(
@@ -93,7 +95,8 @@ fun MenuScreen(navController: NavController) {
             }
 
             if (username.value.isNotEmpty()){
-                VerTodasComunidadesCarrousel(username=username.value,navController)
+                VerTodasComunidadesCarrousel(username=username.value,navController, radar.toString()
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -107,7 +110,7 @@ fun MenuScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (username.value.isNotEmpty()){
-                CarrouselActividadesEnZona(username=username.value,navController)
+                CarrouselActividadesEnZona(username=username.value,navController, radar.toString())
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -665,7 +668,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
 }
 
 @Composable
-fun CarrouselActividadesEnZona(username: String, navController:NavController){
+fun CarrouselActividadesEnZona(username: String, navController:NavController, radar:String){
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -695,7 +698,7 @@ fun CarrouselActividadesEnZona(username: String, navController:NavController){
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 Log.d("CarrouselActividadesEnZona", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadesPublicas(authToken)
+                val response = apiService.verActividadesPublicas(authToken, username, radar.toFloat())
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -1331,7 +1334,7 @@ fun UserProfileHeader(username: String, navController: NavController) {
 
 
 @Composable
-fun VerTodasComunidadesCarrousel(username: String,navController: NavController) {
+fun VerTodasComunidadesCarrousel(username: String,navController: NavController, radar:String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -1359,7 +1362,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController) 
 
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
-                val response = apiService.verTodasComunidadesPublicas(authToken)
+                val response = apiService.verComunidadesPublicas(authToken, username, radar.toFloat())
 
                 if (response.isSuccessful) {
                     comunidades = response.body() ?: emptyList()
