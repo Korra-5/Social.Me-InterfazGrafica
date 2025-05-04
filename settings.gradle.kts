@@ -16,9 +16,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Añadir el repositorio JitPack para osmbonuspack
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
 rootProject.name = "Social.Me-InterfazGrafica"
 include(":app")
- 

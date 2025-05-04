@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import com.google.accompanist.flowlayout.FlowRow
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsuarioDetallesScreen(navController: NavController, username: String) {

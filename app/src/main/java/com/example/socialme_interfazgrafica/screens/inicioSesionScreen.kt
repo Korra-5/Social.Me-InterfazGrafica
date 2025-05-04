@@ -296,7 +296,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                     Button(
                         onClick = {
                             if (username.isNotEmpty() && password.isNotEmpty()) {
-                                viewModel.login(username, password)
+                                viewModel.login(context, username, password)
                             } else {
                                 errorMessage = "Por favor, completa todos los campos"
                             }

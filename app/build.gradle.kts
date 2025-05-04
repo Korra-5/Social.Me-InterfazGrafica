@@ -68,24 +68,23 @@ dependencies {
     implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
-        // Coil Compose
+    // Coil Compose
     implementation ("io.coil-kt:coil-compose:2.4.0")
 
-        // Optional: If you want to support loading images from URLs
+    // Optional: If you want to support loading images from URLs
     implementation ("io.coil-kt:coil-compose-base:2.4.0")
 
     implementation ("com.google.accompanist:accompanist-flowlayout:0.28.0")
+
+    // Librería principal OSMDroid
     implementation ("org.osmdroid:osmdroid-android:6.1.17")
-    implementation ("org.osmdroid:osmdroid-mapsforge:6.1.17")
-    implementation ("org.osmdroid:osmdroid-geopackage:6.1.17")
 
-    // Si necesitas formatos de tiles adicionales
-    implementation ("org.osmdroid:osmdroid-wms:6.1.17")
+    // Eliminadas las siguientes dependencias que no están disponibles o han cambiado:
+    // implementation ("org.osmdroid:osmdroid-mapsforge:6.1.17")
+    // implementation ("org.osmdroid:osmdroid-geopackage:6.1.17")
+    // implementation ("org.osmdroid:osmdroid-wms:6.1.17")
+    // implementation ("org.osmdroid:osmdroid-third-party:6.1.17")
 
-    // Para compatibilidad con Mapquest, etc.
-    implementation ("org.osmdroid:osmdroid-third-party:6.1.17")
-
-    // Para geocodificación (opcional)
+    // Para geocodificación y funcionalidades adicionales
     implementation ("com.github.MKergall:osmbonuspack:6.9.0")
-
 }
