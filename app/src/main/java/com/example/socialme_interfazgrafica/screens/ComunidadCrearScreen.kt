@@ -676,7 +676,8 @@ fun CrearComunidadScreen(navController: NavController) {
                                             creador = username,
                                             comunidadGlobal = comunidadGlobal,
                                             privada = privada,
-                                            coordenadas = coordenadas // Incluir las coordenadas
+                                            coordenadas = coordenadas, // Incluir las coordenadas
+                                            codigoUnion=null
                                         )
 
                                         val response = retrofitService.crearComunidad(

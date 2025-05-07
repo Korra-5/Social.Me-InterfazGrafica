@@ -13,6 +13,8 @@ import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
+import com.example.socialme_interfazgrafica.model.UsuarioUpdateDTO
+import com.example.socialme_interfazgrafica.model.VerificacionDTO
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -117,6 +119,13 @@ interface RetrofitService {
         @Header("Authorization") token: String,
     ): Response<RegistroResponse>
 
+    @POST("/Comunidad/unirseComunidadPorCodigo/{codigo}")
+    suspend fun unirseComunidadPorCodigo(
+        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
+        @Path("codigo") codigo: String,
+        @Header("Authorization") token: String
+    ): Response<RegistroResponse>
+
     @POST("/Comunidad/booleanUsuarioApuntadoComunidad")
     suspend fun booleanUsuarioApuntadoComunidad(
         @Body participantesComunidadDTO: ParticipantesComunidadDTO,
@@ -187,7 +196,6 @@ interface RetrofitService {
         @Path("idActividad") idActvidad: String
     ): Response<Boolean>
 
-
     @PUT("Comunidad/modificarComunidad")
     suspend fun modificarComunidad(
         @Header("Authorization") token: String,
@@ -225,6 +233,23 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("url") url:String
     ): Response<ActividadCreateDTO>
+
+    @PUT("/Usuario/modificarUsuario")
+    suspend fun modificarUsuario(
+        @Header("Authorization") token: String,
+        @Body usuarioUpdateDTO: UsuarioUpdateDTO
+    ): Response<ActividadCreateDTO>
+
+    // Añadir a tu RetrofitService.kt
+    @POST("/Usuario/verificarCodigo")
+    suspend fun verificarCodigo(
+        @Body verificacionDTO: VerificacionDTO
+    ): Response<Boolean>
+
+    @GET("/Usuario/reenviarCodigo/{email}")
+    suspend fun reenviarCodigo(
+        @Path("email") email: String
+    ): Response<Boolean>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

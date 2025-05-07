@@ -19,6 +19,7 @@ import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
+import com.example.socialme_interfazgrafica.model.VerificacionDTO
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -180,7 +181,7 @@ class UserViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     Log.d("RegistroVM", "Registro exitoso: ${response.body()}")
                     _registroState.value = RegistroState.Success(response.body()!!)
-                } else {
+                    // No navegar
                     val errorBody = response.errorBody()?.string() ?: "Error desconocido"
                     Log.e("RegistroVM", "Error en registro: Código ${response.code()}, Mensaje: $errorBody")
                     _registroState.value = RegistroState.Error(response.code(), errorBody)
@@ -278,4 +279,31 @@ class UserViewModel : ViewModel() {
 
         Log.d("UserViewModel", "Estado de login reseteado correctamente")
     }
+
+
+
+fun verificarCodigo(email: String, codigo: String, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+        try {
+            val verificacionDTO = VerificacionDTO(email = email, codigo = codigo)
+            val response = apiService.verificarCodigo(verificacionDTO)
+            onComplete(response.isSuccessful && response.body() == true)
+        } catch (e: Exception) {
+            Log.e("UserViewModel", "Error al verificar código: ${e.message}")
+            onComplete(false)
+        }
+    }
+}
+
+fun reenviarCodigo(email: String, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+        try {
+            val response = apiService.reenviarCodigo(email)
+            onComplete(response.isSuccessful && response.body() == true)
+        } catch (e: Exception) {
+            Log.e("UserViewModel", "Error al reenviar código: ${e.message}")
+            onComplete(false)
+        }
+    }
+}
 }

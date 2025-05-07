@@ -53,4 +53,16 @@ sealed class AppScreen(val route: String) {
             return "modificar_actividad/$idActividad"
         }
     }
+
+    object ModificarUsuarioScreen : AppScreen("modificar_usuario/{username}") {
+        fun createRoute(username: String): String {
+            return "modificar_usuario/$username"
+        }
+    }
+
+    object EmailVerificationScreen : AppScreen("email_verification/{email}/{username}/{isRegistration}") {
+        fun createRoute(email: String, username: String, isRegistration: Boolean): String {
+            return "email_verification/$email/$username/$isRegistration"
+        }
+    }
 }

@@ -44,6 +44,7 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
+import com.example.socialme_interfazgrafica.screens.PreferenciasUsuario.getDistanciaRadar
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -60,8 +61,8 @@ fun MenuScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
-        radar.value=sharedPreferences.getString("RADAR_DISTANCIA","") ?:""
-    }
+
+        radar.value = getDistanciaRadar(context).toString()    }
 
     Box(
         modifier = Modifier
@@ -667,173 +668,6 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
     }
 }
 
-@Composable
-fun CarrouselActividadesEnZona(username: String, navController:NavController, radar:String){
-
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
-
-    var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Función para cargar las actividades
-    fun cargarActividadesPublicasEnTuZona(navController:NavController) {
-        scope.launch {
-            isLoading = true
-            errorMessage = null
-            try {
-                // Obtener el token desde SharedPreferences
-                val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("TOKEN", "") ?: ""
-
-                if (token.isEmpty()) {
-                    Log.e("CarrouselActividadesEnZona", "Token vacío, no se puede proceder")
-                    errorMessage = "No se ha encontrado un token de autenticación"
-                    isLoading = false
-                    return@launch
-                }
-
-                // Realizar la petición con el token formateado correctamente
-                val authToken = "Bearer $token"
-                Log.d("CarrouselActividadesEnZona", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadesPublicas(authToken, username, radar.toFloat())
-
-                if (response.isSuccessful) {
-                    val actividadesRecibidas = response.body() ?: emptyList()
-                    Log.d("CarrouselActividadesEnZona", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
-                    actividades = actividadesRecibidas
-                } else {
-                    // Tratamiento especial para el error 500 cuando no hay actividades
-                    if (response.code() == 500) {
-                        // Asumimos que es porque el usuario no tiene actividades
-                        Log.w("CarrouselActividadesEnZona", "Código 500 recibido, asumiendo lista vacía")
-                        actividades = emptyList()
-                    } else {
-                        val errorCode = response.code()
-                        Log.e("CarrouselActividadesEnZona", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
-                        errorMessage = when (errorCode) {
-                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            404 -> "No se encontraron actividades publicas en esta zona."
-                            else -> "Error al cargar actividades: ${response.message()}"
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
-                Log.e("CarrouselActividadesEnZona", "Excepción al cargar actividades", e)
-                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
-            } finally {
-                isLoading = false
-                Log.d("CarrouselActividadesEnZona", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
-            }
-        }
-    }
-
-    // Cargar actividades cuando se inicializa el componente
-    LaunchedEffect(username) {
-        Log.d("CarrouselActividadesEnZona", "LaunchedEffect iniciado para usuario: $username")
-        cargarActividadesPublicasEnTuZona(navController)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp)
-    ) {
-        // Título de sección
-        Text(
-            text = "Actividades publicas en tu zona",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = colorResource(R.color.azulPrimario),
-            modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
-        )
-
-        // Mostrar estado de carga, error o el carrusel
-        when {
-            isLoading -> {
-                Log.d("CarrouselActividadesEnZona", "Mostrando indicador de carga")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = colorResource(R.color.azulPrimario)
-                    )
-                }
-            }
-            errorMessage != null -> {
-                Log.d("CarrouselActividadesEnZona", "Mostrando mensaje de error: $errorMessage")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = errorMessage!!,
-                            color = colorResource(R.color.error),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                Log.d("ActividadCarousel", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividadesPublicasEnTuZona(navController)
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colorResource(R.color.azulPrimario)
-                            )
-                        ) {
-                            Text("Intentar de nuevo")
-                        }
-                    }
-                }
-            }
-            actividades.isEmpty() -> {
-                Log.d("CarrouselActividadesEnZona", "Mostrando mensaje de lista vacía")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No participas en ninguna actividad",
-                        color = colorResource(R.color.textoSecundario),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-            else -> {
-                // Carrusel de actividades optimizado
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = actividades,
-                        key = { it.nombre }
-                    ) { actividad ->
-                        Log.d("CarrouselActividadesEnZona", "Cargando actividad: ${actividad.nombre}")
-                        ActividadCard(actividad = actividad, navController=navController)
-                    }
-                }
-            }
-        }
-    }
-}
-
 // Modified Activity Card with navigation
 @Composable
 fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
@@ -1332,9 +1166,9 @@ fun UserProfileHeader(username: String, navController: NavController) {
     }
 }
 
-
+// Componente actualizado para corregir el error de conversión del radar
 @Composable
-fun VerTodasComunidadesCarrousel(username: String,navController: NavController, radar:String) {
+fun VerTodasComunidadesCarrousel(username: String, navController: NavController, radar: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -1342,6 +1176,14 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController, 
     var comunidades by remember { mutableStateOf<List<ComunidadDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Extraer el valor numérico del radar de forma segura
+    val radarValue = try {
+        radar.toFloatOrNull() ?: 50f
+    } catch (e: Exception) {
+        Log.e("VerTodasComunidadesCarrousel", "Error al convertir radar: $radar", e)
+        50f // Valor predeterminado en caso de error
+    }
 
     // Función para cargar las comunidades
     fun cargarTodasComunidades() {
@@ -1362,7 +1204,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController, 
 
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
-                val response = apiService.verComunidadesPublicas(authToken, username, radar.toFloat())
+                val response = apiService.verComunidadesPublicas(authToken, username, radarValue)
 
                 if (response.isSuccessful) {
                     comunidades = response.body() ?: emptyList()
@@ -1374,7 +1216,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController, 
                     } else {
                         errorMessage = when (response.code()) {
                             401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            404 -> "No se encontraron comunidades para este usuario."
+                            404 -> "No se encontraron comunidades públicas en esta zona."
                             else -> "Error al cargar comunidades: ${response.message()}"
                         }
                     }
@@ -1401,7 +1243,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController, 
     ) {
         // Título de sección
         Text(
-            text = "Tus Comunidades",
+            text = "Comunidades públicas en tu zona",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = colorResource(R.color.azulPrimario),
@@ -1459,7 +1301,7 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController, 
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No perteneces a ninguna comunidad",
+                        text = "No hay comunidades públicas en tu zona",
                         color = colorResource(R.color.textoSecundario),
                         textAlign = TextAlign.Center
                     )
@@ -1476,6 +1318,181 @@ fun VerTodasComunidadesCarrousel(username: String,navController: NavController, 
                         key = { it.url }
                     ) { comunidad ->
                         ComunidadCard(comunidad = comunidad, navController = navController)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// También actualizamos este componente para mejorar el manejo del radar
+@Composable
+fun CarrouselActividadesEnZona(username: String, navController: NavController, radar: String) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+    var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Extraer el valor numérico del radar de forma segura
+    val radarValue = try {
+        radar.toFloatOrNull() ?: 50f
+    } catch (e: Exception) {
+        Log.e("CarrouselActividadesEnZona", "Error al convertir radar: $radar", e)
+        50f // Valor predeterminado en caso de error
+    }
+
+    // Función para cargar las actividades
+    fun cargarActividadesPublicasEnTuZona(navController: NavController) {
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+            try {
+                // Obtener el token desde SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+                if (token.isEmpty()) {
+                    Log.e("CarrouselActividadesEnZona", "Token vacío, no se puede proceder")
+                    errorMessage = "No se ha encontrado un token de autenticación"
+                    isLoading = false
+                    return@launch
+                }
+
+                // Realizar la petición con el token formateado correctamente
+                val authToken = "Bearer $token"
+                Log.d("CarrouselActividadesEnZona", "Realizando petición API con token: ${token.take(5)}...")
+                val response = apiService.verActividadesPublicas(authToken, username, radarValue)
+
+                if (response.isSuccessful) {
+                    val actividadesRecibidas = response.body() ?: emptyList()
+                    Log.d("CarrouselActividadesEnZona", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
+                    actividades = actividadesRecibidas
+                } else {
+                    // Tratamiento especial para el error 500 cuando no hay actividades
+                    if (response.code() == 500) {
+                        // Asumimos que es porque el usuario no tiene actividades
+                        Log.w("CarrouselActividadesEnZona", "Código 500 recibido, asumiendo lista vacía")
+                        actividades = emptyList()
+                    } else {
+                        val errorCode = response.code()
+                        Log.e("CarrouselActividadesEnZona", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
+                        errorMessage = when (errorCode) {
+                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                            404 -> "No se encontraron actividades públicas en esta zona."
+                            else -> "Error al cargar actividades: ${response.message()}"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Mostrar un mensaje más específico en caso de error de conexión
+                Log.e("CarrouselActividadesEnZona", "Excepción al cargar actividades", e)
+                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                e.printStackTrace() // Imprime la traza completa para depuración
+            } finally {
+                isLoading = false
+                Log.d("CarrouselActividadesEnZona", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
+            }
+        }
+    }
+
+    // Cargar actividades cuando se inicializa el componente
+    LaunchedEffect(username) {
+        Log.d("CarrouselActividadesEnZona", "LaunchedEffect iniciado para usuario: $username")
+        cargarActividadesPublicasEnTuZona(navController)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+    ) {
+        // Título de sección
+        Text(
+            text = "Actividades públicas en tu zona",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorResource(R.color.azulPrimario),
+            modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
+        )
+
+        // Mostrar estado de carga, error o el carrusel
+        when {
+            isLoading -> {
+                Log.d("CarrouselActividadesEnZona", "Mostrando indicador de carga")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = colorResource(R.color.azulPrimario)
+                    )
+                }
+            }
+            errorMessage != null -> {
+                Log.d("CarrouselActividadesEnZona", "Mostrando mensaje de error: $errorMessage")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = errorMessage!!,
+                            color = colorResource(R.color.error),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                Log.d("ActividadCarousel", "Botón 'Intentar de nuevo' pulsado")
+                                cargarActividadesPublicasEnTuZona(navController)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.azulPrimario)
+                            )
+                        ) {
+                            Text("Intentar de nuevo")
+                        }
+                    }
+                }
+            }
+            actividades.isEmpty() -> {
+                Log.d("CarrouselActividadesEnZona", "Mostrando mensaje de lista vacía")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No hay actividades públicas en tu zona",
+                        color = colorResource(R.color.textoSecundario),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            else -> {
+                // Carrusel de actividades optimizado
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        items = actividades,
+                        key = { it.nombre }
+                    ) { actividad ->
+                        Log.d("CarrouselActividadesEnZona", "Cargando actividad: ${actividad.nombre}")
+                        ActividadCard(actividad = actividad, navController=navController)
                     }
                 }
             }

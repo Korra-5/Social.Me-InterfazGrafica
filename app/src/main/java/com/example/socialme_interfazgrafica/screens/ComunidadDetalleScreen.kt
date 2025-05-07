@@ -32,6 +32,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,9 +59,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -92,11 +97,13 @@ import okhttp3.OkHttpClient
 import retrofit2.Response
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navController: NavController) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     // Estado para controlar si el usuario está participando en la comunidad
     val isUserParticipating = remember { mutableStateOf(false) }
@@ -113,6 +120,9 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     // Estado para controlar si el usuario es creador o administrador
     val isCreadorOAdmin = remember { mutableStateOf(false) }
     val isLoadingVerificacion = remember { mutableStateOf(true) }
+
+    // Estado para el diálogo del código de unión
+    val showCodigoUnionDialog = remember { mutableStateOf(false) }
 
     // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
@@ -201,7 +211,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         isCreadorOAdmin.value = response.isSuccessful && response.body() == true
                     }
                 }
-                }
+            }
         } catch (e: Exception) {
             Log.e("ComunidadDetalle", "Error verificando permisos: ${e.message}")
         } finally {
@@ -230,6 +240,73 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
     // Formatear fecha de creación
     val fechaCreacion = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(comunidad.fechaCreacion)
+
+    // Mostrar diálogo de código de unión si está activo
+    if (showCodigoUnionDialog.value && comunidad.codigoUnion != null) {
+        AlertDialog(
+            onDismissRequest = { showCodigoUnionDialog.value = false },
+            title = { Text("Código de unión") },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Comparte este código para que otros usuarios puedan unirse a esta comunidad privada:",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = colorResource(R.color.cyanSecundario).copy(alpha = 0.3f)
+                        ),
+                        border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = comunidad.codigoUnion,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorResource(R.color.azulPrimario),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Copiar al portapapeles
+                        clipboardManager.setText(AnnotatedString(comunidad.codigoUnion))
+                        Toast.makeText(context, "Código copiado al portapapeles", Toast.LENGTH_SHORT).show()
+                        showCodigoUnionDialog.value = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario)
+                    )
+                ) {
+                    Text("Copiar código")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCodigoUnionDialog.value = false }
+                ) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -269,7 +346,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                 }
 
-                // Botón de retroceso en la esquina superior
+                // Botón de retroceso en la esquina superior izquierda
                 IconButton(
                     onClick = { navController.popBackStack() },
                     modifier = Modifier
@@ -283,6 +360,24 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         contentDescription = "Volver",
                         tint = colorResource(R.color.azulPrimario),
                     )
+                }
+
+                // Nuevo botón de código de unión si la comunidad es privada
+                if (comunidad.privada && comunidad.codigoUnion != null) {
+                    IconButton(
+                        onClick = { showCodigoUnionDialog.value = true },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .size(36.dp)
+                            .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = "Código de unión",
+                            tint = colorResource(R.color.azulPrimario),
+                        )
+                    }
                 }
             }
 

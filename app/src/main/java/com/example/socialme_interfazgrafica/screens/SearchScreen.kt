@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +36,8 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
+import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -59,10 +64,14 @@ fun BusquedaScreen(
     var isLoading by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) }
     var joinCode by remember { mutableStateOf("") }
+    var urlcomunidad by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showError by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-    val authToken= sharedPreferences.getString("TOKEN", "") ?: ""
+    val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
+    val username = sharedPreferences.getString("USERNAME", "") ?: ""
     val token = "Bearer $authToken"
 
     val tabs = listOf(
@@ -100,6 +109,8 @@ fun BusquedaScreen(
                 }
             } catch (e: Exception) {
                 // Manejar errores
+                errorMessage = "Error al cargar datos: ${e.message}"
+                showError = true
             } finally {
                 isLoading = false
             }
@@ -110,20 +121,65 @@ fun BusquedaScreen(
     if (showJoinDialog) {
         AlertDialog(
             onDismissRequest = { showJoinDialog = false },
-            title = { Text("Unirse a comunidad") },
+            title = {
+                Text(
+                    "Unirse a comunidad",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
             text = {
-                Column {
-                    Text("Inserte código de unión a la comunidad")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = joinCode,
-                        onValueChange = { joinCode = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = colorResource(R.color.cyanSecundario),
-                            unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = colorResource(R.color.cyanSecundario),
+                            shape = RoundedCornerShape(8.dp)
                         )
-                    )
+                        .padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Primer campo - URL de la comunidad
+                        Column {
+                            Text(
+                                "Inserte url de la comunidad",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = urlcomunidad,
+                                onValueChange = { urlcomunidad = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    focusedBorderColor = colorResource(R.color.cyanSecundario),
+                                    unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                                ),
+                                singleLine = true
+                            )
+                        }
+
+                        // Segundo campo - Código de unión
+                        Column {
+                            Text(
+                                "Inserte código de unión a la comunidad",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = joinCode,
+                                onValueChange = { joinCode = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    focusedBorderColor = colorResource(R.color.cyanSecundario),
+                                    unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                                ),
+                                singleLine = true
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -132,12 +188,79 @@ fun BusquedaScreen(
                         // Implementar lógica para unirse con el código
                         coroutineScope.launch {
                             try {
-                                // Aquí iría la llamada a la API para unirse con el código
-                                // Por ejemplo: retrofitService.unirseConCodigo(token, joinCode)
+                                // Cerrar el diálogo de unión
                                 showJoinDialog = false
-                                joinCode = ""
+
+                                // Mostrar un indicador de carga mientras se procesa la solicitud
+                                isLoading = true
+
+                                // Creamos el objeto ParticipantesComunidadDTO
+                                val participante = ParticipantesComunidadDTO(
+                                    username = username,
+                                    comunidad = urlcomunidad
+                                )
+
+                                val response = retrofitService.unirseComunidadPorCodigo(
+                                    participantesComunidadDTO = participante,
+                                    codigo = joinCode,
+                                    token = token
+                                )
+
+                                // Ocultar indicador de carga
+                                isLoading = false
+
+                                if (response.isSuccessful) {
+                                    // Si la unión fue exitosa, obtenemos el URL de la comunidad
+                                    val responseBody = response.body()
+                                    if (responseBody != null && responseBody.success) {
+                                        // Intentamos obtener la URL de la comunidad
+                                        val comunidadResponse = retrofitService.verComunidadPorUrl(token, urlcomunidad)
+                                        if (comunidadResponse.isSuccessful) {
+                                            val comunidad = comunidadResponse.body()
+                                            if (comunidad != null) {
+                                                joinCode = ""
+                                                urlcomunidad = ""
+                                                // Navegamos a la pantalla de detalle de la comunidad
+                                                navController.navigate("comunidad_detalle/${comunidad.url}")
+                                            } else {
+                                                // Error al obtener detalles de la comunidad
+                                                errorMessage = "No se pudo obtener la información de la comunidad"
+                                                showError = true
+                                            }
+                                        } else {
+                                            // Error en la respuesta del endpoint
+                                            val errorBody = comunidadResponse.errorBody()?.string()
+                                            errorMessage = if (errorBody != null && errorBody.isNotEmpty()) {
+                                                "Error: $errorBody"
+                                            } else {
+                                                "Error al obtener la comunidad: ${comunidadResponse.message()}"
+                                            }
+                                            showError = true
+                                        }
+                                    } else {
+                                        // El código de unión o la URL son incorrectos
+                                        errorMessage = responseBody?.message ?: "Error al unirse a la comunidad"
+                                        showError = true
+                                    }
+                                } else {
+                                    // Error en la API
+                                    val errorBody = response.errorBody()?.string()
+                                    errorMessage = if (errorBody != null && errorBody.isNotEmpty()) {
+                                        "Error: $errorBody"
+                                    } else {
+                                        "Error: ${response.message()}"
+                                    }
+                                    showError = true
+                                }
                             } catch (e: Exception) {
-                                // Manejar error al unirse
+                                // Error de conexión o excepción
+                                isLoading = false
+                                errorMessage = "Error al procesar la solicitud: ${e.message}"
+                                showError = true
+                            } finally {
+                                // Limpiar campos
+                                joinCode = ""
+                                urlcomunidad = ""
                             }
                         }
                     },
@@ -153,11 +276,43 @@ fun BusquedaScreen(
                     onClick = {
                         showJoinDialog = false
                         joinCode = ""
+                        urlcomunidad = ""
                     }
                 ) {
-                    Text("Cancelar", color = colorResource(R.color.cyanSecundario))
+                    Text("Cancelar")
                 }
             }
+        )
+    }
+
+    // Mostrar mensaje de error si es necesario
+    if (showError && errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { showError = false },
+            title = {
+                Text(
+                    "Error",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.Red
+                )
+            },
+            text = {
+                Text(
+                    text = errorMessage ?: "Ha ocurrido un error desconocido",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showError = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.cyanSecundario)
+                    )
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            containerColor = Color.White
         )
     }
 
@@ -439,25 +594,6 @@ fun ComunidadItem(
             .clickable {
                 // Dentro de la lambda de clickable, navegamos a la pantalla de detalle
                 navController.navigate("comunidad_detalle/${comunidad.url}")
-
-                // Alternativamente, si quieres llamar a la API directamente:
-                /*
-                coroutineScope.launch {
-                    try {
-                        val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
-                        val response = retrofitService.verComunidadPorUrl(authToken, comunidad.url)
-                        if (response.isSuccessful) {
-                            val comunidadDetalle = response.body()
-                            // Hacer algo con los datos de la comunidad
-                            // Por ejemplo, guardarlos en un ViewModel o navegar con ellos
-                        } else {
-                            // Manejar error
-                        }
-                    } catch (e: Exception) {
-                        // Manejar excepción
-                    }
-                }
-                */
             },
         colors = CardDefaults.cardColors(
             containerColor = Color.White

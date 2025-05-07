@@ -2,7 +2,6 @@ package com.example.socialme_interfazgrafica.screens
 
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,6 +56,7 @@ import coil.request.ImageRequest
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -73,13 +74,17 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Base URL para las imágenes
-    val baseUrl = "https://social-me-tfg.onrender.com"
-
-    // Obtener el token de autenticación
+    // Obtener el username del usuario actual desde SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val authToken = "Bearer $token"
+
+    // Verificar si el perfil que se está viendo pertenece al usuario logueado
+    val isOwnProfile = username == currentUsername
+
+    // Base URL para las imágenes
+    val baseUrl = "https://social-me-tfg.onrender.com"
 
     // Configurar cliente HTTP con timeouts
     val okHttpClient = OkHttpClient.Builder()
@@ -132,7 +137,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
             .background(colorResource(R.color.background))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Barra superior con botón de retroceso
+            // Barra superior con botón de retroceso y botón de ajustes (si es el propio perfil)
             TopAppBar(
                 title = { Text(text = "Perfil de Usuario") },
                 navigationIcon = {
@@ -143,10 +148,25 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                         )
                     }
                 },
+                actions = {
+                    // Mostrar botón de ajustes solo si es el perfil del usuario actual
+                    if (isOwnProfile) {
+                        IconButton(onClick = {
+                            navController.navigate(AppScreen.ModificarUsuarioScreen.createRoute(username))
+                        }) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = "Ajustes de perfil",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = colorResource(R.color.azulPrimario),
                     titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
             )
 

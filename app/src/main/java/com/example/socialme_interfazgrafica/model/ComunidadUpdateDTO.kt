@@ -14,5 +14,4 @@ data class ComunidadUpdateDTO(
     val administradores: List<String>?,
     val privada: Boolean,
     val coordenadas: Coordenadas?,  // Coordenadas geográficas
-
 )

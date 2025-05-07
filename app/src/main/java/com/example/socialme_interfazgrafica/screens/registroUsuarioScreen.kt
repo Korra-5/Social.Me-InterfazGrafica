@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.socialme_interfazgrafica.R
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.viewModel.RegistroState
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
@@ -76,6 +77,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
     val registroState by viewModel.registroState.observeAsState()
 
     // Efecto para manejar cambios en el estado de registro
+    // Localiza esta parte en paste-2.txt, línea aproximada 95-105
     LaunchedEffect(registroState) {
         when (registroState) {
             is RegistroState.Loading -> {
@@ -84,11 +86,14 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
             }
             is RegistroState.Success -> {
                 isLoading = false
-                // Navegar de vuelta a login con indicador de éxito
-                navController.previousBackStackEntry
-                    ?.savedStateHandle
-                    ?.set("registro_exitoso", true)
-                navController.popBackStack()
+                // En lugar de navegar de vuelta a login, navega a la pantalla de verificación
+                navController.navigate(
+                    AppScreen.EmailVerificationScreen.createRoute(
+                        email = email,
+                        username = username,
+                        isRegistration = true
+                    )
+                )
             }
             is RegistroState.Error -> {
                 isLoading = false

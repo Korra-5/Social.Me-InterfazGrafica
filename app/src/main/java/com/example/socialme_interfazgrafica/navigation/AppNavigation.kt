@@ -22,9 +22,11 @@ import com.example.socialme_interfazgrafica.screens.ActividadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.BusquedaScreen
 import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.CrearComunidadScreen
+import com.example.socialme_interfazgrafica.screens.EmailVerificationScreen
 import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.ModificarComunidadScreen
+import com.example.socialme_interfazgrafica.screens.ModificarUsuarioScreen
 import com.example.socialme_interfazgrafica.screens.OpcionesScreen
 import com.example.socialme_interfazgrafica.screens.RegistroUsuarioScreen
 import com.example.socialme_interfazgrafica.screens.UsuarioDetallesScreen
@@ -235,5 +237,41 @@ fun AppNavigation(viewModel: UserViewModel) {
             )
 
     }
+        composable(
+            route = AppScreen.ModificarUsuarioScreen.route,
+            arguments = listOf(
+                navArgument("username") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val username = backStackEntry.arguments?.getString("username") ?: ""
+
+            ModificarUsuarioScreen(
+                username = username,
+                navController = navController
+            )
+        }
+
+// Añadir a tu AppNavigation.kt dentro de NavHost
+        composable(
+            route = AppScreen.EmailVerificationScreen.route,
+            arguments = listOf(
+                navArgument("email") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("isRegistration") { type = NavType.BoolType }
+            )
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            val username = backStackEntry.arguments?.getString("username") ?: ""
+            val isRegistration = backStackEntry.arguments?.getBoolean("isRegistration") ?: true
+
+            EmailVerificationScreen(
+                navController = navController,
+                email = email,
+                username = username,
+                isRegistration = isRegistration
+            )
+        }
     }
 }
