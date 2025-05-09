@@ -24,19 +24,19 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.VerificacionDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
+import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmailVerificationScreen(
     navController: NavController,
     email: String,
     username: String,
-    isRegistration: Boolean = true
+    isRegistration: Boolean = true,
+    viewModel: UserViewModel
 ) {
     val scope = rememberCoroutineScope()
-    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val context = LocalContext.current
 
     // Estados para manejar la entrada del código y los mensajes
@@ -211,34 +211,25 @@ fun EmailVerificationScreen(
                         isSubmitting = true
 
                         scope.launch {
-                            try {
-                                val response = apiService.verificarCodigo(
-                                    VerificacionDTO(
-                                        email = email,
-                                        codigo = verificationCode
-                                    )
-                                )
-
-                                if (response.isSuccessful && response.body() == true) {
+                            viewModel.verificarCodigo(email, verificationCode) { success ->
+                                if (success) {
                                     successMessage = "¡Verificación exitosa!"
                                     // Esperar un momento para mostrar el mensaje de éxito
-                                    delay(1500)
-
-                                    if (isRegistration) {
-                                        // Ir a la pantalla de inicio de sesión después del registro
-                                        navController.navigate(AppScreen.InicioSesionScreen.route) {
-                                            popUpTo(AppScreen.RegistroUsuarioScreen.route) { inclusive = true }
+                                    scope.launch {
+                                        delay(1500)
+                                        if (isRegistration) {
+                                            // Ir a la pantalla de inicio de sesión después del registro
+                                            navController.navigate(AppScreen.InicioSesionScreen.route) {
+                                                popUpTo(AppScreen.RegistroUsuarioScreen.route) { inclusive = true }
+                                            }
+                                        } else {
+                                            // Volver a la pantalla anterior (posiblemente modificación de perfil)
+                                            navController.popBackStack()
                                         }
-                                    } else {
-                                        // Volver a la pantalla anterior (posiblemente modificación de perfil)
-                                        navController.popBackStack()
                                     }
                                 } else {
                                     errorMessage = "Código incorrecto. Por favor, verifica e intenta nuevamente."
                                 }
-                            } catch (e: Exception) {
-                                errorMessage = "Error: ${e.message}"
-                            } finally {
                                 isSubmitting = false
                             }
                         }
@@ -270,19 +261,18 @@ fun EmailVerificationScreen(
                 TextButton(
                     onClick = {
                         scope.launch {
-                            try {
-                                val response = apiService.reenviarCodigo(email)
-                                if (response.isSuccessful && response.body() == true) {
+                            viewModel.reenviarCodigo(email) { success ->
+                                if (success) {
                                     codeResent = !codeResent // Cambiar el estado para reiniciar el temporizador
                                     successMessage = "Se ha enviado un nuevo código a tu correo"
                                     // Limpiar el mensaje después de un tiempo
-                                    delay(3000)
-                                    successMessage = null
+                                    scope.launch {
+                                        delay(3000)
+                                        successMessage = null
+                                    }
                                 } else {
                                     errorMessage = "No se pudo reenviar el código. Inténtalo más tarde."
                                 }
-                            } catch (e: Exception) {
-                                errorMessage = "Error: ${e.message}"
                             }
                         }
                     },

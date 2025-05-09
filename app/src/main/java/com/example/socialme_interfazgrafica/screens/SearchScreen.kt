@@ -767,7 +767,7 @@ fun UsuarioSearchItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                if (usuario.intereses.isNotEmpty()) {
+                if (usuario.intereses != null && usuario.intereses.isNotEmpty()) {
                     Text(
                         text = usuario.intereses.take(3).joinToString(", "),
                         fontSize = 12.sp,

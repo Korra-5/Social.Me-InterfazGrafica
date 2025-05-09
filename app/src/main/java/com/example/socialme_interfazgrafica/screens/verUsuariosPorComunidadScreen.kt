@@ -279,17 +279,17 @@ fun VerUsuariosPorComunidadScreen(
         }
     }
 }
-
 @Composable
 fun UsuarioItem(
     usuario: UsuarioDTO,
     authToken: String,
-    imageLoader: ImageLoader,
     onClick: () -> Unit,
-    color: Color = colorResource(id = R.color.azulPrimario)
+    color: Color = colorResource(id = R.color.azulPrimario),
+    imageLoader: ImageLoader? = null
 ) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
+    val actualImageLoader = imageLoader ?: ImageLoader.Builder(context).build()
 
     Card(
         modifier = Modifier
@@ -316,7 +316,7 @@ fun UsuarioItem(
                     .background(color.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                if (usuario.fotoPerfilId.isNotEmpty()) {
+                if (usuario.fotoPerfilId != null && usuario.fotoPerfilId.isNotEmpty()) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data("$baseUrl/files/download/${usuario.fotoPerfilId}")
@@ -328,7 +328,7 @@ fun UsuarioItem(
                         contentDescription = "Foto de perfil de ${usuario.nombre}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        imageLoader = imageLoader
+                        imageLoader = actualImageLoader
                     )
                 } else {
                     Image(

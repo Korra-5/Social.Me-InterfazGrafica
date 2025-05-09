@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
@@ -78,7 +79,7 @@ import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import java.io.ByteArrayOutputStream
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModificarUsuarioScreen(username: String, navController: NavController) {
@@ -197,7 +198,11 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorResource(R.color.background))
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -217,7 +222,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                     },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color.LightGray.copy(alpha = 0.3f), CircleShape)
+                        .background(colorResource(R.color.cyanSecundario), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
@@ -253,19 +258,22 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                         .padding(vertical = 8.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    )
+                        containerColor = colorResource(R.color.card_colors)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         // Foto de perfil
                         Text(
                             text = "Foto de perfil",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -280,8 +288,8 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                 modifier = Modifier
                                     .size(80.dp)
                                     .clip(CircleShape)
-                                    .background(Color.LightGray)
-                                    .border(1.dp, Color.Gray, CircleShape)
+                                    .background(colorResource(R.color.cyanSecundario))
+                                    .border(1.dp, colorResource(R.color.azulPrimario), CircleShape)
                             ) {
                                 // Si hay una nueva imagen seleccionada, mostrarla
                                 if (fotoPerfilUri.value != null) {
@@ -306,11 +314,11 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {
-                                    // Si no hay imagen, mostrar un ícono
+// Si no hay imagen, mostrar un ícono
                                     Icon(
                                         imageVector = Icons.Default.Person,
                                         contentDescription = "Foto de perfil",
-                                        tint = Color.Gray,
+                                        tint = colorResource(R.color.azulPrimario),
                                         modifier = Modifier
                                             .size(40.dp)
                                             .align(Alignment.Center)
@@ -326,9 +334,10 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colorResource(R.color.azulPrimario)
-                                )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Seleccionar imagen")
+                                Text("Seleccionar imagen", color = Color.White)
                             }
                         }
 
@@ -337,22 +346,24 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Nombre de usuario",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         OutlinedTextField(
                             value = username,
                             onValueChange = { /* No permitir cambios */ },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Nombre de usuario") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Nombre de usuario", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color.Gray,
-                                unfocusedBorderColor = Color.Gray
+                                focusedBorderColor = colorResource(R.color.cyanSecundario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoSecundario),
+                                unfocusedTextColor = colorResource(R.color.textoSecundario)
                             ),
                             readOnly = true, // Campo no editable
-                            enabled = false
+                            enabled = false,
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Email
@@ -360,20 +371,22 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Correo electrónico",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         OutlinedTextField(
                             value = email.value,
                             onValueChange = { email.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Correo electrónico") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Correo electrónico", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Nombre
@@ -381,20 +394,22 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Nombre",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         OutlinedTextField(
                             value = nombre.value,
                             onValueChange = { nombre.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Nombre") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Nombre", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Apellido
@@ -402,20 +417,22 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Apellido",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         OutlinedTextField(
                             value = apellido.value,
                             onValueChange = { apellido.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Apellido") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Apellido", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Descripción
@@ -423,6 +440,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Descripción",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -431,13 +449,16 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             onValueChange = { descripcion.value = it },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(120.dp)
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Describe tu perfil") },
+                                .height(120.dp),
+                            placeholder = { Text("Describe tu perfil", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            minLines = 3
                         )
 
                         // Intereses/Tags
@@ -445,6 +466,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Intereses",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -460,31 +482,33 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(end = 8.dp),
-                                placeholder = { Text("Añadir interés") },
+                                placeholder = { Text("Añadir interés", color = colorResource(R.color.textoSecundario)) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = colorResource(R.color.azulPrimario),
-                                    unfocusedBorderColor = Color.Gray
-                                )
+                                    unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                    focusedTextColor = colorResource(R.color.textoPrimario),
+                                    unfocusedTextColor = colorResource(R.color.textoPrimario)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             )
 
                             Button(
                                 onClick = {
-                                    if (interesInput.value.isNotEmpty() && !intereses.value.contains(
-                                            interesInput.value
-                                        )
-                                    ) {
+                                    if (interesInput.value.isNotEmpty() && !intereses.value.contains(interesInput.value)) {
                                         intereses.value = intereses.value + interesInput.value
                                         interesInput.value = ""
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colorResource(R.color.azulPrimario)
-                                )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Añadir",
-                                    tint = Color.White
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -499,33 +523,30 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             intereses.value.forEach { interes ->
                                 Surface(
                                     modifier = Modifier,
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(50.dp),
                                     color = colorResource(R.color.cyanSecundario)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(
-                                            horizontal = 8.dp,
-                                            vertical = 4.dp
-                                        ),
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
                                             text = interes,
                                             color = colorResource(R.color.azulPrimario),
-                                            fontSize = 14.sp
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium
                                         )
 
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
 
                                         Icon(
-                                            imageVector = Icons.Default.Close,
+                                            Icons.Default.Close,
                                             contentDescription = "Eliminar",
                                             tint = colorResource(R.color.azulPrimario),
                                             modifier = Modifier
-                                                .size(16.dp)
+                                                .size(18.dp)
                                                 .clickable {
-                                                    intereses.value =
-                                                        intereses.value.filter { it != interes }
+                                                    intereses.value = intereses.value.filter { it != interes }
                                                 }
                                         )
                                     }
@@ -538,50 +559,74 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             text = "Dirección",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
-                        // Municipio
-                        Text(
-                            text = "Municipio",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = municipio.value,
-                            onValueChange = { municipio.value = it },
+                        // Tarjeta de dirección
+                        Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Municipio") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
-                        )
+                                .fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // Municipio
+                                Text(
+                                    text = "Municipio",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorResource(R.color.textoPrimario)
+                                )
 
-                        // Provincia
-                        Text(
-                            text = "Provincia",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
+                                OutlinedTextField(
+                                    value = municipio.value,
+                                    onValueChange = { municipio.value = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text("Municipio", color = colorResource(R.color.textoSecundario)) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = colorResource(R.color.azulPrimario),
+                                        unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                        focusedTextColor = colorResource(R.color.textoPrimario),
+                                        unfocusedTextColor = colorResource(R.color.textoPrimario)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
 
-                        OutlinedTextField(
-                            value = provincia.value,
-                            onValueChange = { provincia.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Provincia") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
-                        )
+                                // Provincia
+                                Text(
+                                    text = "Provincia",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorResource(R.color.textoPrimario)
+                                )
+
+                                OutlinedTextField(
+                                    value = provincia.value,
+                                    onValueChange = { provincia.value = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text("Provincia", color = colorResource(R.color.textoSecundario)) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = colorResource(R.color.azulPrimario),
+                                        unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                        focusedTextColor = colorResource(R.color.textoPrimario),
+                                        unfocusedTextColor = colorResource(R.color.textoPrimario)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                            }
+                        }
+
+                        // Botones de acción
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
                             onClick = {
@@ -605,16 +650,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     provincia = provincia.value
                                 )
 
-                                // Log de los datos que se van a enviar
-                                Log.d(
-                                    "ModificarUsuario",
-                                    "Enviando datos: nombre=${nombre.value}, apellido=${apellido.value}"
-                                )
-                                Log.d(
-                                    "ModificarUsuario",
-                                    "¿Hay foto de perfil base64? ${fotoPerfilBase64.value != null}"
-                                )
-
                                 // Preparar objeto de actualización
                                 val usuarioUpdate = UsuarioUpdateDTO(
                                     currentUsername = username,
@@ -629,31 +664,9 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     direccion = direccion
                                 )
 
-                                // Añadir logs para depuración
-                                Log.d("ModificarUsuario", "Token: ${authToken.take(10)}...")
-                                Log.d("ModificarUsuario", "Username actual: $username")
-
-                                // Verificar datos de imágenes
-                                if (fotoPerfilBase64.value != null) {
-                                    Log.d(
-                                        "ModificarUsuario",
-                                        "Foto perfil Base64 longitud: ${fotoPerfilBase64.value!!.length}"
-                                    )
-                                    Log.d(
-                                        "ModificarUsuario",
-                                        "Foto perfil Base64 primeros 30 chars: ${
-                                            fotoPerfilBase64.value!!.take(30)
-                                        }"
-                                    )
-                                }
-
                                 // Guardar el email original para compararlo después
                                 val emailOriginal = usuarioOriginal.value?.email ?: ""
                                 val emailCambiado = email.value != emailOriginal
-
-                                if (emailCambiado) {
-                                    Log.d("ModificarUsuario", "El email ha cambiado de $emailOriginal a ${email.value}")
-                                }
 
                                 // Enviar actualización
                                 isSaving.value = true
@@ -733,26 +746,23 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(top = 8.dp),
+                                .height(54.dp),
+                            enabled = !isSaving.value,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = colorResource(R.color.azulPrimario)
+                                containerColor = colorResource(R.color.azulPrimario),
+                                disabledContainerColor = colorResource(R.color.textoSecundario)
                             ),
-                            shape = RoundedCornerShape(8.dp),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 2.dp
-                            ),
-                            enabled = !isSaving.value
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             if (isSaving.value) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(24.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
                                 )
                             } else {
                                 Text(
-                                    text = "GUARDAR CAMBIOS",
+                                    "GUARDAR CAMBIOS",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -767,16 +777,15 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(top = 8.dp, bottom = 16.dp),
+                                .height(54.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = colorResource(R.color.azulPrimario)
                             ),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
                         ) {
                             Text(
-                                text = "CANCELAR",
+                                "CANCELAR",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -787,12 +796,34 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
 
             // Mensaje de error si existe
             if (errorMessage.value != null) {
-                Text(
-                    text = errorMessage.value ?: "",
-                    color = Color.Red,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEDED)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Error",
+                            tint = colorResource(R.color.error),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = errorMessage.value ?: "",
+                            color = colorResource(R.color.error),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
 
@@ -806,11 +837,12 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
             ) {
                 Card(
                     modifier = Modifier
-                        .size(100.dp),
+                        .size(120.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = Color.White
-                    )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -818,15 +850,17 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                         verticalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator(
-                            color = colorResource(R.color.azulPrimario)
+                            color = colorResource(R.color.azulPrimario),
+                            strokeWidth = 3.dp
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = "Guardando...",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colorResource(R.color.textoSecundario)
                         )
                     }
                 }

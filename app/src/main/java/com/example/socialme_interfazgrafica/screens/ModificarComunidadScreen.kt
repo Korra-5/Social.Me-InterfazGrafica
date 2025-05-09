@@ -39,11 +39,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -97,6 +99,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import java.io.ByteArrayOutputStream
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController) {
@@ -140,7 +143,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     val fotosCarruselBase64 = remember { mutableStateOf<List<String>>(emptyList()) }
     val fotosCarruselUri = remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-
     // Estado para controlar los permisos
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -179,7 +181,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
             Log.d("ModificarComunidad", "Token de autenticación: ${authToken.take(10)}...")
 
             val response = withContext(Dispatchers.IO) {
-              retrofitService.verComunidadPorUrl("Bearer $authToken", comunidadUrl)
+                retrofitService.verComunidadPorUrl("Bearer $authToken", comunidadUrl)
             }
 
             Log.d("ModificarComunidad", "Respuesta del servidor: ${response.code()}")
@@ -210,7 +212,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
         } finally {
             isLoading.value = false
         }
-    }// Launcher para seleccionar imagen de perfil
+    }
+
+    // Launcher para seleccionar imagen de perfil
     val fotoPerfilLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -236,7 +240,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
             }
         }
     }
-// Launcher para seleccionar imágenes de carrusel
+
+    // Launcher para seleccionar imágenes de carrusel
     val fotosCarruselLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
@@ -249,7 +254,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
 
                 uris.forEachIndexed { index, uri ->
                     try {
-                        // Usar la nueva función de compresión
+                        // Usar la función de compresión
                         val base64 = compressAndConvertToBase64(uri, context)
                         if (base64 != null) {
                             newFotosBase64.add(base64)
@@ -281,12 +286,12 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
             }
         }
     }
-    // Efecto para depurar si los valores se están actualizando correctamente
-    LaunchedEffect(nombre.value, descripcion.value) {
-        Log.d("ModificarComunidad", "Valores actuales: nombre=${nombre.value}, desc=${descripcion.value}")
-    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorResource(R.color.background))
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -309,7 +314,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                         },
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color.LightGray.copy(alpha = 0.3f), CircleShape)
+                            .background(colorResource(R.color.cyanSecundario), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
@@ -335,16 +340,15 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                     },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color.Red.copy(alpha = 0.1f), CircleShape)
+                        .background(Color(0xFFFFD5D5), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Eliminar comunidad",
-                        tint = Color.Red
+                        tint = colorResource(R.color.error)
                     )
                 }
             }
-
 
             if (isLoading.value) {
                 Box(
@@ -363,33 +367,109 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                         .padding(vertical = 8.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    )
+                        containerColor = colorResource(R.color.card_colors)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
+                        // Foto de perfil
+                        Text(
+                            text = "Foto de perfil",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Vista previa de la imagen de perfil
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape)
+                                    .background(colorResource(R.color.cyanSecundario))
+                                    .border(1.dp, colorResource(R.color.azulPrimario), CircleShape)
+                            ) {
+                                // Si hay una nueva imagen seleccionada, mostrarla
+                                if (fotoPerfilUri.value != null) {
+                                    AsyncImage(
+                                        model = fotoPerfilUri.value,
+                                        contentDescription = "Foto de perfil",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else if (comunidadOriginal.value?.fotoPerfilId?.isNotEmpty() == true) {
+                                    // Si no hay nueva imagen pero existe una foto de perfil, mostrarla
+                                    val fotoPerfilUrl = "${baseUrl}/files/download/${comunidadOriginal.value?.fotoPerfilId}"
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data(fotoPerfilUrl)
+                                            .crossfade(true)
+                                            .setHeader("Authorization", authToken)
+                                            .build(),
+                                        contentDescription = "Foto de perfil",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    // Si no hay imagen, mostrar un ícono
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "Foto de perfil",
+                                        tint = colorResource(R.color.azulPrimario),
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .align(Alignment.Center)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Button(
+                                onClick = {
+                                    fotoPerfilLauncher.launch("image/*")
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = colorResource(R.color.azulPrimario)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Seleccionar imagen", color = Color.White)
+                            }
+                        }
+
                         // URL de la comunidad
                         Text(
                             text = "URL de la comunidad",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         OutlinedTextField(
                             value = url.value,
                             onValueChange = { url.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("URL de la comunidad") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("URL de la comunidad", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Nombre de la comunidad
@@ -397,20 +477,22 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             text = "Nombre de la comunidad",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
                         OutlinedTextField(
                             value = nombre.value,
                             onValueChange = { nombre.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Nombre de la comunidad") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Nombre de la comunidad", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Descripción
@@ -418,6 +500,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             text = "Descripción",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -426,21 +509,24 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             onValueChange = { descripcion.value = it },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(120.dp)
-                                .padding(bottom = 16.dp),
-                            placeholder = { Text("Describe tu comunidad") },
+                                .height(120.dp),
+                            placeholder = { Text("Describe tu comunidad", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = Color.Gray
-                            )
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            minLines = 3
                         )
-
 
                         // Sección del mapa
                         Text(
                             text = "Ubicación",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
@@ -452,7 +538,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             colors = CardDefaults.cardColors(
                                 containerColor = Color.White
                             ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 // Configuración y visualización del mapa
@@ -526,7 +613,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                         .align(Alignment.BottomEnd)
                                         .padding(16.dp)
                                         .size(48.dp),
-                                    containerColor = colorResource(R.color.azulPrimario)
+                                    containerColor = colorResource(R.color.azulPrimario),
+                                    shape = CircleShape
                                 ) {
                                     Icon(
                                         Icons.Default.Call,
@@ -569,43 +657,54 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                color = colorResource(R.color.textoSecundario)
                             )
                         } ?: run {
                             Text(
                                 text = "Toca en el mapa para seleccionar una ubicación o usa el botón de ubicación actual",
                                 fontSize = 14.sp,
-                                color = Color.Gray,
+                                color = colorResource(R.color.textoSecundario),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
 
-
                         // Switch para comunidad privada
-                        Row(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(
-                                text = "Comunidad privada",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Switch(
-                                checked = isPrivada.value,
-                                onCheckedChange = { isPrivada.value = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = colorResource(R.color.azulPrimario),
-                                    uncheckedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color.Gray
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Comunidad privada",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colorResource(R.color.textoPrimario)
                                 )
-                            )
+
+                                Switch(
+                                    checked = isPrivada.value,
+                                    onCheckedChange = { isPrivada.value = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = colorResource(R.color.azulPrimario),
+                                        uncheckedThumbColor = Color.White,
+                                        uncheckedTrackColor = colorResource(R.color.cyanSecundario)
+                                    )
+                                )
+                            }
                         }
 
                         // Intereses/Tags
@@ -613,6 +712,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             text = "Intereses",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -628,11 +728,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(end = 8.dp),
-                                placeholder = { Text("Añadir interés") },
+                                placeholder = { Text("Añadir interés", color = colorResource(R.color.textoSecundario)) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = colorResource(R.color.azulPrimario),
-                                    unfocusedBorderColor = Color.Gray
-                                )
+                                    unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                    focusedTextColor = colorResource(R.color.textoPrimario),
+                                    unfocusedTextColor = colorResource(R.color.textoPrimario)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             )
 
                             Button(
@@ -644,12 +747,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colorResource(R.color.azulPrimario)
-                                )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Añadir",
-                                    tint = Color.White
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -664,27 +769,28 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             intereses.value.forEach { interes ->
                                 Surface(
                                     modifier = Modifier,
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(50.dp),
                                     color = colorResource(R.color.cyanSecundario)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
                                             text = interes,
                                             color = colorResource(R.color.azulPrimario),
-                                            fontSize = 14.sp
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium
                                         )
 
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
 
                                         Icon(
-                                            imageVector = Icons.Default.Close,
+                                            Icons.Default.Close,
                                             contentDescription = "Eliminar",
                                             tint = colorResource(R.color.azulPrimario),
                                             modifier = Modifier
-                                                .size(16.dp)
+                                                .size(18.dp)
                                                 .clickable {
                                                     intereses.value = intereses.value.filter { it != interes }
                                                 }
@@ -699,6 +805,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             text = "Administradores",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -714,11 +821,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(end = 8.dp),
-                                placeholder = { Text("Añadir administrador (username)") },
+                                placeholder = { Text("Añadir administrador (username)", color = colorResource(R.color.textoSecundario)) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = colorResource(R.color.azulPrimario),
-                                    unfocusedBorderColor = Color.Gray
-                                )
+                                    unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                    focusedTextColor = colorResource(R.color.textoPrimario),
+                                    unfocusedTextColor = colorResource(R.color.textoPrimario)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             )
 
                             Button(
@@ -730,12 +840,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colorResource(R.color.azulPrimario)
-                                )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Añadir",
-                                    tint = Color.White
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -746,119 +858,64 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 .padding(bottom = 16.dp)
                         ) {
                             administradores.value.forEach { admin ->
-                                Row(
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .clip(CircleShape)
-                                                .background(colorResource(R.color.cyanSecundario)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(colorResource(R.color.cyanSecundario)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = admin.firstOrNull()?.toString()?.uppercase() ?: "",
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colorResource(R.color.azulPrimario)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(12.dp))
+
                                             Text(
-                                                text = admin.firstOrNull()?.toString()?.uppercase() ?: "",
-                                                fontWeight = FontWeight.Bold,
-                                                color = colorResource(R.color.azulPrimario)
+                                                text = "@$admin",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = colorResource(R.color.textoPrimario)
                                             )
                                         }
 
-                                        Spacer(modifier = Modifier.width(8.dp))
-
-                                        Text(
-                                            text = "@$admin",
-                                            fontSize = 14.sp,
-                                            color = Color.Black
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            administradores.value = administradores.value.filter { it != admin }
+                                        IconButton(
+                                            onClick = {
+                                                administradores.value = administradores.value.filter { it != admin }
+                                            },
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .background(Color(0xFFFFEDED), CircleShape)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = colorResource(R.color.error),
+                                                modifier = Modifier.size(16.dp)
+                                            )
                                         }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Eliminar",
-                                            tint = Color.Red
-                                        )
                                     }
                                 }
-                            }
-                        }
-
-                        // Foto de perfil
-                        Text(
-                            text = "Foto de perfil",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Vista previa de la imagen de perfil
-                            Box(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.LightGray)
-                                    .border(1.dp, Color.Gray, CircleShape)
-                            ) {
-                                // Si hay una nueva imagen seleccionada, mostrarla
-                                if (fotoPerfilUri.value != null) {
-                                    AsyncImage(
-                                        model = fotoPerfilUri.value,
-                                        contentDescription = "Foto de perfil",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else if (comunidadOriginal.value?.fotoPerfilId?.isNotEmpty() == true) {
-                                    // Si no hay nueva imagen pero existe una foto de perfil, mostrarla
-                                    val fotoPerfilUrl = "${baseUrl}/files/download/${comunidadOriginal.value?.fotoPerfilId}"
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(fotoPerfilUrl)
-                                            .crossfade(true)
-                                            .setHeader("Authorization", authToken)
-                                            .build(),
-                                        contentDescription = "Foto de perfil",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    // Si no hay imagen, mostrar un ícono
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = "Foto de perfil",
-                                        tint = Color.Gray,
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .align(Alignment.Center)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            Button(
-                                onClick = {
-                                    fotoPerfilLauncher.launch("image/*")
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colorResource(R.color.azulPrimario)
-                                )
-                            ) {
-                                Text("Seleccionar imagen")
                             }
                         }
 
@@ -867,7 +924,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             text = "Fotos de carrusel",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                         )
 
                         Button(
@@ -877,9 +935,19 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
                             ),
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Seleccionar imágenes")
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Añadir imágenes",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Seleccionar imágenes",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
 
                         // Vista previa de imágenes de carrusel
@@ -887,23 +955,23 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             Text(
                                 text = "Nuevas imágenes seleccionadas: ${fotosCarruselUri.value.size}",
                                 fontSize = 14.sp,
-                                color = Color.Gray,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                color = colorResource(R.color.textoSecundario),
+                                modifier = Modifier.padding(vertical = 8.dp)
                             )
 
                             LazyRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(100.dp)
-                                    .padding(bottom = 16.dp),
+                                    .height(120.dp)
+                                    .padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(fotosCarruselUri.value) { uri ->
                                     Box(
                                         modifier = Modifier
-                                            .size(100.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                                            .size(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, colorResource(R.color.cyanSecundario), RoundedCornerShape(12.dp))
                                     ) {
                                         AsyncImage(
                                             model = uri,
@@ -911,6 +979,34 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
                                         )
+
+                                        // Botón para eliminar imagen
+                                        IconButton(
+                                            onClick = {
+                                                val newUris = fotosCarruselUri.value.toMutableList()
+                                                newUris.remove(uri)
+                                                fotosCarruselUri.value = newUris
+
+                                                val index = fotosCarruselUri.value.indexOf(uri)
+                                                if (index >= 0 && index < fotosCarruselBase64.value.size) {
+                                                    val newBase64List = fotosCarruselBase64.value.toMutableList()
+                                                    newBase64List.removeAt(index)
+                                                    fotosCarruselBase64.value = newBase64List
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(28.dp)
+                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = colorResource(R.color.error),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -918,24 +1014,24 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             Text(
                                 text = "Imágenes actuales: ${comunidadOriginal.value?.fotoCarruselIds?.size ?: 0}",
                                 fontSize = 14.sp,
-                                color = Color.Gray,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                color = colorResource(R.color.textoSecundario),
+                                modifier = Modifier.padding(vertical = 8.dp)
                             )
 
                             LazyRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(100.dp)
-                                    .padding(bottom = 16.dp),
+                                    .height(120.dp)
+                                    .padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(comunidadOriginal.value?.fotoCarruselIds ?: emptyList()) { imagenId ->
                                     val imagenUrl = "${baseUrl}/files/download/$imagenId"
                                     Box(
                                         modifier = Modifier
-                                            .size(100.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                                            .size(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, colorResource(R.color.cyanSecundario), RoundedCornerShape(12.dp))
                                     ) {
                                         AsyncImage(
                                             model = ImageRequest.Builder(context)
@@ -951,6 +1047,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 }
                             }
                         }
+
+                        // Botones de acción
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
                             onClick = {
@@ -976,15 +1075,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     )
                                 }
 
-                                // Log de los datos que se van a enviar
-                                Log.d("ModificarComunidad", "Enviando datos: nombre=${nombre.value}, desc=${descripcion.value}")
-                                Log.d("ModificarComunidad", "¿Hay foto de perfil base64? ${fotoPerfilBase64.value != null}")
-                                if (fotoPerfilBase64.value != null) {
-                                    Log.d("ModificarComunidad", "Tamaño del string base64 de perfil: ${fotoPerfilBase64.value!!.length}")
-                                }
-                                Log.d("ModificarComunidad", "¿Hay fotos de carrusel base64? ${fotosCarruselBase64.value.isNotEmpty()}")
-                                Log.d("ModificarComunidad", "Número de fotos de carrusel: ${fotosCarruselBase64.value.size}")
-
                                 // Preparar objeto de actualización
                                 val comunidadUpdate = ComunidadUpdateDTO(
                                     currentURL = comunidadUrl,
@@ -998,26 +1088,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     fotoCarruselIds = comunidadOriginal.value?.fotoCarruselIds,
                                     administradores = administradores.value,
                                     privada = isPrivada.value,
-                                    coordenadas=coordenadas
+                                    coordenadas = coordenadas
                                 )
-
-// Añadir logs para depuración
-                                Log.d("ModificarComunidad", "Token: ${authToken.take(10)}...")
-                                Log.d("ModificarComunidad", "URL actual: $comunidadUrl")
-                                Log.d("ModificarComunidad", "URL nueva: ${url.value}")
-
-// Verificar datos de imágenes
-                                if (fotoPerfilBase64.value != null) {
-                                    Log.d("ModificarComunidad", "Foto perfil Base64 longitud: ${fotoPerfilBase64.value!!.length}")
-                                    Log.d("ModificarComunidad", "Foto perfil Base64 primeros 30 chars: ${fotoPerfilBase64.value!!.take(30)}")
-                                }
-
-                                if (fotosCarruselBase64.value.isNotEmpty()) {
-                                    Log.d("ModificarComunidad", "Carrusel: ${fotosCarruselBase64.value.size} imágenes")
-                                    fotosCarruselBase64.value.forEachIndexed { index, base64 ->
-                                        Log.d("ModificarComunidad", "Carrusel $index Base64 longitud: ${base64.length}")
-                                    }
-                                }
 
                                 // Enviar actualización
                                 isSaving.value = true
@@ -1044,9 +1116,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                         }
                                     } catch (e: Exception) {
                                         Log.e("ModificarComunidad", "Excepción al actualizar", e)
-                                        Log.e("ModificarComunidad", "Tipo de excepción: ${e.javaClass.name}")
-                                        Log.e("ModificarComunidad", "Mensaje de excepción: ${e.message}")
-                                        Log.e("ModificarComunidad", "Stack trace: ${e.stackTraceToString()}")
                                         errorMessage.value = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
                                     } finally {
                                         isSaving.value = false
@@ -1055,26 +1124,23 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(top = 8.dp),
+                                .height(54.dp),
+                            enabled = !isSaving.value,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = colorResource(R.color.azulPrimario)
+                                containerColor = colorResource(R.color.azulPrimario),
+                                disabledContainerColor = colorResource(R.color.textoSecundario)
                             ),
-                            shape = RoundedCornerShape(8.dp),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 2.dp
-                            ),
-                            enabled = !isSaving.value
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             if (isSaving.value) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(24.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
                                 )
                             } else {
                                 Text(
-                                    text = "GUARDAR CAMBIOS",
+                                    "GUARDAR CAMBIOS",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
@@ -1089,16 +1155,15 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .padding(top = 8.dp, bottom = 16.dp),
+                                .height(54.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = colorResource(R.color.azulPrimario)
                             ),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
                         ) {
                             Text(
-                                text = "CANCELAR",
+                                "CANCELAR",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1109,12 +1174,34 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
 
             // Mensaje de error si existe
             if (errorMessage.value != null) {
-                Text(
-                    text = errorMessage.value ?: "",
-                    color = Color.Red,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEDED)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Error",
+                            tint = colorResource(R.color.error),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = errorMessage.value ?: "",
+                            color = colorResource(R.color.error),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
 
@@ -1128,11 +1215,12 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
             ) {
                 Card(
                     modifier = Modifier
-                        .size(100.dp),
+                        .size(120.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = Color.White
-                    )
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -1140,15 +1228,17 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                         verticalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator(
-                            color = colorResource(R.color.azulPrimario)
+                            color = colorResource(R.color.azulPrimario),
+                            strokeWidth = 3.dp
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = "Guardando...",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colorResource(R.color.textoSecundario)
                         )
                     }
                 }
@@ -1157,116 +1247,88 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     }
 
     if (showDeleteConfirmation.value) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .clickable { showDeleteConfirmation.value = false },
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(0.8f)
-                    .clickable { /* Evitar que se cierre al hacer clic en la card */ },
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "¿Estás seguro?",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Esta acción eliminará la comunidad '${comunidadOriginal.value?.nombre ?: ""}' y todos sus datos asociados. Esta acción no se puede deshacer.",
-                        fontSize = 14.sp,
-                        color = Color.DarkGray,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Button(
-                            onClick = { showDeleteConfirmation.value = false },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Gray
-                            ),
-                            modifier = Modifier.weight(1f).padding(end = 8.dp)
-                        ) {
-                            Text("Cancelar", color = Color.White)
-                        }
-
-                        Button(
-                            onClick = {
-                                isDeleting.value = true
-                                scope.launch {
-                                    try {
-                                        val response = withContext(Dispatchers.IO) {
-                                            retrofitService.eliminarComunidad(
-                                                "Bearer $authToken",
-                                                comunidadUrl
-                                            )
-                                        }
-
-                                        if (response.isSuccessful) {
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Comunidad eliminada correctamente",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                                navController.popBackStack()
-                                            }
-                                        } else {
-                                            val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
-                                            Log.e("EliminarComunidad", "Error: ${response.code()} - $errorBody")
-                                            errorMessage.value = "Error al eliminar: ${response.code()} - ${response.message()}"
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("EliminarComunidad", "Excepción", e)
-                                        errorMessage.value = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
-                                    } finally {
-                                        isDeleting.value = false
-                                        showDeleteConfirmation.value = false
-                                    }
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation.value = false },
+            title = {
+                Text(
+                    "¿Estás seguro?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorResource(R.color.textoPrimario)
+                )
+            },
+            text = {
+                Text(
+                    "Esta acción eliminará la comunidad '${comunidadOriginal.value?.nombre ?: ""}' y todos sus datos asociados. Esta acción no se puede deshacer.",
+                    fontSize = 15.sp,
+                    color = colorResource(R.color.textoSecundario)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isDeleting.value = true
+                        scope.launch {
+                            try {
+                                val response = withContext(Dispatchers.IO) {
+                                    retrofitService.eliminarComunidad(
+                                        "Bearer $authToken",
+                                        comunidadUrl
+                                    )
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Red
-                            ),
-                            modifier = Modifier.weight(1f).padding(start = 8.dp),
-                            enabled = !isDeleting.value
-                        ) {
-                            if (isDeleting.value) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text("Eliminar", color = Color.White)
+
+                                if (response.isSuccessful) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            "Comunidad eliminada correctamente",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        navController.popBackStack()
+                                    }
+                                } else {
+                                    val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
+                                    Log.e("EliminarComunidad", "Error: ${response.code()} - $errorBody")
+                                    errorMessage.value = "Error al eliminar: ${response.code()} - ${response.message()}"
+                                }
+                            } catch (e: Exception) {
+                                Log.e("EliminarComunidad", "Excepción", e)
+                                errorMessage.value = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
+                            } finally {
+                                isDeleting.value = false
+                                showDeleteConfirmation.value = false
                             }
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.error)
+                    ),
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Eliminar", color = Color.White, fontWeight = FontWeight.Bold)
                 }
-            }
-        }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showDeleteConfirmation.value = false },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = colorResource(R.color.textoSecundario)
+                    ),
+                    border = BorderStroke(1.dp, colorResource(R.color.cyanSecundario)),
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Cancelar", fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
-    // Overlay de carga existente
-    if (isSaving.value || isDeleting.value) {
+    // Overlay para la eliminación en progreso
+    if (isDeleting.value) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1275,11 +1337,12 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
         ) {
             Card(
                 modifier = Modifier
-                    .size(100.dp),
+                    .size(120.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = Color.White
-                )
+                ),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -1287,15 +1350,17 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                     verticalArrangement = Arrangement.Center
                 ) {
                     CircularProgressIndicator(
-                        color = colorResource(R.color.azulPrimario)
+                        color = colorResource(R.color.error),
+                        strokeWidth = 3.dp
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = if (isDeleting.value) "Eliminando..." else "Guardando...",
-                        fontSize = 12.sp,
-                        color = Color.Gray
+                        text = "Eliminando...",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colorResource(R.color.textoSecundario)
                     )
                 }
             }

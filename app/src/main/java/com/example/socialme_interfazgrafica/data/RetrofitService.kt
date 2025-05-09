@@ -61,7 +61,7 @@ interface RetrofitService {
         @Path("distanciaKm") distanciaKm: Float
     ): Response<List<ActividadDTO>>
 
-    @GET("/Comunidad/verComunidadesPublicas/{distanciaKm}/{username}")
+    @GET("/Comunidad/verComunidadesPublicasEnZona/{distanciaKm}/{username}")
     suspend fun verComunidadesPublicas(
         @Header("Authorization") token: String,
         @Path("username") username: String,
@@ -250,6 +250,8 @@ interface RetrofitService {
     suspend fun reenviarCodigo(
         @Path("email") email: String
     ): Response<Boolean>
+
+
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

@@ -63,7 +63,6 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import java.text.SimpleDateFormat
 import java.util.*
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
@@ -200,562 +199,625 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         currentDateTime.value = calendar.time
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Crear Actividad",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorResource(R.color.azulPrimario)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color.LightGray.copy(alpha = 0.3f), CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = colorResource(R.color.azulPrimario)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorResource(R.color.background))
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Crear Actividad",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.azulPrimario)
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = { navController.popBackStack() },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(colorResource(R.color.cyanSecundario), CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Volver",
+                                tint = colorResource(R.color.azulPrimario)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
                 )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Tarjeta principal con todos los campos
-            Card(
+            },
+            containerColor = Color.Transparent // Hacer el scaffold transparente para que se vea el fondo
+        ) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                )
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
+                // Tarjeta principal con todos los campos
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(vertical = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = colorResource(R.color.card_colors)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    // Nombre de la actividad
-                    Text(
-                        text = "Nombre de la actividad",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = nombre,
-                        onValueChange = { nombre = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Nombre de la actividad") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorResource(R.color.azulPrimario),
-                            unfocusedBorderColor = Color.Gray
-                        )
-                    )
-
-                    // Descripción
-                    Text(
-                        text = "Descripción",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                        color= Color.Black
-
-                    )
-
-                    OutlinedTextField(
-                        value = descripcion,
-                        onValueChange = { descripcion = it },
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp),
-                        placeholder = { Text("Describe la actividad") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorResource(R.color.azulPrimario),
-                            unfocusedBorderColor = Color.Gray
-                        ),
-                        minLines = 3
-                    )
-
-
-                    // Sección del mapa
-                    Text(
-                        text = "Ubicación",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (isMapExpanded) 300.dp else 200.dp)
-                            .clickable { isMapExpanded = !isMapExpanded },
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            // Configuración y visualización del mapa
-                            DisposableEffect(Unit) {
-                                val map = MapView(context).apply {
-                                    setMultiTouchControls(true)
-                                    setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                        // Nombre de la actividad
+                        Text(
+                            text = "Nombre de la actividad",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
 
-                                    // Configurar el controlador del mapa
-                                    controller.setZoom(15.0)
+                        OutlinedTextField(
+                            value = nombre,
+                            onValueChange = { nombre = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Nombre de la actividad", color = colorResource(R.color.textoSecundario)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
 
-                                    // Posición inicial (Madrid como ejemplo)
-                                    val startPoint = GeoPoint(40.416775, -3.703790)
-                                    controller.setCenter(startPoint)
+                        // Descripción
+                        Text(
+                            text = "Descripción",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
 
-                                    // Configurar listener para clics en el mapa
-                                    overlays.add(object : Overlay() {
-                                        override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
-                                            mapView?.let {
-                                                val projection = it.projection
-                                                val geoPoint = projection.fromPixels(
-                                                    e?.x?.toInt() ?: 0,
-                                                    e?.y?.toInt() ?: 0
-                                                ) as GeoPoint
-                                                ubicacionSeleccionada = geoPoint
-                                                actualizarMarcador(it, geoPoint)
+                        OutlinedTextField(
+                            value = descripcion,
+                            onValueChange = { descripcion = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            placeholder = { Text("Describe la actividad", color = colorResource(R.color.textoSecundario)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            minLines = 3
+                        )
+
+
+                        // Sección del mapa
+                        Text(
+                            text = "Ubicación",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (isMapExpanded) 300.dp else 200.dp)
+                                .clickable { isMapExpanded = !isMapExpanded },
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                // Configuración y visualización del mapa
+                                DisposableEffect(Unit) {
+                                    val map = MapView(context).apply {
+                                        setMultiTouchControls(true)
+                                        setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+
+                                        // Configurar el controlador del mapa
+                                        controller.setZoom(15.0)
+
+                                        // Posición inicial (Madrid como ejemplo)
+                                        val startPoint = GeoPoint(40.416775, -3.703790)
+                                        controller.setCenter(startPoint)
+
+                                        // Configurar listener para clics en el mapa
+                                        overlays.add(object : Overlay() {
+                                            override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
+                                                mapView?.let {
+                                                    val projection = it.projection
+                                                    val geoPoint = projection.fromPixels(
+                                                        e?.x?.toInt() ?: 0,
+                                                        e?.y?.toInt() ?: 0
+                                                    ) as GeoPoint
+                                                    ubicacionSeleccionada = geoPoint
+                                                    actualizarMarcador(it, geoPoint)
+                                                }
+                                                return true
                                             }
-                                            return true
-                                        }
-                                    })
-                                }
-
-                                mapView = map
-
-                                // Intentar obtener la ubicación actual si tenemos permisos
-                                if (hasLocationPermission) {
-                                    obtenerUbicacionActual(context) { location ->
-                                        val geoPoint = GeoPoint(location.latitude, location.longitude)
-                                        ubicacionSeleccionada = geoPoint
-                                        actualizarMarcador(map, geoPoint)
+                                        })
                                     }
-                                }
 
-                                onDispose {
-                                    map.onDetach()
-                                }
-                            }
+                                    mapView = map
 
-                            // Vista del mapa
-                            mapView?.let { map ->
-                                AndroidView(
-                                    factory = { map },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-
-                            // Botón para obtener ubicación actual
-                            FloatingActionButton(
-                                onClick = {
+                                    // Intentar obtener la ubicación actual si tenemos permisos
                                     if (hasLocationPermission) {
                                         obtenerUbicacionActual(context) { location ->
                                             val geoPoint = GeoPoint(location.latitude, location.longitude)
                                             ubicacionSeleccionada = geoPoint
-                                            mapView?.let { actualizarMarcador(it, geoPoint) }
+                                            actualizarMarcador(map, geoPoint)
                                         }
-                                    } else {
-                                        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                                     }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(16.dp)
-                                    .size(48.dp),
-                                containerColor = colorResource(R.color.azulPrimario)
-                            ) {
-                                Icon(
-                                    Icons.Default.Call,
-                                    contentDescription = "Mi ubicación",
-                                    tint = Color.White
-                                )
-                            }
 
-                            // Indicador de carga de ubicación
-                            if (isLoadingLocation) {
-                                CircularProgressIndicator(
+                                    onDispose {
+                                        map.onDetach()
+                                    }
+                                }
+
+                                // Vista del mapa
+                                mapView?.let { map ->
+                                    AndroidView(
+                                        factory = { map },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                // Botón para obtener ubicación actual
+                                FloatingActionButton(
+                                    onClick = {
+                                        if (hasLocationPermission) {
+                                            obtenerUbicacionActual(context) { location ->
+                                                val geoPoint = GeoPoint(location.latitude, location.longitude)
+                                                ubicacionSeleccionada = geoPoint
+                                                mapView?.let { actualizarMarcador(it, geoPoint) }
+                                            }
+                                        } else {
+                                            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                        }
+                                    },
                                     modifier = Modifier
-                                        .size(50.dp)
-                                        .align(Alignment.Center),
+                                        .align(Alignment.BottomEnd)
+                                        .padding(16.dp)
+                                        .size(48.dp),
+                                    containerColor = colorResource(R.color.azulPrimario),
+                                    shape = CircleShape
+                                ) {
+                                    Icon(
+                                        Icons.Default.Call,
+                                        contentDescription = "Mi ubicación",
+                                        tint = Color.White
+                                    )
+                                }
+
+                                // Indicador de carga de ubicación
+                                if (isLoadingLocation) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(50.dp)
+                                            .align(Alignment.Center),
+                                        color = colorResource(R.color.azulPrimario)
+                                    )
+                                }
+
+                                // Ícono para expandir/contraer el mapa
+                                IconButton(
+                                    onClick = { isMapExpanded = !isMapExpanded },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(32.dp)
+                                        .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                                ) {
+                                    Icon(
+                                        if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
+                                        contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
+                                        tint = colorResource(R.color.azulPrimario)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Mostrar coordenadas seleccionadas
+                        ubicacionSeleccionada?.let { ubicacion ->
+                            Text(
+                                text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                                color = colorResource(R.color.textoSecundario)
+                            )
+                        } ?: run {
+                            Text(
+                                text = "Toca en el mapa para seleccionar una ubicación o usa el botón de ubicación actual",
+                                fontSize = 14.sp,
+                                color = colorResource(R.color.textoSecundario),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        // Lugar
+                        Text(
+                            text = "Lugar",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = lugar,
+                            onValueChange = { lugar = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Lugar de la actividad", color = colorResource(R.color.textoSecundario)) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Place,
+                                    contentDescription = "Lugar",
+                                    tint = colorResource(R.color.azulPrimario)
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        // Fecha y hora de inicio
+                        Text(
+                            text = "Fecha y hora de inicio",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Botón para seleccionar fecha de inicio
+                            OutlinedButton(
+                                onClick = { showFechaInicioDatePicker.value = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp),
+                                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = colorResource(R.color.azulPrimario)
+                                )
+                            ) {
+                                Text(
+                                    text = if (fechaInicio.value != null)
+                                        dateFormat.format(fechaInicio.value!!)
+                                    else "Seleccionar fecha",
                                     color = colorResource(R.color.azulPrimario)
                                 )
                             }
 
-                            // Ícono para expandir/contraer el mapa
-                            IconButton(
-                                onClick = { isMapExpanded = !isMapExpanded },
+                            // Botón para seleccionar hora de inicio
+                            OutlinedButton(
+                                onClick = { showFechaInicioTimePicker.value = true },
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .size(32.dp)
-                                    .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                                    .weight(1f)
+                                    .padding(start = 8.dp),
+                                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = colorResource(R.color.azulPrimario)
+                                )
                             ) {
-                                Icon(
-                                    if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
-                                    contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
-                                    tint = colorResource(R.color.azulPrimario)
+                                Text(
+                                    text = if (fechaInicio.value != null)
+                                        timeFormat.format(fechaInicio.value!!)
+                                    else "Seleccionar hora",
+                                    color = colorResource(R.color.azulPrimario)
                                 )
                             }
                         }
-                    }
 
-                    // Mostrar coordenadas seleccionadas
-                    ubicacionSeleccionada?.let { ubicacion ->
+                        // Fecha y hora de finalización
                         Text(
-                            text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } ?: run {
-                        Text(
-                            text = "Toca en el mapa para seleccionar una ubicación o usa el botón de ubicación actual",
-                            fontSize = 14.sp,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Lugar
-                    Text(
-                        text = "Lugar",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = lugar,
-                        onValueChange = { lugar = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Lugar de la actividad") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Place,
-                                contentDescription = "Lugar",
-                                tint = colorResource(R.color.azulPrimario)
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorResource(R.color.azulPrimario),
-                            unfocusedBorderColor = Color.Gray
-                        )
-                    )
-
-                    // Fecha y hora de inicio
-                    Text(
-                        text = "Fecha y hora de inicio",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Botón para seleccionar fecha de inicio
-                        OutlinedButton(
-                            onClick = { showFechaInicioDatePicker.value = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp),
-                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
-                        ) {
-                            Text(
-                                text = if (fechaInicio.value != null)
-                                    dateFormat.format(fechaInicio.value!!)
-                                else "Seleccionar fecha",
-                                color = colorResource(R.color.azulPrimario)
-                            )
-                        }
-
-                        // Botón para seleccionar hora de inicio
-                        OutlinedButton(
-                            onClick = { showFechaInicioTimePicker.value = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp),
-                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
-                        ) {
-                            Text(
-                                text = if (fechaInicio.value != null)
-                                    timeFormat.format(fechaInicio.value!!)
-                                else "Seleccionar hora",
-                                color = colorResource(R.color.azulPrimario)
-                            )
-                        }
-                    }
-
-                    // Fecha y hora de finalización
-                    Text(
-                        text = "Fecha y hora de finalización",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Botón para seleccionar fecha de finalización
-                        OutlinedButton(
-                            onClick = { showFechaFinDatePicker.value = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp),
-                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
-                        ) {
-                            Text(
-                                text = if (fechaFinalizacion.value != null)
-                                    dateFormat.format(fechaFinalizacion.value!!)
-                                else "Seleccionar fecha",
-                                color = colorResource(R.color.azulPrimario)
-                            )
-                        }
-
-                        // Botón para seleccionar hora de finalización
-                        OutlinedButton(
-                            onClick = { showFechaFinTimePicker.value = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp),
-                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
-                        ) {
-                            Text(
-                                text = if (fechaFinalizacion.value != null)
-                                    timeFormat.format(fechaFinalizacion.value!!)
-                                else "Seleccionar hora",
-                                color = colorResource(R.color.azulPrimario)
-                            )
-                        }
-                    }
-
-                    // Selección privacidad
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Actividad privada",
+                            text = "Fecha y hora de finalización",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color= Color.Black
+                            color = colorResource(R.color.textoPrimario),
+                            modifier = Modifier.padding(bottom = 4.dp)
                         )
 
-                        Switch(
-                            checked = privada,
-                            onCheckedChange = { privada = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = colorResource(R.color.azulPrimario),
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color.Gray
-                            )
-                        )
-                    }
-
-                    // Sección de imágenes
-                    Text(
-                        text = "Añadir imágenes",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // Vista previa de imágenes seleccionadas
-                    if (imagenes.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.height(120.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            items(imagenes) { imagen ->
-                                Box {
-                                    AsyncImage(
-                                        model = imagen,
-                                        contentDescription = "Imagen de actividad",
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            val index = imagenes.indexOf(imagen)
-                                            imagenes = imagenes.filterIndexed { i, _ -> i != index }
-                                            imagenesBase64 = imagenesBase64.filterIndexed { i, _ -> i != index }
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(24.dp)
-                                            .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(50))
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Eliminar",
-                                            tint = Color.Red,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
+                            // Botón para seleccionar fecha de finalización
+                            OutlinedButton(
+                                onClick = { showFechaFinDatePicker.value = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp),
+                                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = colorResource(R.color.azulPrimario)
+                                )
+                            ) {
+                                Text(
+                                    text = if (fechaFinalizacion.value != null)
+                                        dateFormat.format(fechaFinalizacion.value!!)
+                                    else "Seleccionar fecha",
+                                    color = colorResource(R.color.azulPrimario)
+                                )
+                            }
+
+                            // Botón para seleccionar hora de finalización
+                            OutlinedButton(
+                                onClick = { showFechaFinTimePicker.value = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 8.dp),
+                                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = colorResource(R.color.azulPrimario)
+                                )
+                            ) {
+                                Text(
+                                    text = if (fechaFinalizacion.value != null)
+                                        timeFormat.format(fechaFinalizacion.value!!)
+                                    else "Seleccionar hora",
+                                    color = colorResource(R.color.azulPrimario)
+                                )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
+                        // Selección privacidad
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Actividad privada",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colorResource(R.color.textoPrimario)
+                                )
 
-                    // Botón para añadir imágenes
-                    Button(
-                        onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorResource(R.color.azulPrimario)
+                                Switch(
+                                    checked = privada,
+                                    onCheckedChange = { privada = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = colorResource(R.color.azulPrimario),
+                                        uncheckedThumbColor = Color.White,
+                                        uncheckedTrackColor = colorResource(R.color.cyanSecundario)
+                                    )
+                                )
+                            }
+                        }
+
+                        // Sección de imágenes
+                        Text(
+                            text = "Añadir imágenes",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoPrimario)
                         )
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Añadir imagen")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Añadir imágenes")
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Botón para crear actividad
-                    Button(
-                        onClick = {
-                            if (validarCampos(nombre, descripcion, lugar, fechaInicio.value, fechaFinalizacion.value)) {
-                                scope.launch {
-                                    isLoading = true
-                                    try {
-                                        Log.d("CrearActividad", "Creando actividad con token: ${authToken.take(10)}...")
-
-                                        val coordenadas = ubicacionSeleccionada?.let {
-                                            Coordenadas(
-                                                latitud = it.latitude.toString(),
-                                                longitud = it.longitude.toString()
+                        // Vista previa de imágenes seleccionadas
+                        if (imagenes.isNotEmpty()) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.height(120.dp)
+                            ) {
+                                items(imagenes) { imagen ->
+                                    Box {
+                                        AsyncImage(
+                                            model = imagen,
+                                            contentDescription = "Imagen de actividad",
+                                            modifier = Modifier
+                                                .size(120.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .border(1.dp, colorResource(R.color.cyanSecundario), RoundedCornerShape(12.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                val index = imagenes.indexOf(imagen)
+                                                imagenes = imagenes.filterIndexed { i, _ -> i != index }
+                                                imagenesBase64 = imagenesBase64.filterIndexed { i, _ -> i != index }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(28.dp)
+                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = colorResource(R.color.error),
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         }
-
-                                        val actividad = ActividadCreateDTO(
-                                            nombre = nombre,
-                                            descripcion = descripcion,
-                                            comunidad = comunidadUrl,
-                                            creador = username,
-                                            fechaInicio = fechaInicio.value!!,
-                                            fechaFinalizacion = fechaFinalizacion.value!!,
-                                            fotosCarruselBase64 = if (imagenesBase64.isNotEmpty()) imagenesBase64 else null,
-                                            fotosCarruselIds = null,
-                                            privada = privada,
-                                            coordenadas =coordenadas,
-                                            lugar = lugar
-                                        )
-
-                                        val response = retrofitService.crearActividad(
-                                            token = "Bearer $authToken",
-                                            actividadCreateDTO = actividad
-                                        )
-
-                                        if (response.isSuccessful) {
-                                            Toast.makeText(context, "Actividad creada correctamente", Toast.LENGTH_SHORT).show()
-                                            navController.popBackStack()
-                                        } else {
-                                            val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
-                                            val mensajeError = ErrorUtils.parseErrorMessage(errorMsg)
-                                            Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
-                                            Log.e("CrearActividad", "Error: $errorMsg")
-                                        }
-                                    } catch (e: Exception) {
-                                        val mensajeError = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
-                                        Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
-                                        Log.e("CrearActividad", "Excepción: ${e.message}", e)
-                                    } finally {
-                                        isLoading = false
                                     }
                                 }
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Por favor, completa todos los campos obligatorios",
-                                    Toast.LENGTH_SHORT
-                                ).show()
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorResource(R.color.azulPrimario)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // Botón para añadir imágenes
+                        Button(
+                            onClick = { imagePickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.azulPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Añadir imagen",
+                                modifier = Modifier.size(20.dp)
                             )
-                        } else {
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "CREAR ACTIVIDAD",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                "Añadir imágenes",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                    }
 
-                    // Botón para cancelar
-                    OutlinedButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colorResource(R.color.azulPrimario)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
-                    ) {
-                        Text(
-                            "CANCELAR",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Botón para crear actividad
+                        Button(
+                            onClick = {
+                                if (validarCampos(nombre, descripcion, lugar, fechaInicio.value, fechaFinalizacion.value)) {
+                                    scope.launch {
+                                        isLoading = true
+                                        try {
+                                            Log.d("CrearActividad", "Creando actividad con token: ${authToken.take(10)}...")
+
+                                            val coordenadas = ubicacionSeleccionada?.let {
+                                                Coordenadas(
+                                                    latitud = it.latitude.toString(),
+                                                    longitud = it.longitude.toString()
+                                                )
+                                            }
+
+                                            val actividad = ActividadCreateDTO(
+                                                nombre = nombre,
+                                                descripcion = descripcion,
+                                                comunidad = comunidadUrl,
+                                                creador = username,
+                                                fechaInicio = fechaInicio.value!!,
+                                                fechaFinalizacion = fechaFinalizacion.value!!,
+                                                fotosCarruselBase64 = if (imagenesBase64.isNotEmpty()) imagenesBase64 else null,
+                                                fotosCarruselIds = null,
+                                                privada = privada,
+                                                coordenadas = coordenadas,
+                                                lugar = lugar
+                                            )
+
+                                            val response = retrofitService.crearActividad(
+                                                token = "Bearer $authToken",
+                                                actividadCreateDTO = actividad
+                                            )
+
+                                            if (response.isSuccessful) {
+                                                Toast.makeText(context, "Actividad creada correctamente", Toast.LENGTH_SHORT).show()
+                                                navController.popBackStack()
+                                            } else {
+                                                val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
+                                                val mensajeError = ErrorUtils.parseErrorMessage(errorMsg)
+                                                Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                                Log.e("CrearActividad", "Error: $errorMsg")
+                                            }
+                                        } catch (e: Exception) {
+                                            val mensajeError = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
+                                            Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                            Log.e("CrearActividad", "Excepción: ${e.message}", e)
+                                        } finally {
+                                            isLoading = false
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Por favor, completa todos los campos obligatorios",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            enabled = !isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.azulPrimario),
+                                disabledContainerColor = colorResource(R.color.textoSecundario)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text(
+                                    "CREAR ACTIVIDAD",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        // Botón para cancelar
+                        OutlinedButton(
+                            onClick = { navController.popBackStack() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = colorResource(R.color.azulPrimario)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
+                        ) {
+                            Text(
+                                "CANCELAR",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -767,12 +829,22 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         DatePickerDialog(
             onDismissRequest = { showFechaInicioDatePicker.value = false },
             confirmButton = {
-                Button(onClick = { showFechaInicioDatePicker.value = false }) {
+                Button(
+                    onClick = { showFechaInicioDatePicker.value = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario)
+                    )
+                ) {
                     Text("Aceptar")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showFechaInicioDatePicker.value = false }) {
+                TextButton(
+                    onClick = { showFechaInicioDatePicker.value = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = colorResource(R.color.textoSecundario)
+                    )
+                ) {
                     Text("Cancelar")
                 }
             }
@@ -808,12 +880,22 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         DatePickerDialog(
             onDismissRequest = { showFechaFinDatePicker.value = false },
             confirmButton = {
-                Button(onClick = { showFechaFinDatePicker.value = false }) {
+                Button(
+                    onClick = { showFechaFinDatePicker.value = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario)
+                    )
+                ) {
                     Text("Aceptar")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showFechaFinDatePicker.value = false }) {
+                TextButton(
+                    onClick = { showFechaFinDatePicker.value = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = colorResource(R.color.textoSecundario)
+                    )
+                ) {
                     Text("Cancelar")
                 }
             }
@@ -858,16 +940,18 @@ fun TimePickerDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     "Seleccionar hora",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
+                    color = colorResource(R.color.textoPrimario),
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
@@ -881,53 +965,83 @@ fun TimePickerDialog(
                 ) {
                     // Hour selector
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Hora:", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Hora:",
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoSecundario)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        IconButton(onClick = {
-                            if (selectedHour > 0) selectedHour-- else selectedHour = 23
-                        }) {
-                            Text("+", fontSize = 24.sp)
+                        IconButton(
+                            onClick = {
+                                if (selectedHour < 23) selectedHour++ else selectedHour = 0
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(colorResource(R.color.cyanSecundario), CircleShape)
+                        ) {
+                            Text("+", fontSize = 24.sp, color = colorResource(R.color.azulPrimario))
                         }
 
                         Text(
                             text = String.format("%02d", selectedHour),
-                            fontSize = 24.sp,
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            color = colorResource(R.color.textoPrimario)
                         )
 
-                        IconButton(onClick = {
-                            if (selectedHour < 23) selectedHour++ else selectedHour = 0
-                        }) {
-                            Text("-", fontSize = 24.sp)
+                        IconButton(
+                            onClick = {
+                                if (selectedHour > 0) selectedHour-- else selectedHour = 23
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(colorResource(R.color.cyanSecundario), CircleShape)
+                        ) {
+                            Text("-", fontSize = 24.sp, color = colorResource(R.color.azulPrimario))
                         }
                     }
 
-                    Text(":", fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                    Text(":", fontWeight = FontWeight.Bold, fontSize = 28.sp, color = colorResource(R.color.textoPrimario))
 
                     // Minute selector
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Minuto:", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Minuto:",
+                            fontWeight = FontWeight.Bold,
+                            color = colorResource(R.color.textoSecundario)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        IconButton(onClick = {
-                            if (selectedMinute > 0) selectedMinute-- else selectedMinute = 59
-                        }) {
-                            Text("+", fontSize = 24.sp)
+                        IconButton(
+                            onClick = {
+                                if (selectedMinute < 59) selectedMinute++ else selectedMinute = 0
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(colorResource(R.color.cyanSecundario), CircleShape)
+                        ) {
+                            Text("+", fontSize = 24.sp, color = colorResource(R.color.azulPrimario))
                         }
 
                         Text(
                             text = String.format("%02d", selectedMinute),
-                            fontSize = 24.sp,
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            color = colorResource(R.color.textoPrimario)
                         )
 
-                        IconButton(onClick = {
-                            if (selectedMinute < 59) selectedMinute++ else selectedMinute = 0
-                        }) {
-                            Text("-", fontSize = 24.sp)
+                        IconButton(
+                            onClick = {
+                                if (selectedMinute > 0) selectedMinute-- else selectedMinute = 59
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(colorResource(R.color.cyanSecundario), CircleShape)
+                        ) {
+                            Text("-", fontSize = 24.sp, color = colorResource(R.color.azulPrimario))
                         }
                     }
                 }
@@ -938,14 +1052,23 @@ fun TimePickerDialog(
                         .padding(top = 16.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismissRequest) {
+                    TextButton(
+                        onClick = onDismissRequest,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = colorResource(R.color.textoSecundario)
+                        )
+                    ) {
                         Text("Cancelar")
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
-                        onClick = { onTimeSelected(selectedHour, selectedMinute) }
+                        onClick = { onTimeSelected(selectedHour, selectedMinute) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.azulPrimario)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Aceptar")
                     }
@@ -955,7 +1078,6 @@ fun TimePickerDialog(
     }
 }
 
-
 // Función para validar los campos obligatorios
 private fun validarCampos(
     nombre: String,
@@ -964,8 +1086,11 @@ private fun validarCampos(
     fechaInicio: Date?,
     fechaFinalizacion: Date?
 ): Boolean {
-    return nombre.isNotBlank() && descripcion.isNotBlank() && lugar.isNotBlank()
-            && fechaInicio != null && fechaFinalizacion != null
+    return nombre.isNotBlank() &&
+            descripcion.isNotBlank() &&
+            lugar.isNotBlank() &&
+            fechaInicio != null &&
+            fechaFinalizacion != null
 }
 
 // Función optimizada para convertir imagen a Base64

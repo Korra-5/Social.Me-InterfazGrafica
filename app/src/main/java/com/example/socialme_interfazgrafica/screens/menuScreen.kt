@@ -503,11 +503,8 @@ fun ActividadCarousel(username: String,navController:NavController) {
             }
         }
     }
-}
-
-@Composable
-fun CarrouselActvidadesPorComunidad(username: String, navController:NavController){
-
+}@Composable
+fun CarrouselActvidadesPorComunidad(username: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -517,7 +514,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Función para cargar las actividades
-    fun carrouselActvidadesPorComunidad(navController:NavController) {
+    fun cargarActividades() {
         scope.launch {
             isLoading = true
             errorMessage = null
@@ -536,7 +533,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 Log.d("CarrouselActvidadesPorComunidad", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadNoParticipaUsuario(username = username,token=authToken)
+                val response = apiService.verActividadNoParticipaUsuario(token = authToken, username = username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -570,7 +567,10 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
         }
     }
 
-
+    // Usar LaunchedEffect para llamar a la función de carga cuando el componente se compone
+    LaunchedEffect(username) {
+        cargarActividades()
+    }
 
     Column(
         modifier = Modifier
@@ -622,7 +622,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
                         Button(
                             onClick = {
                                 Log.d("CarrouselActvidadesPorComunidad", "Botón 'Intentar de nuevo' pulsado")
-                                carrouselActvidadesPorComunidad(navController)
+                                cargarActividades()
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
@@ -643,7 +643,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No participas en ninguna actividad",
+                        text = "No hay actividades disponibles para unirse",
                         color = colorResource(R.color.textoSecundario),
                         textAlign = TextAlign.Center
                     )
@@ -667,7 +667,6 @@ fun CarrouselActvidadesPorComunidad(username: String, navController:NavControlle
         }
     }
 }
-
 // Modified Activity Card with navigation
 @Composable
 fun ActividadCard(actividad: ActividadDTO, navController: NavController) {

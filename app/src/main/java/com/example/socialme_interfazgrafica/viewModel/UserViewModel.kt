@@ -181,7 +181,7 @@ class UserViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     Log.d("RegistroVM", "Registro exitoso: ${response.body()}")
                     _registroState.value = RegistroState.Success(response.body()!!)
-                    // No navegar
+                } else {
                     val errorBody = response.errorBody()?.string() ?: "Error desconocido"
                     Log.e("RegistroVM", "Error en registro: Código ${response.code()}, Mensaje: $errorBody")
                     _registroState.value = RegistroState.Error(response.code(), errorBody)
@@ -264,6 +264,33 @@ class UserViewModel : ViewModel() {
         }
     }
 
+    // Nuevo método para verificar el código de email
+    fun verificarCodigo(email: String, codigo: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val verificacionDTO = VerificacionDTO(email = email, codigo = codigo)
+                val response = apiService.verificarCodigo(verificacionDTO)
+                onComplete(response.isSuccessful && response.body() == true)
+            } catch (e: Exception) {
+                Log.e("UserViewModel", "Error al verificar código: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
+    // Nuevo método para reenviar el código
+    fun reenviarCodigo(email: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.reenviarCodigo(email)
+                onComplete(response.isSuccessful && response.body() == true)
+            } catch (e: Exception) {
+                Log.e("UserViewModel", "Error al reenviar código: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
     /**
      * Resetea el estado de login para evitar inicios de sesión automáticos indeseados
      * cuando el usuario cierra sesión
@@ -279,31 +306,4 @@ class UserViewModel : ViewModel() {
 
         Log.d("UserViewModel", "Estado de login reseteado correctamente")
     }
-
-
-
-fun verificarCodigo(email: String, codigo: String, onComplete: (Boolean) -> Unit) {
-    viewModelScope.launch {
-        try {
-            val verificacionDTO = VerificacionDTO(email = email, codigo = codigo)
-            val response = apiService.verificarCodigo(verificacionDTO)
-            onComplete(response.isSuccessful && response.body() == true)
-        } catch (e: Exception) {
-            Log.e("UserViewModel", "Error al verificar código: ${e.message}")
-            onComplete(false)
-        }
-    }
-}
-
-fun reenviarCodigo(email: String, onComplete: (Boolean) -> Unit) {
-    viewModelScope.launch {
-        try {
-            val response = apiService.reenviarCodigo(email)
-            onComplete(response.isSuccessful && response.body() == true)
-        } catch (e: Exception) {
-            Log.e("UserViewModel", "Error al reenviar código: ${e.message}")
-            onComplete(false)
-        }
-    }
-}
 }

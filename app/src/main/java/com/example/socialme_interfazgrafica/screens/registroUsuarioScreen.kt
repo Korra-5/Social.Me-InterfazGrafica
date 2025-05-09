@@ -77,7 +77,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
     val registroState by viewModel.registroState.observeAsState()
 
     // Efecto para manejar cambios en el estado de registro
-    // Localiza esta parte en paste-2.txt, línea aproximada 95-105
+    // Efecto para manejar cambios en el estado de registro
     LaunchedEffect(registroState) {
         when (registroState) {
             is RegistroState.Loading -> {
@@ -86,11 +86,11 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
             }
             is RegistroState.Success -> {
                 isLoading = false
-                // En lugar de navegar de vuelta a login, navega a la pantalla de verificación
+                // En lugar de volver a login, navegamos a la pantalla de verificación
                 navController.navigate(
                     AppScreen.EmailVerificationScreen.createRoute(
-                        email = email,
-                        username = username,
+                        email = email.trim(),
+                        username = username.trim(),
                         isRegistration = true
                     )
                 )

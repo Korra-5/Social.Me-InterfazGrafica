@@ -270,7 +270,8 @@ fun AppNavigation(viewModel: UserViewModel) {
                 navController = navController,
                 email = email,
                 username = username,
-                isRegistration = isRegistration
+                isRegistration = isRegistration,
+                viewModel=viewModel
             )
         }
     }
