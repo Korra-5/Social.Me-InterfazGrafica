@@ -39,6 +39,7 @@ import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -101,7 +102,7 @@ fun BusquedaScreen(
                     }
 
                     SearchType.USERS -> {
-                        val response = retrofitService.verTodosLosUsuarios(token)
+                        val response = retrofitService.verTodosLosUsuarios(token=token, username=username)
                         if (response.isSuccessful) {
                             usuarios = response.body() ?: emptyList()
                         }
@@ -487,113 +488,20 @@ fun BusquedaScreen(
     }
 }
 @Composable
-fun ActividadItem(
-    actividad: ActividadDTO,
-    authToken: String,
-    navController: NavController // Añadir el NavController para la navegación
-) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
-    val context = LocalContext.current
-    val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-    val coroutineScope = rememberCoroutineScope() // Para manejar operaciones asíncronas si es necesario
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                // Dentro de la lambda de clickable, navegamos a la pantalla de detalle
-                navController.navigate("actividad_detalle/${actividad._id}")
-
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, colorResource(R.color.azulPrimario).copy(alpha = 0.2f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Imagen principal si existe
-            if (actividad.fotosCarruselIds.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data("$baseUrl/files/download/${actividad.fotosCarruselIds.first()}")
-                            .crossfade(true)
-                            .placeholder(R.drawable.app_icon)
-                            .error(R.drawable.app_icon)
-                            .setHeader("Authorization", authToken)
-                            .build(),
-                        contentDescription = "Imagen de actividad",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Información de la actividad
-            Text(
-                text = actividad.nombre,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = actividad.descripcion,
-                fontSize = 14.sp,
-                color = Color.Gray,
-                maxLines = 2
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Lugar: ${actividad.lugar}",
-                    fontSize = 12.sp,
-                    color = Color.DarkGray
-                )
-                Text(
-                    text = dateFormatter.format(actividad.fechaInicio),
-                    fontSize = 12.sp,
-                    color = Color.DarkGray
-                )
-            }
-        }
-    }
-}
-@Composable
 fun ComunidadItem(
     comunidad: ComunidadDTO,
     authToken: String,
-    navController: NavController // Añadir el NavController para la navegación
+    navController: NavController
 ) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope() // Para manejar operaciones asíncronas
+    val coroutineScope = rememberCoroutineScope()
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                // Dentro de la lambda de clickable, navegamos a la pantalla de detalle
-                navController.navigate("comunidad_detalle/${comunidad.url}")
+                navController.navigate(AppScreen.ComunidadDetalleScreen.createRoute(comunidad.url))
             },
         colors = CardDefaults.cardColors(
             containerColor = Color.White
@@ -684,6 +592,97 @@ fun ComunidadItem(
         }
     }
 }
+
+@Composable
+fun ActividadItem(
+    actividad: ActividadDTO,
+    authToken: String,
+    navController: NavController
+) {
+    val baseUrl = "https://social-me-tfg.onrender.com"
+    val context = LocalContext.current
+    val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val coroutineScope = rememberCoroutineScope()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                navController.navigate(AppScreen.ActividadDetalleScreen.createRoute(actividad._id))
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, colorResource(R.color.azulPrimario).copy(alpha = 0.2f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Imagen principal si existe
+            if (actividad.fotosCarruselIds.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data("$baseUrl/files/download/${actividad.fotosCarruselIds.first()}")
+                            .crossfade(true)
+                            .placeholder(R.drawable.app_icon)
+                            .error(R.drawable.app_icon)
+                            .setHeader("Authorization", authToken)
+                            .build(),
+                        contentDescription = "Imagen de actividad",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Información de la actividad
+            Text(
+                text = actividad.nombre,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = actividad.descripcion,
+                fontSize = 14.sp,
+                color = Color.Gray,
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Lugar: ${actividad.lugar}",
+                    fontSize = 12.sp,
+                    color = Color.DarkGray
+                )
+                Text(
+                    text = dateFormatter.format(actividad.fechaInicio),
+                    fontSize = 12.sp,
+                    color = Color.DarkGray
+                )
+            }
+        }
+    }
+}
 @Composable
 fun UsuarioSearchItem(
     usuario: UsuarioDTO,
@@ -697,7 +696,7 @@ fun UsuarioSearchItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                navController.navigate("usuario_detalle/${usuario.username}")
+                navController.navigate(AppScreen.UsuarioDetalleScreen.createRoute(usuario.username))
             },
         colors = CardDefaults.cardColors(
             containerColor = Color.White
@@ -706,6 +705,7 @@ fun UsuarioSearchItem(
         border = BorderStroke(1.dp, colorResource(R.color.azulPrimario).copy(alpha = 0.2f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
+        // El resto del código permanece igual
         Row(
             modifier = Modifier
                 .fillMaxWidth()

@@ -78,9 +78,10 @@ interface RetrofitService {
         @Header("Authorization") token: String,
     ): Response<List<ComunidadDTO>>
 
-    @GET("Usuario/verTodosLosUsuarios")
+    @GET("Usuario/verTodosLosUsuarios/{username}")
     suspend fun verTodosLosUsuarios(
         @Header("Authorization") token: String,
+        @Path("username") username:String
     ): Response<List<UsuarioDTO>>
 
     @GET("Actividad/verActividadNoParticipaUsuario/{username}")
@@ -233,6 +234,12 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("url") url:String
     ): Response<ActividadCreateDTO>
+
+    @DELETE("/Usuario/eliminarUsuario/{username}")
+    suspend fun eliminarUsuario(
+        @Header("Authorization") token: String,
+        @Path("username") username : String
+    ): Response<UsuarioDTO>
 
     @PUT("/Usuario/modificarUsuario")
     suspend fun modificarUsuario(

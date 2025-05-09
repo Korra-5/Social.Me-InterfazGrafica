@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -31,8 +32,10 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -51,8 +54,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.socialme_interfazgrafica.R
+import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.navigation.AppScreen
+import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import kotlin.math.roundToInt
 
 // Objeto para almacenar constantes de SharedPreferences
@@ -77,6 +87,11 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
     // Obtener el contexto para acceder a SharedPreferences
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    // Estado para manejar diálogos
+    var mostrarDialogoConfirmacion by remember { mutableStateOf(false) }
+    var mostrarDialogoError by remember { mutableStateOf(false) }
+    var mensajeError by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
@@ -141,7 +156,7 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botón de cerrar sesión separado
+            // Botón de cerrar sesión
             Button(
                 onClick = {
                     // Función para cerrar sesión
@@ -153,6 +168,68 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Cerrar sesión")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botón de eliminar cuenta
+            OutlinedButton(
+                onClick = {
+                    // Mostrar diálogo de confirmación
+                    mostrarDialogoConfirmacion = true
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = colorResource(R.color.cyanSecundario)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Eliminar cuenta", color = Color.Red)
+            }
+
+            // Diálogo de confirmación para eliminar cuenta
+            if (mostrarDialogoConfirmacion) {
+                AlertDialog(
+                    onDismissRequest = { mostrarDialogoConfirmacion = false },
+                    title = { Text("Eliminar cuenta") },
+                    text = { Text("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                mostrarDialogoConfirmacion = false
+                                // Ejecutar la eliminación de la cuenta
+                                eliminarCuenta(context, navController, viewModel) { error ->
+                                    mensajeError = error
+                                    mostrarDialogoError = error.isNotEmpty()
+                                }
+                            }
+                        ) {
+                            Text("Eliminar", color = Color.Red)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { mostrarDialogoConfirmacion = false }
+                        ) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
+            }
+
+            // Diálogo de error para mostrar si la eliminación de cuenta falla
+            if (mostrarDialogoError) {
+                AlertDialog(
+                    onDismissRequest = { mostrarDialogoError = false },
+                    title = { Text("No se puede eliminar la cuenta") },
+                    text = { Text(mensajeError) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { mostrarDialogoError = false }
+                        ) {
+                            Text("Entendido")
+                        }
+                    }
+                )
             }
 
             // Espacio adicional para evitar que el BottomNavBar tape contenido
@@ -567,6 +644,79 @@ fun OptionItem(text: String, onClick: () -> Unit) {
             contentDescription = null,
             tint = Color.Gray
         )
+    }
+}
+
+/**
+ * Función para eliminar la cuenta del usuario:
+ * - Intenta borrar la cuenta del servidor vía API
+ * - Maneja posibles errores, especialmente si el usuario es dueño de comunidades
+ * - Si tiene éxito, limpia los datos locales y redirige al login
+ */
+private fun eliminarCuenta(context: Context, navController: NavController, viewModel: UserViewModel, onError: (String) -> Unit) {
+    val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
+    val username = sharedPreferences.getString(PreferenciasUsuario.USERNAME_KEY, "") ?: ""
+
+    if (token.isBlank() || username.isBlank()) {
+        onError("No se pudo identificar tu sesión. Intenta cerrar sesión y volver a iniciar.")
+        return
+    }
+
+    // Ejecutar la llamada a la API en un hilo secundario
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+            val tokenBearer = "Bearer $token"
+            val response = apiService.eliminarUsuario(tokenBearer, username)
+
+            // Procesar la respuesta en el hilo principal
+            withContext(Dispatchers.Main) {
+                if (response.isSuccessful) {
+                    // Éxito: Limpiar datos locales y navegar a login
+                    with(sharedPreferences.edit()) {
+                        clear()
+                        apply()
+                    }
+
+                    // Resetear el estado de login
+                    viewModel.resetLoginState()
+
+                    // Mostrar mensaje de éxito
+                    Toast.makeText(
+                        context,
+                        "Cuenta eliminada correctamente",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    // Navegar a la pantalla de inicio de sesión
+                    navController.navigate(AppScreen.InicioSesionScreen.route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                } else {
+                    // Error: Mostrar mensaje de error
+                    val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+
+                    // Intentar extraer mensaje de error del backend
+                    try {
+                        val jsonObject = JSONObject(errorBody)
+                        val errorMessage = jsonObject.optString("error", "")
+                        if (errorMessage.isNotEmpty()) {
+                            onError(errorMessage)
+                        } else {
+                            onError(ErrorUtils.parseErrorMessage(errorBody))
+                        }
+                    } catch (e: Exception) {
+                        onError(ErrorUtils.parseErrorMessage(errorBody))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Manejar excepciones (problemas de red, etc.)
+            withContext(Dispatchers.Main) {
+                onError(ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"))
+            }
+        }
     }
 }
 
