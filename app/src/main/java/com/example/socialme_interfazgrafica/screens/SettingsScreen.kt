@@ -7,11 +7,15 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
+import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
@@ -463,10 +468,63 @@ fun PrivacidadSection() {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ComunidadesSection(navController: NavController) {
     var expandedComunidades by remember { mutableStateOf(false) }
     var aceptarTerminos by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // Estado para almacenar las comunidades creadas por el usuario
+    var comunidadesCreadas by remember { mutableStateOf<List<ComunidadDTO>>(emptyList()) }
+    // Estado para mostrar mensaje de error
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // Estado para manejar carga
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Obtener datos de SharedPreferences
+    val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
+    val username = sharedPreferences.getString(PreferenciasUsuario.USERNAME_KEY, "") ?: ""
+
+    // Función para cargar las comunidades creadas por el usuario
+    fun cargarComunidadesCreadas() {
+        if (token.isBlank() || username.isBlank()) {
+            errorMessage = "No se pudo identificar la sesión"
+            return
+        }
+
+        isLoading = true
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                val tokenBearer = "Bearer $token"
+                val response = apiService.verComunidadesPorUsuarioCreador(tokenBearer, username)
+
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                    if (response.isSuccessful) {
+                        comunidadesCreadas = response.body() ?: emptyList()
+                    } else {
+                        errorMessage = "Error al cargar comunidades: ${response.message()}"
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                    errorMessage = "Error de conexión: ${e.message}"
+                }
+            }
+        }
+    }
+
+    // Cargar comunidades cuando se expande la sección
+    DisposableEffect(expandedComunidades) {
+        if (expandedComunidades) {
+            cargarComunidadesCreadas()
+        }
+        onDispose { }
+    }
 
     Column {
         Row(
@@ -498,17 +556,93 @@ fun ComunidadesSection(navController: NavController) {
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 8.dp, bottom = 16.dp)
             ) {
-                // Texto Lorem Ipsum
+                // Texto con información sobre las comunidades
                 Text(
                     text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // Nuevo texto que menciona el límite de 3 comunidades
+                Text(
+                    text = "Solo puedes crear un máximo de 3 comunidades por usuario.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorResource(R.color.cyanSecundario),
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
+                // Mostrar comunidades creadas por el usuario
+                Text(
+                    text = "Comunidades que has creado:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                if (isLoading) {
+                    // Mostrar indicador de carga
+                    Text(
+                        text = "Cargando comunidades...",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                } else if (errorMessage != null) {
+                    // Mostrar mensaje de error
+                    Text(
+                        text = errorMessage ?: "",
+                        fontSize = 14.sp,
+                        color = Color.Red,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                } else if (comunidadesCreadas.isEmpty()) {
+                    // Mostrar mensaje si no hay comunidades
+                    Text(
+                        text = "No has creado ninguna comunidad todavía.",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                } else {
+                    // Mostrar lista de comunidades como tags
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        comunidadesCreadas.forEach { comunidad ->
+                            // Tag por cada comunidad
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = colorResource(R.color.cyanSecundario).copy(alpha = 0.7f)
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.clickable {
+                                    // Navegar a la pantalla de detalles de la comunidad
+                                    navController.navigate("comunidad/${comunidad.url}")
+                                }
+                            ) {
+                                Text(
+                                    text = comunidad.nombre,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Checkbox de aceptar términos
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
                     Checkbox(
                         checked = aceptarTerminos,
@@ -520,9 +654,7 @@ fun ComunidadesSection(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Botón Crear comunidad
+                // Botón Crear comunidad (deshabilitado si ya tiene 3 comunidades)
                 Button(
                     onClick = {
                         navController.navigate(AppScreen.CrearComunidadScreen.route)
@@ -531,15 +663,29 @@ fun ComunidadesSection(navController: NavController) {
                         containerColor = colorResource(R.color.cyanSecundario),
                         disabledContainerColor = Color.Gray
                     ),
-                    enabled = aceptarTerminos,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    enabled = aceptarTerminos && comunidadesCreadas.size < 3,
+                    modifier = Modifier.fillMaxWidth() // Cambiado a ancho completo para mejor visualización
                 ) {
                     Text("Crear comunidad")
+                }
+
+                // Mostrar mensaje si ya tiene 3 comunidades
+                if (comunidadesCreadas.size >= 3) {
+                    Text(
+                        text = "Has alcanzado el límite máximo de 3 comunidades creadas.",
+                        fontSize = 12.sp,
+                        color = Color.Red,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun RadarDistanciaSection() {

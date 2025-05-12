@@ -183,6 +183,12 @@ interface RetrofitService {
         @Path("actividadId") actividadId: String
     ): Response<List<UsuarioDTO>>
 
+    @GET("Comunidad/verComunidadesPorUsuarioCreador/{username}")
+    suspend fun verComunidadesPorUsuarioCreador(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<ComunidadDTO>>
+
     @GET("Comunidad/verificarCreadorAdministradorComunidad/{username}/{comunidadUrl}")
     suspend fun verificarCreadorAdministradorComunidad(
         @Header("Authorization") token: String,
