@@ -1,6 +1,8 @@
 package com.example.socialme_interfazgrafica.screens
 
 import android.content.Context
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +16,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +51,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -55,12 +63,18 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
+import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
-import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import java.util.concurrent.TimeUnit
+import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.FunctionUtils
 import com.google.accompanist.flowlayout.FlowRow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +88,15 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Estado para el menú desplegable
+    val showMenu = remember { mutableStateOf(false) }
+
+    // Estados para el diálogo de denuncia
+    val showReportDialog = remember { mutableStateOf(false) }
+    val reportReason = remember { mutableStateOf("") }
+    val reportBody = remember { mutableStateOf("") }
+    val isReportLoading = remember { mutableStateOf(false) }
+
     // Obtener el username del usuario actual desde SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
@@ -82,6 +105,8 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
     // Verificar si el perfil que se está viendo pertenece al usuario logueado
     val isOwnProfile = username == currentUsername
+
+    val utils=FunctionUtils
 
     // Base URL para las imágenes
     val baseUrl = "https://social-me-tfg.onrender.com"
@@ -130,6 +155,64 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         }
     }
 
+    // Diálogo de denuncia
+    if (showReportDialog.value) {
+        utils.ReportDialog(
+            onDismiss = { showReportDialog.value = false },
+            onConfirm = { motivo, cuerpo ->
+                // Crear denuncia
+                scope.launch {
+                    isReportLoading.value = true
+                    try {
+                        val denunciaDTO = DenunciaCreateDTO(
+                            motivo = motivo,
+                            cuerpo = cuerpo,
+                            nombreItemDenunciado = username,
+                            tipoItemDenunciado = "usuario",
+                            usuarioDenunciante = currentUsername
+                        )
+
+                        val response = withContext(Dispatchers.IO) {
+                            RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                                .crearDenuncia(authToken, denunciaDTO)
+                        }
+
+                        if (response.isSuccessful) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Denuncia enviada correctamente", Toast.LENGTH_SHORT).show()
+                                showReportDialog.value = false
+                            }
+                        } else {
+                            val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                            withContext(Dispatchers.Main) {
+                                try {
+                                    val jsonObject = JSONObject(errorBody)
+                                    val errorMessage = jsonObject.optString("error", "")
+                                    if (errorMessage.isNotEmpty()) {
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"), Toast.LENGTH_LONG).show()
+                        }
+                    } finally {
+                        isReportLoading.value = false
+                    }
+                }
+            },
+            isLoading = isReportLoading.value,
+            reportReason = reportReason,
+            reportBody = reportBody
+        )
+    }
+
     // UI para mostrar los datos del usuario
     Box(
         modifier = Modifier
@@ -137,7 +220,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
             .background(colorResource(R.color.background))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Barra superior con botón de retroceso y botón de ajustes (si es el propio perfil)
+            // Barra superior con botón de retroceso y botón de opciones
             TopAppBar(
                 title = { Text(text = "Perfil de Usuario") },
                 navigationIcon = {
@@ -149,15 +232,76 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                     }
                 },
                 actions = {
-                    // Mostrar botón de ajustes solo si es el perfil del usuario actual
-                    if (isOwnProfile) {
-                        IconButton(onClick = {
-                            navController.navigate(AppScreen.ModificarUsuarioScreen.createRoute(username))
-                        }) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = "Ajustes de perfil",
-                                tint = Color.White
+                    // Botón de tres puntos (menú) - siempre visible
+                    IconButton(onClick = { showMenu.value = true }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = "Opciones",
+                            tint = Color.White
+                        )
+                    }
+
+                    // Menú desplegable mejorado
+                    DropdownMenu(
+                        expanded = showMenu.value,
+                        onDismissRequest = { showMenu.value = false },
+                        modifier = Modifier
+                            .padding(end = 8.dp, top = 8.dp)
+                            .background(
+                                color = Color.White,
+                                shape = RoundedCornerShape(8.dp)
+                            ),
+                        offset = DpOffset(x = (-8).dp, y = 4.dp)
+                    ) {
+                        if (usuario!!.username != username) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_calendar),
+                                            contentDescription = "Reportar",
+                                            tint = colorResource(R.color.error),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Reportar usuario",
+                                            color = Color.Black
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    showMenu.value = false
+                                    showReportDialog.value = true
+                                },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        // Si es el creador, añadir opción para modificar
+                        if (usuario!!.username == username) {
+                            Divider(color = Color.LightGray, thickness = 0.5.dp)
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_description),
+                                            contentDescription = "Modificar",
+                                            tint = colorResource(R.color.azulPrimario),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Modificar usuario",
+                                            color = Color.Black
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    showMenu.value = false
+                                    navController.navigate(AppScreen.ModificarActividadScreen.createRoute(username))
+                                },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }

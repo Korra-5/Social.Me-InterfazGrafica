@@ -6,6 +6,7 @@ import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
+import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
@@ -258,7 +259,11 @@ interface RetrofitService {
         @Path("email") email: String
     ): Response<Boolean>
 
-
+    @POST("/Denuncia/crearDenuncia")
+    suspend fun crearDenuncia(
+        @Header("Authorization") token: String,
+        @Body denunciaCreateDTO: DenunciaCreateDTO
+    ): Response<DenunciaCreateDTO>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

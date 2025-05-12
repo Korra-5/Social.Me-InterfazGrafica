@@ -49,10 +49,17 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpOffset
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.disk.DiskCache
@@ -63,8 +70,11 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
+import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.FunctionUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -76,6 +86,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -90,10 +101,22 @@ fun ActividadDetalleScreen(
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val participantes = remember { mutableStateOf(0) }
-    val isParticipating = remember { mutableStateOf(false) } // Estado de participación
-    val username = remember { mutableStateOf("") } // Para almacenar el nombre de usuario actual
+    val isParticipating = remember { mutableStateOf(false) }
+    val username = remember { mutableStateOf("") }
+
+    // Estados para el menú desplegable
+    val showMenu = remember { mutableStateOf(false) }
+
+    // Estados para el diálogo de denuncia
+    val showReportDialog = remember { mutableStateOf(false) }
+    val reportReason = remember { mutableStateOf("") }
+    val reportBody = remember { mutableStateOf("") }
+    val isReportLoading = remember { mutableStateOf(false) }
+
+    val utils = FunctionUtils
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
@@ -162,6 +185,64 @@ fun ActividadDetalleScreen(
         }
     }
 
+    // Diálogo de denuncia
+    if (showReportDialog.value) {
+        utils.ReportDialog(
+            onDismiss = { showReportDialog.value = false },
+            onConfirm = { motivo, cuerpo ->
+                // Crear denuncia
+                scope.launch {
+                    isReportLoading.value = true
+                    try {
+                        val denunciaDTO = DenunciaCreateDTO(
+                            motivo = motivo,
+                            cuerpo = cuerpo,
+                            nombreItemDenunciado = actividadId,
+                            tipoItemDenunciado = "actividad",
+                            usuarioDenunciante = username.value
+                        )
+
+                        val response = withContext(Dispatchers.IO) {
+                            RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                                .crearDenuncia(authToken, denunciaDTO)
+                        }
+
+                        if (response.isSuccessful) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Denuncia enviada correctamente", Toast.LENGTH_SHORT).show()
+                                showReportDialog.value = false
+                            }
+                        } else {
+                            val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                            withContext(Dispatchers.Main) {
+                                try {
+                                    val jsonObject = JSONObject(errorBody)
+                                    val errorMessage = jsonObject.optString("error", "")
+                                    if (errorMessage.isNotEmpty()) {
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"), Toast.LENGTH_LONG).show()
+                        }
+                    } finally {
+                        isReportLoading.value = false
+                    }
+                }
+            },
+            isLoading = isReportLoading.value,
+            reportReason = reportReason,
+            reportBody = reportBody
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -191,7 +272,7 @@ fun ActividadDetalleScreen(
                     Text(
                         text = error.value ?: "Error desconocido",
                         fontSize = 16.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -212,12 +293,78 @@ fun ActividadDetalleScreen(
                     navController = navController,
                     participantes = participantes.value,
                     isParticipating = isParticipating.value,
-                    username = username.value
+                    username = username.value,
+                    showMenu = showMenu,
+                    showReportDialog = showReportDialog
                 )
+
+// Menú desplegable mejorado
+                DropdownMenu(
+                    expanded = showMenu.value,
+                    onDismissRequest = { showMenu.value = false },
+                    modifier = Modifier
+                        .padding(end = 8.dp, top = 8.dp)
+                        .background(
+                            color = Color.White,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    offset = DpOffset(x = (-8).dp, y = 4.dp)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_calendar),
+                                    contentDescription = "Reportar",
+                                    tint = colorResource(R.color.error),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Reportar actividad",
+                                    color = Color.Black
+                                )
+                            }
+                        },
+                        onClick = {
+                            showMenu.value = false
+                            showReportDialog.value = true
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+
+                    // Si es el creador, añadir opción para modificar
+                    if (actividad.value!!.creador == username.toString()) {
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_description),
+                                        contentDescription = "Modificar",
+                                        tint = colorResource(R.color.azulPrimario),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Modificar actividad",
+                                        color = Color.Black
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showMenu.value = false
+                                navController.navigate(AppScreen.ModificarActividadScreen.createRoute(actividadId))
+                            },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
+
 @Composable
 fun ActividadDetalleContent(
     actividad: ActividadDTO,
@@ -226,7 +373,9 @@ fun ActividadDetalleContent(
     navController: NavController,
     participantes: Int,
     isParticipating: Boolean,
-    username: String
+    username: String,
+    showMenu: MutableState<Boolean>,
+    showReportDialog: MutableState<Boolean>
 ) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
@@ -399,8 +548,25 @@ fun ActividadDetalleContent(
                     tint = colorResource(R.color.azulPrimario),
                 )
             }
+
+            // Botón de tres puntos para opciones
+            IconButton(
+                onClick = { showMenu.value = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .size(36.dp)
+                    .background(Color.White.copy(alpha = 0.7f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = "Opciones",
+                    tint = colorResource(R.color.azulPrimario),
+                )
+            }
         }
 
+        // Resto del contenido permanece igual...
         // Contenido principal
         Column(
             modifier = Modifier
@@ -500,6 +666,7 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // El resto del código permanece igual...
             // Sección de organizadores
             Text(
                 text = "Organizadores",
@@ -784,9 +951,7 @@ fun ActividadDetalleContent(
                         color = if (isUserParticipating.value) Color.DarkGray else Color.White
                     )
                 }
-            }
-
-            // Botón MODIFICAR ACTIVIDAD - Solo visible si el usuario es creador o administrador
+            }// Botón MODIFICAR ACTIVIDAD - Solo visible si el usuario es creador o administrador
             if (isCreadorOAdmin.value) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(

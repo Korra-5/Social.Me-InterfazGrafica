@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -41,6 +42,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -67,6 +70,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -80,9 +84,12 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.navigation.AppScreen
+import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.FunctionUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -94,6 +101,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import retrofit2.Response
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -104,6 +112,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+
+    val utils = FunctionUtils
 
     // Estado para controlar si el usuario está participando en la comunidad
     val isUserParticipating = remember { mutableStateOf(false) }
@@ -124,6 +134,17 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     // Estado para el diálogo del código de unión
     val showCodigoUnionDialog = remember { mutableStateOf(false) }
 
+    // Estado para el menú desplegable
+    val showMenu = remember { mutableStateOf(false) }
+
+    // Estados para el diálogo de denuncia
+    val showReportDialog = remember { mutableStateOf(false) }
+    val reportReason = remember { mutableStateOf("") }
+    val reportBody = remember { mutableStateOf("") }
+    val isReportLoading = remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+
     // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
@@ -132,7 +153,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
     // Verificar si el usuario ya participa en la comunidad
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
-    val scope = rememberCoroutineScope()
 
     // Verificar participación cuando se cargue la pantalla
     LaunchedEffect(username.value) {
@@ -153,7 +173,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                 }
 
-                val participacionResponse = withTimeout(8000) { participacionResponseDeferred.await() }
+                val participacionResponse =
+                    withTimeout(8000) { participacionResponseDeferred.await() }
                 isUserParticipating.value = participacionResponse.isSuccessful &&
                         participacionResponse.body() == true
             }
@@ -239,7 +260,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     else ""
 
     // Formatear fecha de creación
-    val fechaCreacion = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(comunidad.fechaCreacion)
+    val fechaCreacion =
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(comunidad.fechaCreacion)
 
     // Mostrar diálogo de código de unión si está activo
     if (showCodigoUnionDialog.value && comunidad.codigoUnion != null) {
@@ -288,7 +310,11 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     onClick = {
                         // Copiar al portapapeles
                         clipboardManager.setText(AnnotatedString(comunidad.codigoUnion))
-                        Toast.makeText(context, "Código copiado al portapapeles", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "Código copiado al portapapeles",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         showCodigoUnionDialog.value = false
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -308,16 +334,92 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         )
     }
 
+    // Diálogo de denuncia
+    if (showReportDialog.value) {
+        utils.ReportDialog(
+            onDismiss = { showReportDialog.value = false },
+            onConfirm = { motivo, cuerpo ->
+                // Crear denuncia
+                scope.launch {
+                    isReportLoading.value = true
+                    try {
+                        val denunciaDTO = DenunciaCreateDTO(
+                            motivo = motivo,
+                            cuerpo = cuerpo,
+                            nombreItemDenunciado = comunidad.url,
+                            tipoItemDenunciado = "comunidad",
+                            usuarioDenunciante = username.value
+                        )
+
+                        val response = withContext(Dispatchers.IO) {
+                            RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                                .crearDenuncia(authToken, denunciaDTO)
+                        }
+
+                        if (response.isSuccessful) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    "Denuncia enviada correctamente",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                showReportDialog.value = false
+                            }
+                        } else {
+                            val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                            withContext(Dispatchers.Main) {
+                                try {
+                                    val jsonObject = JSONObject(errorBody)
+                                    val errorMessage = jsonObject.optString("error", "")
+                                    if (errorMessage.isNotEmpty()) {
+                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG)
+                                            .show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            ErrorUtils.parseErrorMessage(errorBody),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        ErrorUtils.parseErrorMessage(errorBody),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                context,
+                                ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        isReportLoading.value = false
+                    }
+                }
+            },
+            isLoading = isReportLoading.value,
+            reportReason = reportReason,
+            reportBody = reportBody
+        )
+    }
+
+    // Box principal que contiene toda la pantalla
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Usar un Column dentro de un ScrollState para hacer scroll vertical
+        // Columna principal con scroll
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header con foto de perfil
+            // Header con foto de perfil (SOLO la parte de la imagen)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -345,42 +447,9 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                             .background(colorResource(R.color.azulPrimario))
                     )
                 }
-
-                // Botón de retroceso en la esquina superior izquierda
-                IconButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(16.dp)
-                        .size(36.dp)
-                        .background(Color.White.copy(alpha = 0.7f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = colorResource(R.color.azulPrimario),
-                    )
-                }
-
-                // Nuevo botón de código de unión si la comunidad es privada
-                if (comunidad.privada && comunidad.codigoUnion != null) {
-                    IconButton(
-                        onClick = { showCodigoUnionDialog.value = true },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(16.dp)
-                            .size(36.dp)
-                            .background(Color.White.copy(alpha = 0.7f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Share,
-                            contentDescription = "Código de unión",
-                            tint = colorResource(R.color.azulPrimario),
-                        )
-                    }
-                }
             }
 
+            // Ahora el contenido principal está FUERA del Box del header
             // Contenido principal con fondo blanco
             Column(
                 modifier = Modifier
@@ -450,7 +519,10 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         .padding(vertical = 8.dp)
                         .clickable {
                             // Navegar a la pantalla de usuarios por comunidad
-                            val nombreComunidadEncoded = URLEncoder.encode(comunidad.nombre, StandardCharsets.UTF_8.toString())
+                            val nombreComunidadEncoded = URLEncoder.encode(
+                                comunidad.nombre,
+                                StandardCharsets.UTF_8.toString()
+                            )
                             navController.navigate(
                                 AppScreen.VerUsuariosPorComunidadScreen.createRoute(
                                     comunidadId = comunidad.url,
@@ -681,12 +753,20 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                             withContext(Dispatchers.Main) {
                                                 if (response.isSuccessful) {
                                                     isUserParticipating.value = true
-                                                    Toast.makeText(context, "Te has unido a la comunidad", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Te has unido a la comunidad",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
 
                                                     // Incrementar el contador de usuarios
                                                     cantidadUsuarios.value += 1
                                                 } else {
-                                                    Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Error al unirse: ${response.message()}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             }
                                         } else {
@@ -701,21 +781,33 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                             withContext(Dispatchers.Main) {
                                                 if (response.isSuccessful) {
                                                     isUserParticipating.value = false
-                                                    Toast.makeText(context, "Has abandonado la comunidad", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Has abandonado la comunidad",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
 
                                                     // Decrementar el contador de usuarios
                                                     if (cantidadUsuarios.value > 0) {
                                                         cantidadUsuarios.value -= 1
                                                     }
                                                 } else {
-                                                    Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Error al abandonar: ${response.message()}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             }
                                         }
                                     }
                                 } catch (e: Exception) {
                                     withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Error: ${e.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                         Log.e("ComunidadDetalle", "Error: $e")
                                     }
                                 } finally {
@@ -759,49 +851,17 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
                 // Añadir el carrusel de actividades de la comunidad
-                CarruselActividadesComunidad(comunidadUrl = comunidad.url, navController = navController)
+                CarruselActividadesComunidad(
+                    comunidadUrl = comunidad.url,
+                    navController = navController
+                )
 
                 // Espacio adicional al final
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Solo si es admin o creador
                 if (isCreadorOAdmin.value) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            // Navegar a la pantalla de modificación de comunidad
-                            navController.navigate(
-                                AppScreen.ModificarComunidadScreen.createRoute(comunidad.url)
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorResource(R.color.azulPrimario)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 2.dp
-                        )
-                    ) {
-                        if (isLoadingVerificacion.value) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = "MODIFICAR COMUNIDAD",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    // Nuevo botón CREAR ACTIVIDAD
-                    Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = {
                             // Navegar a la pantalla de creación de actividad
@@ -832,9 +892,109 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 }
             }
         }
+
+        // Botones de navegación superpuestos encima de todo
+        // Deben estar en el Box externo para posicionarse correctamente
+        IconButton(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .size(36.dp)
+                .background(Color.White.copy(alpha = 0.7f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ArrowBack,
+                contentDescription = "Volver",
+                tint = colorResource(R.color.azulPrimario),
+            )
+        }
+
+        // Botón de tres puntos (menú)
+        IconButton(
+            onClick = { showMenu.value = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(36.dp)
+                .background(Color.White.copy(alpha = 0.7f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = "Opciones",
+                tint = colorResource(R.color.azulPrimario),
+            )
+        }
+
+
+        // Menú desplegable mejorado
+        DropdownMenu(
+            expanded = showMenu.value,
+            onDismissRequest = { showMenu.value = false },
+            modifier = Modifier
+                .padding(end = 8.dp, top = 8.dp)
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(8.dp)
+                ),
+            offset = DpOffset(x = (-8).dp, y = 4.dp)
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_calendar),
+                            contentDescription = "Reportar",
+                            tint = colorResource(R.color.error),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Reportar comunidad",
+                            color = Color.Black
+                        )
+                    }
+                },
+                onClick = {
+                    showMenu.value = false
+                    showReportDialog.value = true
+                },
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+
+            // Si es el creador, añadir opción para modificar
+            if (comunidad.creador == username.toString()) {
+                Divider(color = Color.LightGray, thickness = 0.5.dp)
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_description),
+                                contentDescription = "Modificar",
+                                tint = colorResource(R.color.azulPrimario),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Modificar comunidad",
+                                color = Color.Black
+                            )
+                        }
+                    },
+                    onClick = {
+                        showMenu.value = false
+                        navController.navigate(
+                            AppScreen.ModificarComunidadScreen.createRoute(
+                                comunidad.url
+                            )
+                        )
+                    },
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
     }
 }
-
 // Función auxiliar para mostrar carrusel de imágenes
 @Composable
 fun CarruselImagenes(
