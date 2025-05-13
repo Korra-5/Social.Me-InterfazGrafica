@@ -21,6 +21,7 @@ import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.screens.ActividadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.BusquedaScreen
 import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
+import com.example.socialme_interfazgrafica.screens.ComprarPremiumScreen
 import com.example.socialme_interfazgrafica.screens.CrearComunidadScreen
 import com.example.socialme_interfazgrafica.screens.EmailVerificationScreen
 import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
@@ -69,6 +70,11 @@ fun AppNavigation(viewModel: UserViewModel) {
 
         composable(AppScreen.OpcionesScreen.route) {
             OpcionesScreen(navController, viewModel)
+        }
+
+        // Ruta para comprar premium
+        composable(AppScreen.ComprarPremiumScreen.route) {
+            ComprarPremiumScreen(navController)
         }
 
         // Ruta para detalles de actividad con argumento de ID
@@ -236,7 +242,7 @@ fun AppNavigation(viewModel: UserViewModel) {
                 navController = navController
             )
 
-    }
+        }
         composable(
             route = AppScreen.ModificarUsuarioScreen.route,
             arguments = listOf(

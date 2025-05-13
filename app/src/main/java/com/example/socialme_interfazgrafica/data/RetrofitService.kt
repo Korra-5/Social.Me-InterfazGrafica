@@ -271,6 +271,12 @@ interface RetrofitService {
         @Body denunciaCreateDTO: DenunciaCreateDTO
     ): Response<DenunciaCreateDTO>
 
+    @PUT("/Usuario/actualizarPremium/{username}")
+    suspend fun actualizarPremium(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<UsuarioDTO>
+
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {
             // Configurar Gson para formatear correctamente las fechas

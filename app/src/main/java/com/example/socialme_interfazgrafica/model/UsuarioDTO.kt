@@ -8,5 +8,6 @@ data class UsuarioDTO(
     val intereses: List<String>,
     val fotoPerfilId: String,
     val direccion: Direccion,
-    val descripcion: String
+    val descripcion: String,
+    val premium:Boolean
 )
