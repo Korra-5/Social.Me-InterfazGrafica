@@ -3,6 +3,7 @@ package com.example.socialme_interfazgrafica.data
 import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
+import com.example.socialme_interfazgrafica.model.BloqueoDTO
 import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
@@ -10,7 +11,9 @@ import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
+import com.example.socialme_interfazgrafica.model.PaymentVerificationRequest
 import com.example.socialme_interfazgrafica.model.RegistroResponse
+import com.example.socialme_interfazgrafica.model.SolicitudAmistadDTO
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
@@ -276,6 +279,75 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("username") username: String
     ): Response<UsuarioDTO>
+
+    @POST("/Usuario/verificarPremium")
+    suspend fun verificarPremium(
+        @Header("Authorization") token: String,
+        @Body paymentData: PaymentVerificationRequest
+    ): Response<Map<String, Any>>
+
+    @GET("Usuario/verSolicitudesAmistad/{username}")
+    suspend fun verSolicitudesAmistad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<SolicitudAmistadDTO>>
+
+    @GET("Usuario/verAmigos/{username}")
+    suspend fun verAmigos(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<UsuarioDTO>>
+
+    @POST("Usuario/enviarSolicitudAmistad")
+    suspend fun enviarSolicitudAmistad(
+        @Header("Authorization") token: String,
+        @Body solicitudAmistadDTO: SolicitudAmistadDTO
+    ): Response<SolicitudAmistadDTO>
+
+    @PUT("Usuario/aceptarSolicitud/{id}")
+    suspend fun aceptarSolicitud(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<Boolean>
+
+    @DELETE("Usuario/rechazarSolicitud/{id}")
+    suspend fun rechazarSolicitud(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<Boolean>
+
+    @GET("Usuario/verificarSolicitudPendiente/{remitente}/{destinatario}")
+    suspend fun verificarSolicitudPendiente(
+        @Header("Authorization") token: String,
+        @Path("remitente") remitente: String,
+        @Path("destinatario") destinatario: String
+    ): Response<Boolean>
+
+    // Para bloqueos
+    @POST("Usuario/bloquearUsuario")
+    suspend fun bloquearUsuario(
+        @Header("Authorization") token: String,
+        @Body bloqueoDTO: BloqueoDTO
+    ): Response<BloqueoDTO>
+
+    @DELETE("Usuario/desbloquearUsuario")
+    suspend fun desbloquearUsuario(
+        @Header("Authorization") token: String,
+        @Body bloqueoDTO: BloqueoDTO
+    ): Response<Boolean>
+
+    @GET("Usuario/verUsuariosBloqueados/{username}")
+    suspend fun verUsuariosBloqueados(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<UsuarioDTO>>
+
+    @GET("Usuario/existeBloqueo/{usuario1}/{usuario2}")
+    suspend fun existeBloqueo(
+        @Header("Authorization") token: String,
+        @Path("usuario1") usuario1: String,
+        @Path("usuario2") usuario2: String
+    ): Response<Boolean>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

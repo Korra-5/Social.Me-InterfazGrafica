@@ -87,4 +87,10 @@ dependencies {
 
     // Para geocodificación y funcionalidades adicionales
     implementation ("com.github.MKergall:osmbonuspack:6.9.0")
+    // PayPal SDK
+    implementation ("com.paypal.sdk:paypal-android-sdk:2.16.0")
+
+    // También necesitarás estas para compatibilidad
+    implementation ("androidx.legacy:legacy-support-v4:1.0.0")
+    implementation ("androidx.cardview:cardview:1.0.0")
 }

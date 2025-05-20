@@ -15,11 +15,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.socialme_interfazgrafica.navigation.AppNavigation
 import com.example.socialme_interfazgrafica.ui.theme.SocialMeInterfazGraficaTheme
+import com.example.socialme_interfazgrafica.utils.PayPalConfig
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PayPalConfig.init(this)
         enableEdgeToEdge()
         setContent {
             SocialMeInterfazGraficaTheme {

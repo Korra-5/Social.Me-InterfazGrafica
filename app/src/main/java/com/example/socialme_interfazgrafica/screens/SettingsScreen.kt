@@ -178,10 +178,12 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                     Divider(color = Color.LightGray, thickness = 0.5.dp)
 
                     // Opción de Usuarios bloqueados
+                    // Dentro de OpcionesScreen.kt, en la sección de Privacidad, añadir:
+
                     OptionItem(
                         text = "Usuarios bloqueados",
                         onClick = {
-                            // Acción al hacer clic en Usuarios bloqueados
+                            navController.navigate(AppScreen.UsuariosBloqueadosScreen.route)
                         }
                     )
 

@@ -65,4 +65,8 @@ sealed class AppScreen(val route: String) {
             return "email_verification/$email/$username/$isRegistration"
         }
     }
+
+    object SolicitudesAmistadScreen : AppScreen("solicitudes_amistad")
+
+    object UsuariosBloqueadosScreen : AppScreen("usuarios_bloqueados")
 }
