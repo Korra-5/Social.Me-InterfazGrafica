@@ -33,6 +33,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
 interface RetrofitService {
@@ -97,7 +98,7 @@ interface RetrofitService {
     @GET("Actividad/verActividadPorId/{id}")
     suspend fun verActividadPorId(
         @Header("Authorization") token: String,
-        @Path("id") username: String,
+        @Path("id") id: String,
     ): Response <ActividadDTO>
 
     @GET("Comunidad/verComunidadPorUrl/{url}")
@@ -159,7 +160,7 @@ interface RetrofitService {
     @GET("Actividad/verActividadesPorComunidad/{comunidad}")
     suspend fun verActividadesPorComunidad(
         @Header("Authorization") token: String,
-        @Path("comunidad") username: String
+        @Path("comunidad") comunidad: String
     ): Response<List<ActividadDTO>>
 
     @GET("Actividad/contarUsuariosEnUnaActividad/{actividadId}")
@@ -174,16 +175,20 @@ interface RetrofitService {
         @Path("comunidad") comunidad: String
     ): Response<Int>
 
+    // Actualizado para incluir el parámetro usuarioActual requerido
     @GET("Usuario/verUsuariosPorComunidad/{comunidad}")
     suspend fun verUsuariosPorComunidad(
         @Header("Authorization") token: String,
-        @Path("comunidad") comunidad: String
+        @Path("comunidad") comunidad: String,
+        @Query("usuarioActual") usuarioActual: String
     ): Response<List<UsuarioDTO>>
 
+    // Actualizado para incluir el parámetro usuarioActual requerido
     @GET("Usuario/verUsuariosPorActividad/{actividadId}")
     suspend fun verUsuariosPorActividad(
         @Header("Authorization") token: String,
-        @Path("actividadId") actividadId: String
+        @Path("actividadId") actividadId: String,
+        @Query("usuarioActual") usuarioActual: String
     ): Response<List<UsuarioDTO>>
 
     @GET("Comunidad/verComunidadesPorUsuarioCreador/{username}")
@@ -330,7 +335,7 @@ interface RetrofitService {
         @Body bloqueoDTO: BloqueoDTO
     ): Response<BloqueoDTO>
 
-    @DELETE("Usuario/desbloquearUsuario")
+    @HTTP(method = "DELETE", path = "Usuario/desbloquearUsuario", hasBody = true)
     suspend fun desbloquearUsuario(
         @Header("Authorization") token: String,
         @Body bloqueoDTO: BloqueoDTO
@@ -348,6 +353,8 @@ interface RetrofitService {
         @Path("usuario1") usuario1: String,
         @Path("usuario2") usuario2: String
     ): Response<Boolean>
+
+
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

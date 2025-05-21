@@ -167,6 +167,7 @@ fun AppNavigation(viewModel: UserViewModel) {
                 navArgument("nombreActividad") {
                     type = NavType.StringType
                 }
+
             )
         ) { backStackEntry ->
             val actividadId = backStackEntry.arguments?.getString("actividadId") ?: ""
@@ -176,7 +177,7 @@ fun AppNavigation(viewModel: UserViewModel) {
             VerUsuariosPorActividadScreen(
                 navController = navController,
                 actividadId = actividadId,
-                nombreActividad = nombreActividad
+                nombreActividad = nombreActividad,
             )
         }
 

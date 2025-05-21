@@ -141,7 +141,7 @@ fun ActividadDetalleScreen(
                     val actividadResponseDeferred = async(Dispatchers.IO) {
                         retrofitService.verActividadPorId(
                             token = authToken,
-                            username = actividadId
+                            id = actividadId
                         )
                     }
 

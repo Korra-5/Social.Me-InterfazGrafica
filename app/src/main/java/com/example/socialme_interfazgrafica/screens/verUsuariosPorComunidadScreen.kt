@@ -84,6 +84,7 @@ fun VerUsuariosPorComunidadScreen(
     // Obtener el token de autenticación
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
+    val username = sharedPreferences.getString("USERNAME", "") ?: ""
     val authToken = "Bearer $token"
 
     // Configurar el cargador de imágenes
@@ -115,7 +116,8 @@ fun VerUsuariosPorComunidadScreen(
                     withTimeout(10000) {
                         retrofitService.verUsuariosPorComunidad(
                             token = authToken,
-                            comunidad = comunidadId
+                            comunidad = comunidadId,
+                            usuarioActual = username
                         )
                     }
                 }

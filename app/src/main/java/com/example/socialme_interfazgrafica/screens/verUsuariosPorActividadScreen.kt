@@ -85,6 +85,7 @@ fun VerUsuariosPorActividadScreen(
     // Obtener el token de autenticación
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
+    val username = sharedPreferences.getString("USERNAME", "") ?: ""
     val authToken = "Bearer $token"
 
     // Configurar el cargador de imágenes
@@ -116,7 +117,8 @@ fun VerUsuariosPorActividadScreen(
                     withTimeout(10000) {
                         retrofitService.verUsuariosPorActividad(
                             token = authToken,
-                            actividadId = actividadId
+                            actividadId = actividadId,
+                            usuarioActual = username
                         )
                     }
                 }
