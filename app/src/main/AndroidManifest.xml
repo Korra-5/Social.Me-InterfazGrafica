@@ -13,6 +13,7 @@
         android:theme="@style/Theme.SocialMeInterfazGrafica"
         tools:targetApi="31"
         tools:replace="android:allowBackup">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -20,14 +21,23 @@
             android:theme="@style/Theme.SocialMeInterfazGrafica">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Añadir el servicio WebSocket -->
+        <service
+            android:name=".services.WebSocketService"
+            android:enabled="true"
+            android:exported="false" />
+
     </application>
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Añadir permiso para notificaciones en Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

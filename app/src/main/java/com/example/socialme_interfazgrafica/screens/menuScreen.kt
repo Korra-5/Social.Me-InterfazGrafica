@@ -14,7 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -22,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -46,6 +50,7 @@ import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.screens.PreferenciasUsuario.getDistanciaRadar
+import com.example.socialme_interfazgrafica.viewModel.NotificacionViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -59,23 +64,27 @@ fun MenuScreen(navController: NavController) {
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val username = remember { mutableStateOf("") }
     val radar = remember { mutableStateOf("") }
+    val token = remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
 
     // Estado para el número de solicitudes pendientes
     var solicitudesPendientes by remember { mutableStateOf(0) }
 
+    // ViewModel para notificaciones
+    val notificacionViewModel: NotificacionViewModel = viewModel()
+
     // Recuperar datos guardados
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
+        token.value = sharedPreferences.getString("TOKEN", "") ?: ""
         radar.value = getDistanciaRadar(context).toString()
 
         // Cargar el número de solicitudes pendientes si el usuario está logueado
         if (username.value.isNotEmpty()) {
             scope.launch {
                 try {
-                    val token = sharedPreferences.getString("TOKEN", "") ?: ""
-                    val authToken = "Bearer $token"
+                    val authToken = "Bearer ${token.value}"
                     val response = apiService.verSolicitudesAmistad(authToken, username.value)
                     if (response.isSuccessful) {
                         solicitudesPendientes = (response.body() ?: emptyList()).size
@@ -84,6 +93,14 @@ fun MenuScreen(navController: NavController) {
                     Log.e("MenuScreen", "Error al cargar solicitudes: ${e.message}")
                 }
             }
+        }
+    }
+
+    // Inicializar WebSocket para notificaciones y cargar notificaciones no leídas
+    LaunchedEffect(username.value) {
+        if (username.value.isNotEmpty()) {
+            notificacionViewModel.inicializarWebSocket(username.value)
+            notificacionViewModel.contarNoLeidas(username.value, token.value)
         }
     }
 
@@ -98,27 +115,52 @@ fun MenuScreen(navController: NavController) {
                 .verticalScroll(scrollState)
                 .padding(top = 16.dp, bottom = 80.dp)
         ) {
-            // Header con perfil del usuario y botón de solicitudes de amistad
+            // Header con perfil del usuario, notificaciones y botón de solicitudes de amistad
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Perfil de usuario en la izquierda
-                UserProfileHeader(
-                    username = username.value,
-                    navController = navController,
-                    modifier = Modifier.weight(1f)
-                )
+                // Perfil de usuario con tamaño ampliado (ahora ocupa más espacio)
+                Box(
+                    modifier = Modifier
+                        .weight(1.3f)
+                ) {
+                    UserProfileHeader(
+                        username = username.value,
+                        navController = navController,
+                    )
+                }
 
-                // Botón de solicitudes de amistad en la derecha con contador
-                BadgedIcon(
-                    count = solicitudesPendientes,
-                    iconPainter = painterResource(id = R.drawable.ic_user),
-                    contentDescription = "Solicitudes de Amistad",
-                    onClick = { navController.navigate(AppScreen.SolicitudesAmistadScreen.route) }
-                )
+                // Espacio entre perfil y botones
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Contenedor para los botones (ahora con menor peso)
+                Row(
+                    modifier = Modifier.weight(0.7f),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Botón de notificaciones con contador
+                    BadgedIconImproved(
+                        count = notificacionViewModel.numeroNoLeidas.toInt(),
+                        iconPainter = painterResource(id = R.drawable.ic_email),
+                        contentDescription = "Notificaciones",
+                        onClick = { navController.navigate(AppScreen.NotificacionesScreen.route) }
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Botón de solicitudes de amistad con contador
+                    BadgedIconImproved(
+                        count = solicitudesPendientes,
+                        iconPainter = painterResource(id = R.drawable.ic_user),
+                        contentDescription = "Solicitudes de Amistad",
+                        onClick = { navController.navigate(AppScreen.SolicitudesAmistadScreen.route) },
+                        isAmistadButton = true
+                    )
+                }
             }
 
             Divider(
@@ -127,6 +169,7 @@ fun MenuScreen(navController: NavController) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
+            // IMPORTANTE: Secciones de Comunidades y Actividades
             if (username.value.isNotEmpty()) {
                 ComunidadCarousel(username = username.value, navController)
             }
@@ -138,7 +181,7 @@ fun MenuScreen(navController: NavController) {
             }
 
             if (username.value.isNotEmpty()){
-                VerTodasComunidadesCarrousel(username=username.value, navController, radar.toString())
+                VerTodasComunidadesCarrousel(username=username.value, navController, radar.value)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -152,7 +195,7 @@ fun MenuScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (username.value.isNotEmpty()){
-                CarrouselActividadesEnZona(username=username.value, navController, radar.toString())
+                CarrouselActividadesEnZona(username=username.value, navController, radar.value)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -166,100 +209,99 @@ fun MenuScreen(navController: NavController) {
     }
 }
 
-// Componente para mostrar un contador de notificaciones
+
+// Componente para mostrar un contador de notificaciones con tamaño reducido
 @Composable
-fun BadgedIcon(
+fun BadgedIconImproved(
     count: Int,
     iconPainter: Painter,
     contentDescription: String?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isAmistadButton: Boolean = false
 ) {
     Box {
+        // Colores según si es botón de amistad o no
+        val backgroundColor = if (isAmistadButton)
+            colorResource(R.color.azulPrimario) else colorResource(R.color.cyanSecundario)
+        val iconColor = if (isAmistadButton)
+            Color.White else colorResource(R.color.azulPrimario)
+
+        // Botón con tamaño más pequeño pero manteniendo la sombra
         IconButton(
             onClick = onClick,
             modifier = Modifier
-                .size(48.dp)
+                .size(48.dp) // Tamaño reducido
+                .shadow(
+                    elevation = 3.dp,
+                    shape = CircleShape
+                )
                 .clip(CircleShape)
-                .background(colorResource(R.color.cyanSecundario))
+                .background(backgroundColor)
         ) {
             Icon(
                 painter = iconPainter,
                 contentDescription = contentDescription,
-                tint = colorResource(R.color.azulPrimario),
-                modifier = Modifier.size(28.dp)
+                tint = iconColor,
+                modifier = Modifier.size(26.dp) // Icono más pequeño
             )
         }
 
+        // Badge con contador
         if (count > 0) {
             Badge(
                 containerColor = colorResource(R.color.error),
                 contentColor = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 4.dp, y = (-4).dp)
+                    .offset(x = 2.dp, y = (-2).dp)
+                    .size(18.dp) // Badge más pequeño
             ) {
-                Text(text = count.toString())
+                Text(
+                    text = if (count > 99) "99+" else count.toString(),
+                    fontSize = 9.sp, // Texto más pequeño
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
-
-
-// Modificar UserProfileHeader para aceptar un modificador
+// Componente que podemos agregar al BottomNavBar con IconButton para notificaciones
 @Composable
-fun UserProfileHeader(username: String, navController: NavController, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .clickable {
-                // Navegar a la pantalla de detalles del usuario
-                navController.navigate(AppScreen.UsuarioDetalleScreen.createRoute(username))
-            },
-        verticalAlignment = Alignment.CenterVertically
+fun NotificacionIndicator(
+    count: Int,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick
     ) {
-        // Avatar del usuario
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(colorResource(R.color.cyanSecundario)),
-            contentAlignment = Alignment.Center
+        BadgedBox(
+            badge = {
+                if (count > 0) {
+                    Badge {
+                        Text(
+                            text = if (count > 99) "99+" else count.toString(),
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
         ) {
-            // Por defecto mostramos un icono de usuario
             Icon(
-                painter = painterResource(id = R.drawable.ic_user),
-                contentDescription = "Usuario",
-                tint = colorResource(R.color.azulPrimario),
-                modifier = Modifier.size(24.dp)
+                imageVector = Icons.Default.Notifications,
+                contentDescription = "Notificaciones",
+                tint = colorResource(R.color.cyanSecundario)
             )
-
-            // Si se implementa la carga de imágenes de perfil, aquí se podría cargar
-            // la imagen del usuario usando AsyncImage similar a los otros componentes
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Nombre de usuario
-        Text(
-            text = username,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = colorResource(R.color.azulPrimario)
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Icono de flecha para indicar que es clickable
-        Icon(
-            imageVector = Icons.Default.ArrowBack,
-            contentDescription = "Ver perfil",
-            tint = colorResource(R.color.azulPrimario),
-            modifier = Modifier.size(20.dp)
-        )
     }
 }
 
+// BottomNavBar actualizado para incluir notificaciones
 @Composable
 fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
+    // Obtener el número de notificaciones no leídas
+    val notificacionViewModel: NotificacionViewModel = viewModel()
+    val notificacionesNoLeidas = notificacionViewModel.numeroNoLeidas.toInt()
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -303,6 +345,12 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
                 )
             }
 
+            // Botón Notificaciones
+            NotificacionIndicator(
+                count = notificacionesNoLeidas,
+                onClick = { navController.navigate(AppScreen.NotificacionesScreen.route) }
+            )
+
             // Botón Opciones
             IconButton(
                 onClick = {
@@ -318,7 +366,163 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
         }
     }
 }
+@Composable
+fun UserProfileHeader(
+    username: String,
+    navController: NavController
+) {
+    val context = LocalContext.current
+    // Obtener el token de autenticación
+    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString("TOKEN", "") ?: ""
+    val authToken = "Bearer $token"
 
+    // Estados para la foto de perfil y nombre completo
+    var nombreCompleto by remember { mutableStateOf("") }
+    var fotoPerfilId by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) }
+
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+    // Cargar datos de usuario
+    LaunchedEffect(username) {
+        scope.launch {
+            try {
+                val response = apiService.verUsuarioPorUsername(authToken, username)
+                if (response.isSuccessful && response.body() != null) {
+                    val usuario = response.body()!!
+                    nombreCompleto = "${usuario.nombre} ${usuario.apellido}"
+                    fotoPerfilId = usuario.fotoPerfilId ?: ""
+                }
+            } catch (e: Exception) {
+                Log.e("UserProfileHeader", "Error: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Configurar ImageLoader
+    val imageLoader = ImageLoader.Builder(context)
+        .memoryCachePolicy(CachePolicy.ENABLED)
+        .diskCachePolicy(CachePolicy.ENABLED)
+        .build()
+
+    // Tarjeta mejorada con mejor manejo de nombres largos
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(end = 2.dp, top = 2.dp, bottom = 2.dp)
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable {
+                navController.navigate(AppScreen.UsuarioDetalleScreen.createRoute(username))
+            },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar del usuario
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(colorResource(R.color.cyanSecundario)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = colorResource(R.color.azulPrimario),
+                        strokeWidth = 2.dp
+                    )
+                } else if (fotoPerfilId.isNotEmpty()) {
+                    val baseUrl = "https://social-me-tfg.onrender.com"
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data("$baseUrl/files/download/$fotoPerfilId")
+                            .crossfade(true)
+                            .placeholder(R.drawable.ic_user)
+                            .error(R.drawable.ic_user)
+                            .setHeader("Authorization", authToken)
+                            .build(),
+                        contentDescription = "Foto de perfil",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    // Por defecto mostramos un icono de usuario
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_user),
+                        contentDescription = "Usuario",
+                        tint = colorResource(R.color.azulPrimario),
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Información del usuario (ahora con mejor manejo de nombres largos)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                // Determinar el tamaño de fuente basado en la longitud del nombre
+                val nombreFontSize = when {
+                    nombreCompleto.length > 25 -> 14.sp
+                    nombreCompleto.length > 20 -> 16.sp
+                    else -> 18.sp
+                }
+
+                // Mostrar el nombre completo con líneas múltiples si es necesario
+                Text(
+                    text = if (nombreCompleto.isNotEmpty()) nombreCompleto else username,
+                    fontSize = nombreFontSize,
+                    fontWeight = FontWeight.Bold,
+                    color = colorResource(R.color.azulPrimario),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 20.sp
+                )
+
+                // Nombre de usuario
+                Text(
+                    text = "@$username",
+                    fontSize = 14.sp,
+                    color = colorResource(R.color.textoSecundario),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Icono para indicar que es clickable
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "Ver perfil",
+                tint = colorResource(R.color.azulPrimario),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// El resto del código permanece igual...
 @Composable
 fun ComunidadCarousel(username: String,navController: NavController) {
     val context = LocalContext.current
@@ -1209,90 +1413,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                 }
             }
         }
-    }
-}
-@Composable
-fun UserProfileHeader(username: String, navController: NavController) {
-    val context = LocalContext.current
-    // Obtener el token de autenticación
-    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-    val token = sharedPreferences.getString("TOKEN", "") ?: ""
-    val authToken = "Bearer $token"
-
-    // Configurar cliente HTTP con timeouts
-    val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    // Configurar ImageLoader
-    val imageLoader = ImageLoader.Builder(context)
-        .memoryCachePolicy(CachePolicy.ENABLED)
-        .diskCachePolicy(CachePolicy.ENABLED)
-        .networkCachePolicy(CachePolicy.ENABLED)
-        .memoryCache {
-            MemoryCache.Builder(context)
-                .maxSizePercent(0.25)
-                .build()
-        }
-        .diskCache {
-            DiskCache.Builder()
-                .directory(context.cacheDir.resolve("user_profile_images"))
-                .maxSizeBytes(50 * 1024 * 1024)
-                .build()
-        }
-        .okHttpClient(okHttpClient)
-        .build()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .clickable {
-                // Navegar a la pantalla de detalles del usuario
-                navController.navigate(AppScreen.UsuarioDetalleScreen.createRoute(username))
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Avatar del usuario
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(colorResource(R.color.cyanSecundario)),
-            contentAlignment = Alignment.Center
-        ) {
-            // Por defecto mostramos un icono de usuario
-            Icon(
-                painter = painterResource(id = R.drawable.ic_user),
-                contentDescription = "Usuario",
-                tint = colorResource(R.color.azulPrimario),
-                modifier = Modifier.size(24.dp)
-            )
-
-            // Si se implementa la carga de imágenes de perfil, aquí se podría cargar
-            // la imagen del usuario usando AsyncImage similar a los otros componentes
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Nombre de usuario
-        Text(
-            text = username,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = colorResource(R.color.azulPrimario)
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Icono de flecha para indicar que es clickable
-        Icon(
-            imageVector = Icons.Filled.ArrowBack,
-            contentDescription = "Ver perfil",
-            tint = colorResource(R.color.azulPrimario),
-            modifier = Modifier.size(20.dp)
-        )
     }
 }
 

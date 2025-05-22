@@ -469,13 +469,17 @@ fun BusquedaScreen(
                 )
             }
         }
+// En BusquedaScreen.kt
 
-        // Botón flotante para introducir código de unión
+// Botón flotante para introducir código de unión (corregido)
         FloatingActionButton(
             onClick = { showJoinDialog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(
+                    bottom = 80.dp,
+                    end = 16.dp
+                ), // Ajustado para que no tape el botón de engranaje
             containerColor = colorResource(R.color.cyanSecundario),
             contentColor = Color.White
         ) {

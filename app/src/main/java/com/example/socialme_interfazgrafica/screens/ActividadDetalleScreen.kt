@@ -60,6 +60,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.window.PopupProperties
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.disk.DiskCache
@@ -297,18 +298,22 @@ fun ActividadDetalleScreen(
                     showMenu = showMenu,
                     showReportDialog = showReportDialog
                 )
+// Modificación para DropdownMenu en ComunidadDetalleScreen, ActividadDetalleScreen, etc.
 
-// Menú desplegable mejorado
                 DropdownMenu(
                     expanded = showMenu.value,
                     onDismissRequest = { showMenu.value = false },
                     modifier = Modifier
-                        .padding(end = 8.dp, top = 8.dp)
                         .background(
                             color = Color.White,
                             shape = RoundedCornerShape(8.dp)
                         ),
-                    offset = DpOffset(x = (-8).dp, y = 4.dp)
+                    offset = DpOffset(x = 0.dp, y = 0.dp), // Cambiado para que aparezca justo debajo del botón
+                    properties = PopupProperties(
+                        focusable = true,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true
+                    )
                 ) {
                     DropdownMenuItem(
                         text = {
@@ -439,7 +444,7 @@ fun ActividadDetalleContent(
                 val response = withContext(Dispatchers.IO) {
                     withTimeout(10000) { // Increase timeout to 10 seconds
                         retrofitService.verificarCreadorAdministradorActividad(
-                            idActvidad = actividad._id, // Fix the parameter name if needed
+                            idActividad = actividad._id, // Fix the parameter name if needed
                             token = authToken,
                             username = username
                         )

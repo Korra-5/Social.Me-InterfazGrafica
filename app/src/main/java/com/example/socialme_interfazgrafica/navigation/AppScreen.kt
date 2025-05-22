@@ -1,4 +1,8 @@
+
 package com.example.socialme_interfazgrafica.navigation
+
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 //Rutas de navegacion
 sealed class AppScreen(val route: String) {
@@ -30,10 +34,21 @@ sealed class AppScreen(val route: String) {
             "verUsuariosPorActividad/$actividadId/${nombreActividad}"
     }
 
+    // RUTA ACTUALIZADA para soportar modo selección
     object VerUsuariosPorComunidadScreen :
-        AppScreen("verUsuariosPorComunidad/{comunidadId}/{nombreComunidad}") {
-        fun createRoute(comunidadId: String, nombreComunidad: String) =
-            "verUsuariosPorComunidad/$comunidadId/${nombreComunidad}"
+        AppScreen("verUsuariosPorComunidad/{comunidadId}/{nombreComunidad}?modoSeleccion={modoSeleccion}") {
+        fun createRoute(
+            comunidadId: String,
+            nombreComunidad: String,
+            modoSeleccion: String = ""
+        ): String {
+            val baseRoute = "verUsuariosPorComunidad/$comunidadId/$nombreComunidad"
+            return if (modoSeleccion.isNotEmpty()) {
+                "$baseRoute?modoSeleccion=$modoSeleccion"
+            } else {
+                baseRoute
+            }
+        }
     }
 
     object ModificarComunidadScreen : AppScreen("modificar_comunidad/{comunidadUrl}") {
@@ -66,7 +81,15 @@ sealed class AppScreen(val route: String) {
         }
     }
 
+    object ChatComunidadScreen : AppScreen("chat_comunidad/{comunidadUrl}/{comunidadNombre}") {
+        fun createRoute(comunidadUrl: String, comunidadNombre: String): String {
+            val nombreEncoded = URLEncoder.encode(comunidadNombre, StandardCharsets.UTF_8.toString())
+            return "chat_comunidad/$comunidadUrl/$nombreEncoded"
+        }
+    }
     object SolicitudesAmistadScreen : AppScreen("solicitudes_amistad")
+
+    object NotificacionesScreen : AppScreen("notificaciones_screen")
 
     object UsuariosBloqueadosScreen : AppScreen("usuarios_bloqueados")
 }

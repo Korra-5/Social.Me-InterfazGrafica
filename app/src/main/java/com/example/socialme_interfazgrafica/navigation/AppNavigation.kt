@@ -1,3 +1,4 @@
+
 package com.example.socialme_interfazgrafica.navigation
 
 import android.content.Context
@@ -20,6 +21,7 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.screens.ActividadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.BusquedaScreen
+import com.example.socialme_interfazgrafica.screens.ChatComunidadScreen
 import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.ComprarPremiumScreen
 import com.example.socialme_interfazgrafica.screens.CrearComunidadScreen
@@ -28,6 +30,7 @@ import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.ModificarComunidadScreen
 import com.example.socialme_interfazgrafica.screens.ModificarUsuarioScreen
+import com.example.socialme_interfazgrafica.screens.NotificacionesScreen
 import com.example.socialme_interfazgrafica.screens.OpcionesScreen
 import com.example.socialme_interfazgrafica.screens.RegistroUsuarioScreen
 import com.example.socialme_interfazgrafica.screens.SolicitudesAmistadScreen
@@ -35,6 +38,7 @@ import com.example.socialme_interfazgrafica.screens.UsuarioDetallesScreen
 import com.example.socialme_interfazgrafica.screens.UsuariosBloqueadosScreen
 import com.example.socialme_interfazgrafica.screens.VerUsuariosPorActividadScreen
 import com.example.socialme_interfazgrafica.screens.VerUsuariosPorComunidadScreen
+import com.example.socialme_interfazgrafica.viewModel.NotificacionViewModel
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
@@ -181,7 +185,7 @@ fun AppNavigation(viewModel: UserViewModel) {
             )
         }
 
-        // Nueva ruta para ver usuarios por comunidad
+        // RUTA ACTUALIZADA para ver usuarios por comunidad con soporte para modo selección
         composable(
             route = AppScreen.VerUsuariosPorComunidadScreen.route,
             arguments = listOf(
@@ -190,19 +194,27 @@ fun AppNavigation(viewModel: UserViewModel) {
                 },
                 navArgument("nombreComunidad") {
                     type = NavType.StringType
+                },
+                navArgument("modoSeleccion") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
                 }
             )
         ) { backStackEntry ->
             val comunidadId = backStackEntry.arguments?.getString("comunidadId") ?: ""
             val nombreComunidadEncoded = backStackEntry.arguments?.getString("nombreComunidad") ?: ""
             val nombreComunidad = URLDecoder.decode(nombreComunidadEncoded, StandardCharsets.UTF_8.toString())
+            val modoSeleccion = backStackEntry.arguments?.getString("modoSeleccion") ?: ""
 
             VerUsuariosPorComunidadScreen(
                 navController = navController,
                 comunidadId = comunidadId,
-                nombreComunidad = nombreComunidad
+                nombreComunidad = nombreComunidad,
+                modoSeleccion = modoSeleccion
             )
         }
+
         composable(
             route = AppScreen.ModificarComunidadScreen.route,
             arguments = listOf(
@@ -292,6 +304,44 @@ fun AppNavigation(viewModel: UserViewModel) {
         composable(AppScreen.UsuariosBloqueadosScreen.route) {
             UsuariosBloqueadosScreen(navController = navController)
         }
+        composable(AppScreen.NotificacionesScreen.route) {
+            val notificacionViewModel = androidx.lifecycle.viewmodel.compose.viewModel<NotificacionViewModel>()
 
+            // Obtener el nombre de usuario de SharedPreferences
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val username = sharedPreferences.getString("USERNAME", "") ?: ""
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+            val authToken = "Bearer $token"
+
+            // Pasar a la pantalla de notificaciones
+            NotificacionesScreen(
+                navController = navController,
+                notificacionViewModel = notificacionViewModel,
+                username = username,
+                authToken = authToken
+            )
+        }
+        // In AppNavigation.kt's NavHost
+        composable(
+            route = AppScreen.ChatComunidadScreen.route,
+            arguments = listOf(
+                navArgument("comunidadUrl") {
+                    type = NavType.StringType
+                },
+                navArgument("comunidadNombre") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val comunidadUrl = backStackEntry.arguments?.getString("comunidadUrl") ?: ""
+            val comunidadNombreEncoded = backStackEntry.arguments?.getString("comunidadNombre") ?: ""
+            val comunidadNombre = URLDecoder.decode(comunidadNombreEncoded, StandardCharsets.UTF_8.toString())
+
+            ChatComunidadScreen(
+                comunidadUrl = comunidadUrl,
+                comunidadNombre = comunidadNombre,
+                navController = navController
+            )
+        }
     }
 }

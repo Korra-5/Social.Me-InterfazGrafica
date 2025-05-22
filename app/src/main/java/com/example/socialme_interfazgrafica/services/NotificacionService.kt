@@ -1,4 +1,3 @@
-// services/NotificacionService.kt
 package com.example.socialme_interfazgrafica.services
 
 import android.app.NotificationChannel
@@ -6,11 +5,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.MainActivity
+import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.model.NotificacionDTO
 
 object NotificacionService {
@@ -33,12 +34,22 @@ object NotificacionService {
     }
 
     fun showNotification(context: Context, notificacion: NotificacionDTO) {
+        // Verificar permisos para Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // No tenemos permiso para mostrar notificaciones
+                // En un caso real, deberías solicitar el permiso aquí
+                return
+            }
+        }
+
         // Intent para abrir la app
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            // Pasar datos extra según el tipo de notificación
-            putExtra("notificacionId", notificacion._id)
-            putExtra("notificacionTipo", notificacion.tipo)
             putExtra("entidadId", notificacion.entidadId)
         }
 
@@ -49,7 +60,7 @@ object NotificacionService {
 
         // Construcción de la notificación
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification) // Debes crear este icono
+            .setSmallIcon(R.drawable.ic_email)
             .setContentTitle(notificacion.titulo)
             .setContentText(notificacion.mensaje)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -57,9 +68,14 @@ object NotificacionService {
             .setAutoCancel(true) // Se cierra al hacer tap
             .setGroup(NOTIFICATION_GROUP)
 
-        // Mostrar notificación
-        with(NotificationManagerCompat.from(context)) {
-            notify(notificacion._id.hashCode(), builder.build())
+        try {
+            // Mostrar notificación
+            with(NotificationManagerCompat.from(context)) {
+                notify(notificacion._id.hashCode(), builder.build())
+            }
+        } catch (e: SecurityException) {
+            // Manejar la excepción de seguridad
+            e.printStackTrace()
         }
     }
 }

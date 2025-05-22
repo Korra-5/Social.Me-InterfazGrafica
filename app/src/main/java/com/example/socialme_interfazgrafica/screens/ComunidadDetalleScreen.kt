@@ -73,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import androidx.navigation.NavController
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -728,7 +729,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
-                // Botón de unirse/abandonar con estado actualizado y actualización del contador
+
                 Button(
                     onClick = {
                         if (!isLoading.value && username.value.isNotEmpty()) {
@@ -741,8 +742,9 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                     )
 
                                     withContext(Dispatchers.IO) {
+                                        // CORREGIDO: Lógica invertida correctamente
                                         if (!isUserParticipating.value) {
-                                            // Unirse a la comunidad
+                                            // NO participa -> UNIRSE a la comunidad
                                             val response = withTimeout(5000) {
                                                 retrofitService.unirseComunidad(
                                                     participantesComunidadDTO = participantesComunidadDTO,
@@ -770,33 +772,58 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                 }
                                             }
                                         } else {
-                                            // Salir de la comunidad
-                                            val response = withTimeout(5000) {
-                                                retrofitService.salirComunidad(
-                                                    participantesComunidadDTO = participantesComunidadDTO,
-                                                    token = authToken
-                                                )
-                                            }
-
-                                            withContext(Dispatchers.Main) {
-                                                if (response.isSuccessful) {
-                                                    isUserParticipating.value = false
+                                            // SÍ participa -> VERIFICAR si es creador antes de abandonar
+                                            if (comunidad.creador == username.value) {
+                                                withContext(Dispatchers.Main) {
+                                                    // Es el creador, debe designar un nuevo creador primero
                                                     Toast.makeText(
                                                         context,
-                                                        "Has abandonado la comunidad",
-                                                        Toast.LENGTH_SHORT
+                                                        "Como creador, debes designar un nuevo creador antes de abandonar la comunidad",
+                                                        Toast.LENGTH_LONG
                                                     ).show()
 
-                                                    // Decrementar el contador de usuarios
-                                                    if (cantidadUsuarios.value > 0) {
-                                                        cantidadUsuarios.value -= 1
+                                                    // Navegar a la pantalla de usuarios con modo "cambiar creador"
+                                                    val nombreComunidadEncoded = URLEncoder.encode(
+                                                        comunidad.nombre,
+                                                        StandardCharsets.UTF_8.toString()
+                                                    )
+                                                    navController.navigate(
+                                                        AppScreen.VerUsuariosPorComunidadScreen.createRoute(
+                                                            comunidadId = comunidad.url,
+                                                            nombreComunidad = nombreComunidadEncoded,
+                                                            modoSeleccion = "cambiar_creador"
+                                                        )
+                                                    )
+                                                }
+                                            } else {
+                                                // No es el creador, puede abandonar normalmente
+                                                val response = withTimeout(5000) {
+                                                    retrofitService.salirComunidad(
+                                                        participantesComunidadDTO = participantesComunidadDTO,
+                                                        token = authToken
+                                                    )
+                                                }
+
+                                                withContext(Dispatchers.Main) {
+                                                    if (response.isSuccessful) {
+                                                        isUserParticipating.value = false
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Has abandonado la comunidad",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+
+                                                        // Decrementar el contador de usuarios
+                                                        if (cantidadUsuarios.value > 0) {
+                                                            cantidadUsuarios.value -= 1
+                                                        }
+                                                    } else {
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Error al abandonar: ${response.message()}",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
                                                     }
-                                                } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Error al abandonar: ${response.message()}",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
                                                 }
                                             }
                                         }
@@ -843,6 +870,45 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                             fontWeight = FontWeight.Bold,
                             color = if (isUserParticipating.value) Color.DarkGray else Color.White
                         )
+                    }
+                }
+                // After the "UNIRSE/ABANDONAR" button in ComunidadDetalleScreen.kt
+                if (isUserParticipating.value) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            navController.navigate(
+                                AppScreen.ChatComunidadScreen.createRoute(
+                                    comunidadUrl = comunidad.url,
+                                    comunidadNombre = comunidad.nombre
+                                )
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colorResource(R.color.azulPrimario),
+                        ),
+                        border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_email), // Asegúrate de tener este icono
+                                contentDescription = "Chat",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "CHAT DE LA COMUNIDAD",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
@@ -926,20 +992,24 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             )
         }
 
+// Modificación para DropdownMenu en ComunidadDetalleScreen, ActividadDetalleScreen, etc.
 
-        // Menú desplegable mejorado
         DropdownMenu(
             expanded = showMenu.value,
             onDismissRequest = { showMenu.value = false },
             modifier = Modifier
-                .padding(end = 8.dp, top = 8.dp)
                 .background(
                     color = Color.White,
                     shape = RoundedCornerShape(8.dp)
                 ),
-            offset = DpOffset(x = (-8).dp, y = 4.dp)
+            offset = DpOffset(x = 0.dp, y = 0.dp), // Cambiado para que aparezca justo debajo del botón
+            properties = PopupProperties(
+                focusable = true,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true
+            )
         ) {
-            DropdownMenuItem(
+                    DropdownMenuItem(
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(

@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.PopupProperties
 import androidx.navigation.NavController
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -308,18 +309,24 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                         )
                     }
 
-                    // Menú desplegable mejorado
+                    // Modificación para DropdownMenu en ComunidadDetalleScreen, ActividadDetalleScreen, etc.
+
                     DropdownMenu(
                         expanded = showMenu.value,
                         onDismissRequest = { showMenu.value = false },
                         modifier = Modifier
-                            .padding(end = 8.dp, top = 8.dp)
                             .background(
                                 color = Color.White,
                                 shape = RoundedCornerShape(8.dp)
                             ),
-                        offset = DpOffset(x = (-8).dp, y = 4.dp)
+                        offset = DpOffset(x = 0.dp, y = 0.dp), // Cambiado para que aparezca justo debajo del botón
+                        properties = PopupProperties(
+                            focusable = true,
+                            dismissOnBackPress = true,
+                            dismissOnClickOutside = true
+                        )
                     ) {
+
                         // Solo mostrar opción de bloquear si no es el perfil propio
                         if (!isOwnProfile) {
                             DropdownMenuItem(
@@ -507,26 +514,42 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                 // Botón de solicitud de amistad (solo si no es el propio usuario y no son amigos)
                                 if (!isOwnProfile && !esAmigo) {
                                     Spacer(modifier = Modifier.height(16.dp))
+// Sustituir en UsuarioDetallesScreen.kt
 
+// Botón de solicitud de amistad mejorado
                                     Button(
                                         onClick = { enviarSolicitudAmistad() },
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = colorResource(R.color.azulPrimario),
-                                            disabledContainerColor = Color.Gray
+                                            disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
                                         ),
                                         enabled = !hayPendiente && !seSolicitoAmistad,
-                                        modifier = Modifier.fillMaxWidth(0.8f)
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.7f)  // Reducido el ancho
+                                            .height(40.dp),      // Reducida la altura
+                                        shape = RoundedCornerShape(20.dp), // Más redondeado
+                                        elevation = ButtonDefaults.buttonElevation(
+                                            defaultElevation = 2.dp,
+                                            pressedElevation = 4.dp
+                                        )
                                     ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_add),
-                                            contentDescription = "Enviar solicitud",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = if (hayPendiente || seSolicitoAmistad) "Solicitud pendiente" else "Enviar solicitud de amistad"
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_add),
+                                                contentDescription = "Enviar solicitud",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp) // Tamaño reducido
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = if (hayPendiente || seSolicitoAmistad) "Solicitud pendiente" else "Añadir amigo",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
                                     }
                                 }
 
