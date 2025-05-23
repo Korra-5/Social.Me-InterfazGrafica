@@ -729,7 +729,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
-
                 Button(
                     onClick = {
                         if (!isLoading.value && username.value.isNotEmpty()) {
@@ -742,9 +741,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                     )
 
                                     withContext(Dispatchers.IO) {
-                                        // CORREGIDO: Lógica invertida correctamente
                                         if (!isUserParticipating.value) {
-                                            // NO participa -> UNIRSE a la comunidad
                                             val response = withTimeout(5000) {
                                                 retrofitService.unirseComunidad(
                                                     participantesComunidadDTO = participantesComunidadDTO,
@@ -761,7 +758,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                         Toast.LENGTH_SHORT
                                                     ).show()
 
-                                                    // Incrementar el contador de usuarios
                                                     cantidadUsuarios.value += 1
                                                 } else {
                                                     Toast.makeText(
@@ -772,17 +768,14 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                 }
                                             }
                                         } else {
-                                            // SÍ participa -> VERIFICAR si es creador antes de abandonar
                                             if (comunidad.creador == username.value) {
                                                 withContext(Dispatchers.Main) {
-                                                    // Es el creador, debe designar un nuevo creador primero
                                                     Toast.makeText(
                                                         context,
                                                         "Como creador, debes designar un nuevo creador antes de abandonar la comunidad",
                                                         Toast.LENGTH_LONG
                                                     ).show()
 
-                                                    // Navegar a la pantalla de usuarios con modo "cambiar creador"
                                                     val nombreComunidadEncoded = URLEncoder.encode(
                                                         comunidad.nombre,
                                                         StandardCharsets.UTF_8.toString()
@@ -796,7 +789,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                     )
                                                 }
                                             } else {
-                                                // No es el creador, puede abandonar normalmente
                                                 val response = withTimeout(5000) {
                                                     retrofitService.salirComunidad(
                                                         participantesComunidadDTO = participantesComunidadDTO,
@@ -813,7 +805,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                             Toast.LENGTH_SHORT
                                                         ).show()
 
-                                                        // Decrementar el contador de usuarios
                                                         if (cantidadUsuarios.value > 0) {
                                                             cantidadUsuarios.value -= 1
                                                         }

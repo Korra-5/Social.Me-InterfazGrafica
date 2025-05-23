@@ -4,5 +4,5 @@ package com.example.socialme_interfazgrafica.model
 data class UsuarioLoginDTO (
     val username:String,
     val password:String,
-    val coordenadas: Coordenadas? = null  // Opcional, para actualizar la ubicación al iniciar sesión
+    val coordenadas: Coordenadas? = null
 )

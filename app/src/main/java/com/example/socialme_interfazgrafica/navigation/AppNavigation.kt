@@ -45,7 +45,6 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-//App navigation
 @Composable
 fun AppNavigation(viewModel: UserViewModel) {
     val navController = rememberNavController()
@@ -78,12 +77,10 @@ fun AppNavigation(viewModel: UserViewModel) {
             OpcionesScreen(navController, viewModel)
         }
 
-        // Ruta para comprar premium
         composable(AppScreen.ComprarPremiumScreen.route) {
             ComprarPremiumScreen(navController)
         }
 
-        // Ruta para detalles de actividad con argumento de ID
         composable(
             route = AppScreen.ActividadDetalleScreen.route,
             arguments = listOf(
@@ -94,7 +91,6 @@ fun AppNavigation(viewModel: UserViewModel) {
         ) { backStackEntry ->
             val actividadId = backStackEntry.arguments?.getString("actividadId") ?: ""
 
-            // Obtener el token de autenticación
             val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
             val token = sharedPreferences.getString("TOKEN", "") ?: ""
             val authToken = "Bearer $token"
@@ -102,7 +98,6 @@ fun AppNavigation(viewModel: UserViewModel) {
             ActividadDetalleScreen(navController=navController, authToken = authToken , actividadId =  actividadId)
         }
 
-        // Ruta para detalles de comunidad con argumento de URL
         composable(
             route = AppScreen.ComunidadDetalleScreen.route,
             arguments = listOf(
@@ -123,7 +118,6 @@ fun AppNavigation(viewModel: UserViewModel) {
             var isLoading by remember { mutableStateOf(true) }
             var errorMessage by remember { mutableStateOf<String?>(null) }
 
-            // Cargar los datos de la comunidad al entrar en la pantalla
             LaunchedEffect(comunidadUrl) {
                 scope.launch {
                     try {
@@ -142,13 +136,11 @@ fun AppNavigation(viewModel: UserViewModel) {
                 }
             }
 
-            // Renderizar la pantalla de detalle cuando los datos estén disponibles
             comunidad?.let {
                 ComunidadDetalleScreen(comunidad = it, authToken = authToken, navController = navController)
             }
         }
 
-        // Ruta para detalles de usuario
         composable(
             route = AppScreen.UsuarioDetalleScreen.route,
             arguments = listOf(
@@ -161,7 +153,6 @@ fun AppNavigation(viewModel: UserViewModel) {
             UsuarioDetallesScreen(navController = navController, username = username)
         }
 
-        // Ruta para ver usuarios por actividad
         composable(
             route = AppScreen.VerUsuariosPorActividadScreen.route,
             arguments = listOf(
@@ -185,7 +176,6 @@ fun AppNavigation(viewModel: UserViewModel) {
             )
         }
 
-        // RUTA ACTUALIZADA para ver usuarios por comunidad con soporte para modo selección
         composable(
             route = AppScreen.VerUsuariosPorComunidadScreen.route,
             arguments = listOf(
@@ -274,7 +264,6 @@ fun AppNavigation(viewModel: UserViewModel) {
             )
         }
 
-// Añadir a tu AppNavigation.kt dentro de NavHost
         composable(
             route = AppScreen.EmailVerificationScreen.route,
             arguments = listOf(
@@ -295,7 +284,6 @@ fun AppNavigation(viewModel: UserViewModel) {
                 viewModel=viewModel
             )
         }
-        // Añadir en AppNavigation.kt dentro del NavHost:
 
         composable(AppScreen.SolicitudesAmistadScreen.route) {
             SolicitudesAmistadScreen(navController = navController)
@@ -307,13 +295,11 @@ fun AppNavigation(viewModel: UserViewModel) {
         composable(AppScreen.NotificacionesScreen.route) {
             val notificacionViewModel = androidx.lifecycle.viewmodel.compose.viewModel<NotificacionViewModel>()
 
-            // Obtener el nombre de usuario de SharedPreferences
             val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
             val username = sharedPreferences.getString("USERNAME", "") ?: ""
             val token = sharedPreferences.getString("TOKEN", "") ?: ""
             val authToken = "Bearer $token"
 
-            // Pasar a la pantalla de notificaciones
             NotificacionesScreen(
                 navController = navController,
                 notificacionViewModel = notificacionViewModel,
@@ -321,7 +307,7 @@ fun AppNavigation(viewModel: UserViewModel) {
                 authToken = authToken
             )
         }
-        // In AppNavigation.kt's NavHost
+
         composable(
             route = AppScreen.ChatComunidadScreen.route,
             arguments = listOf(

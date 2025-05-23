@@ -4,7 +4,6 @@ package com.example.socialme_interfazgrafica.navigation
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-//Rutas de navegacion
 sealed class AppScreen(val route: String) {
     object InicioSesionScreen : AppScreen("inicioSesionScreen")
     object RegistroUsuarioScreen : AppScreen("registroUsuarioScreen")
@@ -27,14 +26,12 @@ sealed class AppScreen(val route: String) {
         fun createRoute(username: String) = "usuarioDetalle/$username"
     }
 
-    // Nueva ruta para ver usuarios por actividad
     object VerUsuariosPorActividadScreen :
         AppScreen("verUsuariosPorActividad/{actividadId}/{nombreActividad}") {
         fun createRoute(actividadId: String, nombreActividad: String) =
             "verUsuariosPorActividad/$actividadId/${nombreActividad}"
     }
 
-    // RUTA ACTUALIZADA para soportar modo selección
     object VerUsuariosPorComunidadScreen :
         AppScreen("verUsuariosPorComunidad/{comunidadId}/{nombreComunidad}?modoSeleccion={modoSeleccion}") {
         fun createRoute(

@@ -135,10 +135,8 @@ fun ActividadDetalleScreen(
         try {
             val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-            // Use supervisorScope to prevent child coroutine failures from canceling the parent
             supervisorScope {
                 try {
-                    // Obtain data with timeout to prevent hanging
                     val actividadResponseDeferred = async(Dispatchers.IO) {
                         retrofitService.verActividadPorId(
                             token = authToken,
@@ -152,7 +150,6 @@ fun ActividadDetalleScreen(
                         actividad.value = actividadResponse.body()
                         participantes.value = (5..25).random()
 
-                        // If the activity is loaded successfully, check participation status
                         val participantesDTO = ParticipantesActividadDTO(
                             username = username.value,
                             actividadId = actividadId,
@@ -298,7 +295,6 @@ fun ActividadDetalleScreen(
                     showMenu = showMenu,
                     showReportDialog = showReportDialog
                 )
-// Modificación para DropdownMenu en ComunidadDetalleScreen, ActividadDetalleScreen, etc.
 
                 DropdownMenu(
                     expanded = showMenu.value,
@@ -308,7 +304,7 @@ fun ActividadDetalleScreen(
                             color = Color.White,
                             shape = RoundedCornerShape(8.dp)
                         ),
-                    offset = DpOffset(x = 0.dp, y = 0.dp), // Cambiado para que aparezca justo debajo del botón
+                    offset = DpOffset(x = 0.dp, y = 0.dp),
                     properties = PopupProperties(
                         focusable = true,
                         dismissOnBackPress = true,
@@ -397,11 +393,13 @@ fun ActividadDetalleContent(
 
     // Estado para almacenar el número de participantes
     val cantidadParticipantes = remember { mutableStateOf(0) }
+
     // Estado para controlar si está cargando el contador de participantes
     val isLoadingParticipantes = remember { mutableStateOf(true) }
 
     // Estado para verificar si el usuario es creador o administrador de la actividad
     val isCreadorOAdmin = remember { mutableStateOf(false) }
+
     // Estado para controlar si está cargando la verificación
     val isLoadingVerificacion = remember { mutableStateOf(true) }
 
@@ -423,12 +421,10 @@ fun ActividadDetalleContent(
                     cantidadParticipantes.value = response.body() ?: 0
                 } else {
                     Log.e("ActividadDetalle", "Error al contar participantes: ${response.message()}")
-                    // Fallback a un valor predeterminado en caso de error
                     cantidadParticipantes.value = participantes
                 }
             } catch (e: Exception) {
                 Log.e("ActividadDetalle", "Excepción al contar participantes: ${e.message}")
-                // Fallback a un valor predeterminado en caso de error
                 cantidadParticipantes.value = participantes
             } finally {
                 isLoadingParticipantes.value = false
@@ -442,9 +438,9 @@ fun ActividadDetalleContent(
         scope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
-                    withTimeout(10000) { // Increase timeout to 10 seconds
+                    withTimeout(10000) {
                         retrofitService.verificarCreadorAdministradorActividad(
-                            idActividad = actividad._id, // Fix the parameter name if needed
+                            idActividad = actividad._id,
                             token = authToken,
                             username = username
                         )
@@ -454,7 +450,6 @@ fun ActividadDetalleContent(
                 if (response.isSuccessful) {
                     isCreadorOAdmin.value = response.isSuccessful && response.body() == true
                 } else {
-                    // More detailed error logging
                     Log.e(
                         "ActividadDetalle",
                         "Error al verificar permisos: ${response.code()} - ${response.message()}"
@@ -463,7 +458,6 @@ fun ActividadDetalleContent(
                     isCreadorOAdmin.value = false
                 }
             } catch (e: Exception) {
-                // More detailed exception logging
                 Log.e(
                     "ActividadDetalle",
                     "Excepción al verificar permisos: ${e.javaClass.simpleName} - ${e.message}"
@@ -518,7 +512,6 @@ fun ActividadDetalleContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Header con imagen y botón de retroceso
         Box(modifier = Modifier.fillMaxWidth()) {
             if (!actividad.fotosCarruselIds.isNullOrEmpty()) {
                 CarruselImagenesActividad(
@@ -538,7 +531,6 @@ fun ActividadDetalleContent(
                 )
             }
 
-            // Botón de retroceso en la esquina superior
             IconButton(
                 onClick = { navController.popBackStack() },
                 modifier = Modifier
@@ -571,8 +563,7 @@ fun ActividadDetalleContent(
             }
         }
 
-        // Resto del contenido permanece igual...
-        // Contenido principal
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -643,7 +634,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Separador
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -653,7 +643,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Descripción de la actividad
             Text(
                 text = "Acerca de esta actividad",
                 fontSize = 18.sp,
@@ -956,7 +945,8 @@ fun ActividadDetalleContent(
                         color = if (isUserParticipating.value) Color.DarkGray else Color.White
                     )
                 }
-            }// Botón MODIFICAR ACTIVIDAD - Solo visible si el usuario es creador o administrador
+            }
+            // Botón MODIFICAR ACTIVIDAD
             if (isCreadorOAdmin.value) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(

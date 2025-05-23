@@ -68,11 +68,10 @@ import org.json.JSONException
 import java.math.BigDecimal
 import java.util.Properties
 
-// Constante para el precio (fácil de modificar)
+// Constante para el precio
 const val PREMIUM_PRICE_EUR = "1.99"
 const val PREMIUM_PRICE_DECIMAL = 1.99
 
-// Clase para manejar las configuraciones de PayPal con logs detallados
 object PayPalConfig {
     private const val TAG = "PayPalConfig"
     private var properties: Properties? = null
@@ -214,7 +213,6 @@ fun ComprarPremiumScreen(navController: NavController) {
         }
     }
 
-    // PayPal Activity Result Launcher
     val payPalLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -310,7 +308,6 @@ fun ComprarPremiumScreen(navController: NavController) {
             .fillMaxSize()
             .background(colorResource(R.color.background))
     ) {
-        // App Bar
         TopAppBar(
             title = { Text(text = "SocialMe Premium") },
             navigationIcon = {
@@ -336,7 +333,6 @@ fun ComprarPremiumScreen(navController: NavController) {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Icono de estrella
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = "Premium",
@@ -346,7 +342,6 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Título
             Text(
                 text = "¡Hazte Premium!",
                 fontSize = 28.sp,
@@ -357,7 +352,6 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Subtítulo
             Text(
                 text = "Desbloquea todas las funciones especiales",
                 fontSize = 16.sp,
@@ -367,7 +361,6 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Beneficios
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -403,7 +396,6 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Precio (corregido para estar centrado)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = colorResource(R.color.cyanSecundario).copy(alpha = 0.1f)),

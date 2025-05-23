@@ -6,8 +6,8 @@ class ActividadUpdateDTO(
     val _id: String,
     val nombre: String,
     val descripcion: String,
-    val fotosCarruselBase64: List<String>? = null,  // Used for receiving base64 images
-    val fotosCarruselIds: List<String>? = null,     // Used if files already uploaded
+    val fotosCarruselBase64: List<String>? = null,
+    val fotosCarruselIds: List<String>? = null,
     val fechaInicio: Date,
     val fechaFinalizacion: Date,
     val coordenadas: Coordenadas?,

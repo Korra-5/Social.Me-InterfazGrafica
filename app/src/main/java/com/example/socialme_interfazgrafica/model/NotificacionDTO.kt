@@ -5,7 +5,7 @@ import java.util.Date
 
 data class NotificacionDTO(
     val _id: String?,
-    val tipo: String, // "ACTIVIDAD_PROXIMA", "ACTIVIDAD_INICIANDO", etc.
+    val tipo: String,
     val titulo: String,
     val mensaje: String,
     val entidadId: String?,

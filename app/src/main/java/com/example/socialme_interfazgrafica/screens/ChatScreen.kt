@@ -157,7 +157,6 @@ fun ChatComunidadScreen(
         }
     }
 
-    // UI principal
     Scaffold(
         topBar = {
             TopAppBar(
@@ -296,7 +295,6 @@ fun ChatComunidadScreen(
                             )
                         }
 
-                        // Indicador de "escribiendo" o cargando más mensajes
                         if (isLoading) {
                             item {
                                 LinearProgressIndicator(

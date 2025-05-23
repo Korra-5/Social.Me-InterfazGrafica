@@ -7,13 +7,13 @@ data class ComunidadDTO(
     val nombre: String,
     val descripcion: String,
     val intereses: List<String>,
-    val fotoPerfilId: String, // Changed from fotoPerfil
-    val fotoCarruselIds: List<String>?, // Changed from fotoCarrusel
+    val fotoPerfilId: String,
+    val fotoCarruselIds: List<String>?,
     val creador: String,
     val administradores: List<String>?,
     val fechaCreacion: Date,
     val comunidadGlobal: Boolean,
     val privada: Boolean,
-    val coordenadas: Coordenadas?,  // Coordenadas geográficas
+    val coordenadas: Coordenadas?,
     val codigoUnion:String?
 )
