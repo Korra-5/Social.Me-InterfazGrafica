@@ -140,8 +140,8 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                 intereses.value = usuario.intereses
 
                 // Asignación de dirección
-                municipio.value = usuario.direccion.municipio ?: ""
-                provincia.value = usuario.direccion.provincia ?: ""
+                municipio.value = usuario.direccion!!.municipio ?: ""
+                provincia.value = usuario.direccion!!.provincia ?: ""
 
                 Log.d(
                     "ModificarUsuario",

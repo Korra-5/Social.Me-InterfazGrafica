@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.socialme_interfazgrafica.R
@@ -37,7 +34,6 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
-import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import kotlinx.coroutines.launch
@@ -49,6 +45,7 @@ enum class SearchType {
     COMMUNITIES,
     USERS
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BusquedaScreen(
@@ -102,7 +99,7 @@ fun BusquedaScreen(
                     }
 
                     SearchType.USERS -> {
-                        val response = retrofitService.verTodosLosUsuarios(token=token, username=username)
+                        val response = retrofitService.verTodosLosUsuarios(token = token, username = username)
                         if (response.isSuccessful) {
                             usuarios = response.body() ?: emptyList()
                         }
@@ -186,7 +183,7 @@ fun BusquedaScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // Implementar lógica para unirse con el código
+                        // CORREGIDO: Lógica para unirse con el código
                         coroutineScope.launch {
                             try {
                                 // Cerrar el diálogo de unión
@@ -211,10 +208,10 @@ fun BusquedaScreen(
                                 isLoading = false
 
                                 if (response.isSuccessful) {
-                                    // Si la unión fue exitosa, obtenemos el URL de la comunidad
+                                    // CORREGIDO: Si la unión fue exitosa, la respuesta es ParticipantesComunidadDTO
                                     val responseBody = response.body()
-                                    if (responseBody != null && responseBody.success) {
-                                        // Intentamos obtener la URL de la comunidad
+                                    if (responseBody != null) {
+                                        // La unión fue exitosa, navegar a la comunidad
                                         val comunidadResponse = retrofitService.verComunidadPorUrl(token, urlcomunidad)
                                         if (comunidadResponse.isSuccessful) {
                                             val comunidad = comunidadResponse.body()
@@ -222,7 +219,7 @@ fun BusquedaScreen(
                                                 joinCode = ""
                                                 urlcomunidad = ""
                                                 // Navegamos a la pantalla de detalle de la comunidad
-                                                navController.navigate("comunidad_detalle/${comunidad.url}")
+                                                navController.navigate("comunidadDetalle/${comunidad.url}")
                                             } else {
                                                 // Error al obtener detalles de la comunidad
                                                 errorMessage = "No se pudo obtener la información de la comunidad"
@@ -230,33 +227,33 @@ fun BusquedaScreen(
                                             }
                                         } else {
                                             // Error en la respuesta del endpoint
-                                            val errorBody = comunidadResponse.errorBody()?.string()
-                                            errorMessage = if (errorBody != null && errorBody.isNotEmpty()) {
-                                                "Error: $errorBody"
-                                            } else {
-                                                "Error al obtener la comunidad: ${comunidadResponse.message()}"
+                                            errorMessage = when (comunidadResponse.code()) {
+                                                404 -> "Comunidad no encontrada"
+                                                403 -> "No tienes permisos para acceder a esta comunidad"
+                                                else -> "Error al obtener la comunidad: ${comunidadResponse.message()}"
                                             }
                                             showError = true
                                         }
                                     } else {
-                                        // El código de unión o la URL son incorrectos
-                                        errorMessage = responseBody?.message ?: "Error al unirse a la comunidad"
+                                        // El cuerpo de la respuesta es nulo
+                                        errorMessage = "Error inesperado al unirse a la comunidad"
                                         showError = true
                                     }
                                 } else {
-                                    // Error en la API
-                                    val errorBody = response.errorBody()?.string()
-                                    errorMessage = if (errorBody != null && errorBody.isNotEmpty()) {
-                                        "Error: $errorBody"
-                                    } else {
-                                        "Error: ${response.message()}"
+                                    // CORREGIDO: Manejo de errores de la API
+                                    errorMessage = when (response.code()) {
+                                        400 -> "Datos incorrectos. Verifica la URL y el código"
+                                        404 -> "Comunidad no encontrada o código incorrecto"
+                                        403 -> "No tienes permisos para unirte a esta comunidad"
+                                        409 -> "Ya estás unido a esta comunidad"
+                                        else -> "Error al unirse a la comunidad: ${response.message()}"
                                     }
                                     showError = true
                                 }
                             } catch (e: Exception) {
                                 // Error de conexión o excepción
                                 isLoading = false
-                                errorMessage = "Error al procesar la solicitud: ${e.message}"
+                                errorMessage = "Error de conexión: ${e.message}"
                                 showError = true
                             } finally {
                                 // Limpiar campos
@@ -469,9 +466,8 @@ fun BusquedaScreen(
                 )
             }
         }
-// En BusquedaScreen.kt
 
-// Botón flotante para introducir código de unión (corregido)
+        // Botón flotante para introducir código de unión
         FloatingActionButton(
             onClick = { showJoinDialog = true },
             modifier = Modifier
@@ -479,7 +475,7 @@ fun BusquedaScreen(
                 .padding(
                     bottom = 80.dp,
                     end = 16.dp
-                ), // Ajustado para que no tape el botón de engranaje
+                ),
             containerColor = colorResource(R.color.cyanSecundario),
             contentColor = Color.White
         ) {
@@ -491,6 +487,7 @@ fun BusquedaScreen(
         }
     }
 }
+
 @Composable
 fun ComunidadItem(
     comunidad: ComunidadDTO,
@@ -499,7 +496,6 @@ fun ComunidadItem(
 ) {
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
     Card(
         modifier = Modifier
@@ -535,7 +531,7 @@ fun ComunidadItem(
                             .crossfade(true)
                             .placeholder(R.drawable.app_icon)
                             .error(R.drawable.app_icon)
-                            .setHeader("Authorization", authToken)
+                            .setHeader("Authorization", "Bearer $authToken")
                             .build(),
                         contentDescription = "Foto de comunidad ${comunidad.nombre}",
                         contentScale = ContentScale.Crop,
@@ -606,7 +602,6 @@ fun ActividadItem(
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-    val coroutineScope = rememberCoroutineScope()
 
     Card(
         modifier = Modifier
@@ -640,7 +635,7 @@ fun ActividadItem(
                             .crossfade(true)
                             .placeholder(R.drawable.app_icon)
                             .error(R.drawable.app_icon)
-                            .setHeader("Authorization", authToken)
+                            .setHeader("Authorization", "Bearer $authToken")
                             .build(),
                         contentDescription = "Imagen de actividad",
                         contentScale = ContentScale.Crop,
@@ -687,6 +682,7 @@ fun ActividadItem(
         }
     }
 }
+
 @Composable
 fun UsuarioSearchItem(
     usuario: UsuarioDTO,
@@ -709,7 +705,6 @@ fun UsuarioSearchItem(
         border = BorderStroke(1.dp, colorResource(R.color.azulPrimario).copy(alpha = 0.2f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        // El resto del código permanece igual
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -731,7 +726,7 @@ fun UsuarioSearchItem(
                             .crossfade(true)
                             .placeholder(R.drawable.app_icon)
                             .error(R.drawable.app_icon)
-                            .setHeader("Authorization", authToken)
+                            .setHeader("Authorization", "Bearer $authToken")
                             .build(),
                         contentDescription = "Foto de perfil de ${usuario.nombre}",
                         contentScale = ContentScale.Crop,
@@ -771,7 +766,7 @@ fun UsuarioSearchItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                if (usuario.intereses != null && usuario.intereses.isNotEmpty()) {
+                if (usuario.intereses.isNotEmpty()) {
                     Text(
                         text = usuario.intereses.take(3).joinToString(", "),
                         fontSize = 12.sp,

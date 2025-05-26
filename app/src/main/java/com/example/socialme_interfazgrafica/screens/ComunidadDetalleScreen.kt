@@ -967,91 +967,121 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             )
         }
 
-        // Botón de tres puntos (menú)
-        IconButton(
-            onClick = { showMenu.value = true },
+        // Box para el botón de menú con posicionamiento correcto
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
-                .size(36.dp)
-                .background(Color.White.copy(alpha = 0.7f), CircleShape)
         ) {
-            Icon(
-                imageVector = Icons.Filled.MoreVert,
-                contentDescription = "Opciones",
-                tint = colorResource(R.color.azulPrimario),
-            )
-        }
+            IconButton(
+                onClick = { showMenu.value = true },
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(Color.White.copy(alpha = 0.7f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = "Opciones",
+                    tint = colorResource(R.color.azulPrimario),
+                )
+            }
 
-// Modificación para DropdownMenu en ComunidadDetalleScreen, ActividadDetalleScreen, etc.
+            DropdownMenu(
+                expanded = showMenu.value,
+                onDismissRequest = { showMenu.value = false },
+                modifier = Modifier
+                    .background(
+                        color = Color.White,
+                        shape = RoundedCornerShape(8.dp)
+                    ),
+                offset = DpOffset(x = (-160).dp, y = 0.dp),
+                properties = PopupProperties(
+                    focusable = true,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                )
+            ) {
 
-        DropdownMenu(
-            expanded = showMenu.value,
-            onDismissRequest = { showMenu.value = false },
-            modifier = Modifier
-                .background(
-                    color = Color.White,
-                    shape = RoundedCornerShape(8.dp)
-                ),
-            offset = DpOffset(x = 0.dp, y = 0.dp), // Cambiado para que aparezca justo debajo del botón
-            properties = PopupProperties(
-                focusable = true,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true
-            )
-        ) {
-                    DropdownMenuItem(
-                text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_calendar),
-                            contentDescription = "Reportar",
-                            tint = colorResource(R.color.error),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Reportar comunidad",
-                            color = Color.Black
-                        )
-                    }
-                },
-                onClick = {
-                    showMenu.value = false
-                    showReportDialog.value = true
-                },
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-
-            // Si es el creador, añadir opción para modificar
-            if (comunidad.creador == username.toString()) {
-                Divider(color = Color.LightGray, thickness = 0.5.dp)
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_description),
-                                contentDescription = "Modificar",
-                                tint = colorResource(R.color.azulPrimario),
+                                painter = painterResource(id = R.drawable.ic_lock),
+                                contentDescription = "Reportar",
+                                tint = colorResource(R.color.error),
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Modificar comunidad",
+                                text = "Reportar comunidad",
                                 color = Color.Black
                             )
                         }
                     },
                     onClick = {
                         showMenu.value = false
-                        navController.navigate(
-                            AppScreen.ModificarComunidadScreen.createRoute(
-                                comunidad.url
-                            )
-                        )
+                        showReportDialog.value = true
                     },
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
+
+                // Si es el perfil propio, añadir opción para modificar
+                if (comunidad.creador == username.value) {
+                    Divider(color = Color.LightGray, thickness = 0.5.dp)
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_description),
+                                    contentDescription = "Modificar",
+                                    tint = colorResource(R.color.azulPrimario),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Modificar comunidad",
+                                    color = Color.Black
+                                )
+                            }
+                        },
+                        onClick = {
+                            showMenu.value = false
+                            navController.navigate(
+                                AppScreen.ModificarComunidadScreen.createRoute(
+                                    comunidad.url
+                                )
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                // NUEVO: Añadir opción para mostrar código de unión si es comunidad privada y es creador/admin
+                if (comunidad.privada && isCreadorOAdmin.value && comunidad.codigoUnion != null) {
+                    Divider(color = Color.LightGray, thickness = 0.5.dp)
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Share,
+                                    contentDescription = "Código de unión",
+                                    tint = colorResource(R.color.azulPrimario),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Codigo de unión",
+                                    color = Color.Black
+                                )
+                            }
+                        },
+                        onClick = {
+                            showMenu.value = false
+                            showCodigoUnionDialog.value = true
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
     }

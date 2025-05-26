@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,6 +35,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -44,7 +45,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -75,22 +75,13 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-// Objeto para almacenar constantes de SharedPreferences
+// Objeto para almacenar constantes de SharedPreferences (solo para token, username, etc.)
 object PreferenciasUsuario {
     const val SHARED_PREFS_NAME = "UserPrefs"
-    const val DISTANCIA_KEY = "RADAR_DISTANCIA"
     const val PREMIUM_KEY = "PREMIUM"
-
-    // Otras claves que podrías necesitar
     const val TOKEN_KEY = "TOKEN"
     const val USERNAME_KEY = "USERNAME"
     const val ROLE_KEY = "ROLE"
-
-    // Función de utilidad para obtener la distancia desde cualquier parte del código
-    fun getDistanciaRadar(context: Context): Int {
-        val sharedPreferences = context.getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getFloat(DISTANCIA_KEY, 50f).roundToInt()
-    }
 }
 
 @Composable
@@ -108,17 +99,22 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
     // Estado para verificar si es premium
     var isPremium by remember { mutableStateOf(false) }
 
+    // Estado para controlar la carga inicial
+    var configuracionesCargadas by remember { mutableStateOf(false) }
+
     // Obtener información del usuario
     val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
     val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
     val username = sharedPreferences.getString(PreferenciasUsuario.USERNAME_KEY, "") ?: ""
 
-    // Cargar estado premium del usuario
+    // Cargar configuraciones reales del servidor al inicializar
     LaunchedEffect(Unit) {
         if (token.isNotEmpty() && username.isNotEmpty()) {
             scope.launch {
                 try {
                     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+                    // Cargar información del usuario (incluyendo premium)
                     val response = apiService.verUsuarioPorUsername("Bearer $token", username)
                     if (response.isSuccessful) {
                         isPremium = response.body()?.premium ?: false
@@ -128,11 +124,16 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                             apply()
                         }
                     }
+
                 } catch (e: Exception) {
                     // Usar valor de SharedPreferences si falla la consulta
                     isPremium = sharedPreferences.getBoolean(PreferenciasUsuario.PREMIUM_KEY, false)
+                } finally {
+                    configuracionesCargadas = true
                 }
             }
+        } else {
+            configuracionesCargadas = true
         }
     }
 
@@ -141,173 +142,190 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
             .fillMaxSize()
             .background(colorResource(R.color.background))
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(scrollState)
-        ) {
-            Text(
-                text = "Opciones",
-                color = colorResource(R.color.cyanSecundario),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Card para opciones de usuario
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp)
+        if (!configuracionesCargadas) {
+            // Mostrar indicador de carga mientras se cargan las configuraciones
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
                 Column(
-                    modifier = Modifier.padding(8.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Sección de Notificaciones con checkboxes expandibles
-                    NotificacionesSection()
-
-                    Divider(color = Color.LightGray, thickness = 0.5.dp)
-
-                    // Sección de Privacidad con dropdowns
-                    PrivacidadSection()
-
-                    Divider(color = Color.LightGray, thickness = 0.5.dp)
-
-                    // Opción de Usuarios bloqueados
-                    // Dentro de OpcionesScreen.kt, en la sección de Privacidad, añadir:
-
-                    OptionItem(
-                        text = "Usuarios bloqueados",
-                        onClick = {
-                            navController.navigate(AppScreen.UsuariosBloqueadosScreen.route)
-                        }
+                    CircularProgressIndicator(color = colorResource(R.color.azulPrimario))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Cargando configuraciones...",
+                        color = colorResource(R.color.textoSecundario)
                     )
-
-                    Divider(color = Color.LightGray, thickness = 0.5.dp)
-
-                    // Sección Sobre las comunidades con texto y checkbox
-                    ComunidadesSection(navController)
-
-                    Divider(color = Color.LightGray, thickness = 0.5.dp)
-
-                    // Sección de Radar de distancia con slider
-                    RadarDistanciaSection()
                 }
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                Text(
+                    text = "Opciones",
+                    color = colorResource(R.color.cyanSecundario),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Botón para comprar premium (solo si no es premium)
-            if (!isPremium) {
-                Button(
-                    onClick = {
-                        navController.navigate(AppScreen.ComprarPremiumScreen.route)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFD700)
-                    ),
+                // Card para opciones de usuario
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = "Premium",
-                        tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Hacerse Premium",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        // Sección de Notificaciones con checkboxes expandibles
+                        NotificacionesSection()
+
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                        // Sección de Privacidad con dropdowns
+                        PrivacidadSection()
+
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                        // Opción de Usuarios bloqueados
+                        OptionItem(
+                            text = "Usuarios bloqueados",
+                            onClick = {
+                                navController.navigate(AppScreen.UsuariosBloqueadosScreen.route)
+                            }
+                        )
+
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                        // Sección Sobre las comunidades con texto y checkbox
+                        ComunidadesSection(navController)
+
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                        // Sección de Radar de distancia con slider
+                        RadarDistanciaSection()
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            // Botón de cerrar sesión
-            Button(
-                onClick = {
-                    // Función para cerrar sesión
-                    cerrarSesion(context, navController, viewModel)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorResource(R.color.cyanSecundario)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Cerrar sesión")
-            }
+                // Botón para comprar premium (solo si no es premium)
+                if (!isPremium) {
+                    Button(
+                        onClick = {
+                            navController.navigate(AppScreen.ComprarPremiumScreen.route)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFD700)
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Premium",
+                            tint = Color.Black,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Hacerse Premium",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
-            // Botón de eliminar cuenta
-            OutlinedButton(
-                onClick = {
-                    // Mostrar diálogo de confirmación
-                    mostrarDialogoConfirmacion = true
-                },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = colorResource(R.color.cyanSecundario)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Eliminar cuenta", color = Color.Red)
-            }
-
-            // Diálogo de confirmación para eliminar cuenta
-            if (mostrarDialogoConfirmacion) {
-                AlertDialog(
-                    onDismissRequest = { mostrarDialogoConfirmacion = false },
-                    title = { Text("Eliminar cuenta") },
-                    text = { Text("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.") },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                mostrarDialogoConfirmacion = false
-                                // Ejecutar la eliminación de la cuenta
-                                eliminarCuenta(context, navController, viewModel) { error ->
-                                    mensajeError = error
-                                    mostrarDialogoError = error.isNotEmpty()
-                                }
-                            }
-                        ) {
-                            Text("Eliminar", color = Color.Red)
-                        }
+                // Botón de cerrar sesión
+                Button(
+                    onClick = {
+                        // Función para cerrar sesión
+                        cerrarSesion(context, navController, viewModel)
                     },
-                    dismissButton = {
-                        TextButton(
-                            onClick = { mostrarDialogoConfirmacion = false }
-                        ) {
-                            Text("Cancelar")
-                        }
-                    }
-                )
-            }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.cyanSecundario)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cerrar sesión")
+                }
 
-            // Diálogo de error para mostrar si la eliminación de cuenta falla
-            if (mostrarDialogoError) {
-                AlertDialog(
-                    onDismissRequest = { mostrarDialogoError = false },
-                    title = { Text("No se puede eliminar la cuenta") },
-                    text = { Text(mensajeError) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = { mostrarDialogoError = false }
-                        ) {
-                            Text("Entendido")
-                        }
-                    }
-                )
-            }
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Espacio adicional para evitar que el BottomNavBar tape contenido
-            Spacer(modifier = Modifier.height(60.dp))
+                // Botón de eliminar cuenta
+                OutlinedButton(
+                    onClick = {
+                        // Mostrar diálogo de confirmación
+                        mostrarDialogoConfirmacion = true
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = colorResource(R.color.cyanSecundario)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Eliminar cuenta", color = Color.Red)
+                }
+
+                // Diálogo de confirmación para eliminar cuenta
+                if (mostrarDialogoConfirmacion) {
+                    AlertDialog(
+                        onDismissRequest = { mostrarDialogoConfirmacion = false },
+                        title = { Text("Eliminar cuenta") },
+                        text = { Text("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    mostrarDialogoConfirmacion = false
+                                    // Ejecutar la eliminación de la cuenta
+                                    eliminarCuenta(context, navController, viewModel) { error ->
+                                        mensajeError = error
+                                        mostrarDialogoError = error.isNotEmpty()
+                                    }
+                                }
+                            ) {
+                                Text("Eliminar", color = Color.Red)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { mostrarDialogoConfirmacion = false }
+                            ) {
+                                Text("Cancelar")
+                            }
+                        }
+                    )
+                }
+
+                // Diálogo de error para mostrar si la eliminación de cuenta falla
+                if (mostrarDialogoError) {
+                    AlertDialog(
+                        onDismissRequest = { mostrarDialogoError = false },
+                        title = { Text("No se puede eliminar la cuenta") },
+                        text = { Text(mensajeError) },
+                        confirmButton = {
+                            TextButton(
+                                onClick = { mostrarDialogoError = false }
+                            ) {
+                                Text("Entendido")
+                            }
+                        }
+                    )
+                }
+
+                // Espacio adicional para evitar que el BottomNavBar tape contenido
+                Spacer(modifier = Modifier.height(60.dp))
+            }
         }
 
         // Bottom Navigation Bar
@@ -317,6 +335,515 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
         )
     }
 }
+
+// PrivacidadSection que carga valores directamente del servidor
+@Composable
+fun PrivacidadSection() {
+    var expandedPrivacidad by remember { mutableStateOf(false) }
+    var expandedComunidades by remember { mutableStateOf(false) }
+    var expandedActividades by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+
+    // Obtener datos del usuario
+    val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
+    val username = sharedPreferences.getString(PreferenciasUsuario.USERNAME_KEY, "") ?: ""
+
+    // Estados para los valores cargados del servidor - CORREGIDO: valores por defecto que coinciden con el backend
+    var opcionComunidades by remember { mutableStateOf("Todos") }  // Backend default: "TODOS"
+    var opcionActividades by remember { mutableStateOf("Todos") }   // Backend default: "TODOS"
+    var cargandoConfiguraciones by remember { mutableStateOf(true) }
+
+    val opcionesDisplay = listOf("Todos", "Amigos", "Nadie")
+
+    // Función para convertir valor interno a display
+    fun valorADisplay(valor: String): String {
+        return when (valor.uppercase()) {
+            "TODOS" -> "Todos"
+            "AMIGOS" -> "Amigos"
+            "NADIE" -> "Nadie"
+            else -> valor
+        }
+    }
+
+    // Función para convertir valor display a interno
+    fun displayAValor(display: String): String {
+        return when (display) {
+            "Todos" -> "TODOS"
+            "Amigos" -> "AMIGOS"
+            "Nadie" -> "NADIE"
+            else -> display.uppercase()
+        }
+    }
+
+    // Cargar valores del servidor al inicializar el composable
+    LaunchedEffect(Unit) {
+        if (token.isNotEmpty() && username.isNotEmpty()) {
+            scope.launch {
+                try {
+                    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                    val authToken = "Bearer $token"
+
+                    // Cargar privacidad de comunidades - CORREGIDO: Leer como texto plano
+                    val responseComunidades = apiService.verPrivacidadComunidad(authToken, username)
+                    if (responseComunidades.isSuccessful) {
+                        val valorComunidades = responseComunidades.body()?.string()?.trim() ?: "TODOS"
+                        opcionComunidades = valorADisplay(valorComunidades)
+                        println("DEBUG: Privacidad comunidades cargada: $valorComunidades -> ${valorADisplay(valorComunidades)}")
+                    } else {
+                        println("DEBUG: Error al cargar privacidad comunidades: ${responseComunidades.code()}")
+                    }
+
+                    // Cargar privacidad de actividades - CORREGIDO: Leer como texto plano
+                    val responseActividades = apiService.verPrivacidadActividad(authToken, username)
+                    if (responseActividades.isSuccessful) {
+                        val valorActividades = responseActividades.body()?.string()?.trim() ?: "TODOS"
+                        opcionActividades = valorADisplay(valorActividades)
+                        println("DEBUG: Privacidad actividades cargada: $valorActividades -> ${valorADisplay(valorActividades)}")
+                    } else {
+                        println("DEBUG: Error al cargar privacidad actividades: ${responseActividades.code()}")
+                    }
+
+                } catch (e: Exception) {
+                    println("DEBUG: Excepción al cargar configuraciones: ${e.message}")
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error al cargar configuraciones: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    cargandoConfiguraciones = false
+                    println("DEBUG: Carga de configuraciones completada. Comunidades: $opcionComunidades, Actividades: $opcionActividades")
+                }
+            }
+        } else {
+            println("DEBUG: Token o username vacío - token: $token, username: $username")
+            cargandoConfiguraciones = false
+        }
+    }
+
+    // Función para cambiar privacidad de comunidades
+    fun cambiarPrivacidadComunidades(nuevaOpcion: String) {
+        scope.launch {
+            try {
+                val valorInterno = displayAValor(nuevaOpcion)
+                println("DEBUG: Cambiando privacidad comunidades: $nuevaOpcion -> $valorInterno")
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                val response = apiService.cambiarPrivacidadComunidad("Bearer $token", username, valorInterno)
+
+                if (response.isSuccessful) {
+                    opcionComunidades = nuevaOpcion
+                    println("DEBUG: Privacidad comunidades actualizada exitosamente")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Privacidad de comunidades actualizada", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    println("DEBUG: Error al actualizar privacidad comunidades: ${response.code()} - ${response.message()}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error al actualizar privacidad: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Excepción al cambiar privacidad comunidades: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // Función para cambiar privacidad de actividades
+    fun cambiarPrivacidadActividades(nuevaOpcion: String) {
+        scope.launch {
+            try {
+                val valorInterno = displayAValor(nuevaOpcion)
+                println("DEBUG: Cambiando privacidad actividades: $nuevaOpcion -> $valorInterno")
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                val response = apiService.cambiarPrivacidadActividad("Bearer $token", username, valorInterno)
+
+                if (response.isSuccessful) {
+                    opcionActividades = nuevaOpcion
+                    println("DEBUG: Privacidad actividades actualizada exitosamente")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Privacidad de actividades actualizada", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    println("DEBUG: Error al actualizar privacidad actividades: ${response.code()} - ${response.message()}")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error al actualizar privacidad: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Excepción al cambiar privacidad actividades: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expandedPrivacidad = !expandedPrivacidad }
+                .padding(vertical = 16.dp, horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Privacidad",
+                modifier = Modifier.weight(1f),
+                fontSize = 16.sp,
+                color = Color.Black
+            )
+            Icon(
+                imageVector = if (expandedPrivacidad) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = Color.Gray
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expandedPrivacidad,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp)
+            ) {
+                if (cargandoConfiguraciones) {
+                    // Mostrar indicador de carga
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = colorResource(R.color.azulPrimario)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Cargando...",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                } else {
+                    // Dropdown 1: Quien puede ver tus comunidades
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedComunidades = !expandedComunidades }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Quien puede ver tus comunidades:",
+                                modifier = Modifier.weight(1f),
+                                fontSize = 14.sp,
+                                color = Color.Black
+                            )
+                            Text(
+                                text = opcionComunidades,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            Icon(
+                                imageVector = if (expandedComunidades) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = expandedComunidades,
+                            onDismissRequest = { expandedComunidades = false },
+                            modifier = Modifier.fillMaxWidth(0.5f)
+                        ) {
+                            opcionesDisplay.forEach { opcion ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            opcion,
+                                            color = if (opcion == opcionComunidades) Color.Blue else Color.Black,
+                                            fontWeight = if (opcion == opcionComunidades) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        expandedComunidades = false
+                                        if (opcion != opcionComunidades) {
+                                            cambiarPrivacidadComunidades(opcion)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Dropdown 2: Quien puede ver tus actividades
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedActividades = !expandedActividades }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Quien puede ver tus actividades:",
+                                modifier = Modifier.weight(1f),
+                                fontSize = 14.sp,
+                                color = Color.Black
+                            )
+                            Text(
+                                text = opcionActividades,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            Icon(
+                                imageVector = if (expandedActividades) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = expandedActividades,
+                            onDismissRequest = { expandedActividades = false },
+                            modifier = Modifier.fillMaxWidth(0.5f)
+                        ) {
+                            opcionesDisplay.forEach { opcion ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            opcion,
+                                            color = if (opcion == opcionActividades) Color.Blue else Color.Black,
+                                            fontWeight = if (opcion == opcionActividades) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        expandedActividades = false
+                                        if (opcion != opcionActividades) {
+                                            cambiarPrivacidadActividades(opcion)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+// RadarDistanciaSection que carga valor directamente del servidor
+@Composable
+fun RadarDistanciaSection() {
+    var expandedRadar by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Obtener datos del usuario
+    val sharedPreferences = remember {
+        context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
+    val username = sharedPreferences.getString(PreferenciasUsuario.USERNAME_KEY, "") ?: ""
+
+    // Estados para el radar
+    var sliderPosition by remember { mutableFloatStateOf(50f) }  // Valor por defecto
+    var valorOriginal by remember { mutableFloatStateOf(50f) }   // Para comparar cambios
+    var cargandoRadar by remember { mutableStateOf(true) }
+
+    val distanciaKm = sliderPosition.roundToInt()
+
+    // Estado para controlar si hay cambios pendientes
+    var hayCambiosPendientes by remember { mutableStateOf(false) }
+    var guardando by remember { mutableStateOf(false) }
+
+    // Cargar valor del servidor al inicializar el composable
+    LaunchedEffect(Unit) {
+        if (token.isNotEmpty() && username.isNotEmpty()) {
+            scope.launch {
+                try {
+                    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                    val authToken = "Bearer $token"
+
+                    val response = apiService.verRadarDistancia(authToken, username)
+                    if (response.isSuccessful) {
+                        val valorRadarString = response.body()?.string()?.trim() ?: "50.0"
+                        val valorRadar = valorRadarString.toFloatOrNull() ?: 50f
+                        sliderPosition = valorRadar
+                        valorOriginal = valorRadar
+                        println("DEBUG: Radar cargado: $valorRadarString -> $valorRadar")
+                    } else {
+                        println("DEBUG: Error al cargar radar: ${response.code()}")
+                    }
+
+                } catch (e: Exception) {
+                    println("DEBUG: Excepción al cargar radar: ${e.message}")
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error al cargar configuración del radar: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    cargandoRadar = false
+                }
+            }
+        } else {
+            cargandoRadar = false
+        }
+    }
+
+    // Función para guardar en servidor
+    fun guardarRadarEnServidor() {
+        guardando = true
+        scope.launch {
+            try {
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                val response = apiService.cambiarRadarDistancia("Bearer $token", username, distanciaKm.toString())
+
+                if (response.isSuccessful) {
+                    valorOriginal = sliderPosition
+                    hayCambiosPendientes = false
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Radar actualizado correctamente", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error al actualizar radar", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                guardando = false
+            }
+        }
+    }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expandedRadar = !expandedRadar }
+                .padding(vertical = 16.dp, horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Radar de distancia",
+                modifier = Modifier.weight(1f),
+                fontSize = 16.sp,
+                color = Color.Black
+            )
+            Icon(
+                imageVector = if (expandedRadar) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = Color.Gray
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expandedRadar,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                if (cargandoRadar) {
+                    // Mostrar indicador de carga
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = colorResource(R.color.azulPrimario)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Cargando...",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                } else {
+                    Slider(
+                        value = sliderPosition,
+                        onValueChange = { newValue ->
+                            sliderPosition = newValue
+                            hayCambiosPendientes = (newValue.roundToInt() != valorOriginal.roundToInt())
+                        },
+                        valueRange = 10f..100f,
+                        steps = 9,  // Crear 9 pasos para tener intervalos de 10 km
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    Text(
+                        text = "$distanciaKm km",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Botón Guardar (solo visible si hay cambios)
+                    if (hayCambiosPendientes) {
+                        Button(
+                            onClick = { guardarRadarEnServidor() },
+                            enabled = !guardando,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.azulPrimario)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (guardando) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Guardando...")
+                            } else {
+                                Text("Guardar cambios")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+// El resto de composables permanecen iguales...
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -391,7 +918,8 @@ fun ComunidadesSection(navController: NavController) {
             Text(
                 text = "Sobre las comunidades",
                 modifier = Modifier.weight(1f),
-                fontSize = 16.sp
+                fontSize = 16.sp,
+                color = Color.Black
             )
             Icon(
                 imageVector = if (expandedComunidades) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -412,9 +940,10 @@ fun ComunidadesSection(navController: NavController) {
             ) {
                 // Texto con información sobre las comunidades
                 Text(
-                    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+                    text = " ullamco laboris nisi ut aliquip ex ea commodo consequat.",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
+                    color = Color.Black,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -435,6 +964,7 @@ fun ComunidadesSection(navController: NavController) {
                     text = "Comunidades que has creado:",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
+                    color = Color.Black,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -480,7 +1010,7 @@ fun ComunidadesSection(navController: NavController) {
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.clickable {
                                     // Navegar a la pantalla de detalles de la comunidad
-                                    navController.navigate("comunidad/${comunidad.url}")
+                                    navController.navigate("comunidadDetalle/${comunidad.url}")
                                 }
                             ) {
                                 Text(
@@ -507,7 +1037,8 @@ fun ComunidadesSection(navController: NavController) {
                     )
                     Text(
                         text = "Acepto los términos y condiciones",
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = Color.Black
                     )
                 }
 
@@ -557,8 +1088,6 @@ fun ComunidadesSection(navController: NavController) {
     }
 }
 
-// ... Resto de las funciones existentes (NotificacionesSection, PrivacidadSection, etc.)
-
 @Composable
 fun NotificacionesSection() {
     var expandedNotifications by remember { mutableStateOf(false) }
@@ -577,7 +1106,8 @@ fun NotificacionesSection() {
             Text(
                 text = "Notificaciones",
                 modifier = Modifier.weight(1f),
-                fontSize = 16.sp
+                fontSize = 16.sp,
+                color = Color.Black
             )
             Icon(
                 imageVector = if (expandedNotifications) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -606,7 +1136,8 @@ fun NotificacionesSection() {
                     )
                     Text(
                         text = "Notificar nuevas actividades de tu comunidad",
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = Color.Black
                     )
                 }
 
@@ -620,7 +1151,8 @@ fun NotificacionesSection() {
                     )
                     Text(
                         text = "Notificar solicitudes de amistad",
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = Color.Black
                     )
                 }
 
@@ -634,227 +1166,10 @@ fun NotificacionesSection() {
                     )
                     Text(
                         text = "Notificar actividades cercanas",
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = Color.Black
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun PrivacidadSection() {
-    var expandedPrivacidad by remember { mutableStateOf(false) }
-    var expandedComunidades by remember { mutableStateOf(false) }
-    var expandedActividades by remember { mutableStateOf(false) }
-    var opcionComunidades by remember { mutableStateOf("Amigos") }
-    var opcionActividades by remember { mutableStateOf("Todos") }
-
-    val opciones = listOf("Todos", "Amigos", "Nadie")
-
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expandedPrivacidad = !expandedPrivacidad }
-                .padding(vertical = 16.dp, horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Privacidad",
-                modifier = Modifier.weight(1f),
-                fontSize = 16.sp
-            )
-            Icon(
-                imageVector = if (expandedPrivacidad) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = Color.Gray
-            )
-        }
-
-        AnimatedVisibility(
-            visible = expandedPrivacidad,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp)
-            ) {
-                // Dropdown 1: Quien puede ver tus comunidades
-                Box {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandedComunidades = !expandedComunidades }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Quien puede ver tus comunidades:",
-                            modifier = Modifier.weight(1f),
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = opcionComunidades,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Icon(
-                            imageVector = if (expandedComunidades) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = expandedComunidades,
-                        onDismissRequest = { expandedComunidades = false },
-                        modifier = Modifier.fillMaxWidth(0.5f)
-                    ) {
-                        opciones.forEach { opcion ->
-                            DropdownMenuItem(
-                                text = { Text(opcion) },
-                                onClick = {
-                                    opcionComunidades = opcion
-                                    expandedComunidades = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Dropdown 2: Quien puede ver tus actividades
-                Box {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandedActividades = !expandedActividades }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Quien puede ver tus actividades:",
-                            modifier = Modifier.weight(1f),
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = opcionActividades,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Icon(
-                            imageVector = if (expandedActividades) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = expandedActividades,
-                        onDismissRequest = { expandedActividades = false },
-                        modifier = Modifier.fillMaxWidth(0.5f)
-                    ) {
-                        opciones.forEach { opcion ->
-                            DropdownMenuItem(
-                                text = { Text(opcion) },
-                                onClick = {
-                                    opcionActividades = opcion
-                                    expandedActividades = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun RadarDistanciaSection() {
-    var expandedRadar by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-
-    // Cargar el valor guardado en SharedPreferences
-    val sharedPreferences = remember {
-        context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
-    }
-    val valorGuardado = sharedPreferences.getFloat(PreferenciasUsuario.DISTANCIA_KEY, 50f)
-
-    // Inicializar el slider con el valor guardado
-    var sliderPosition by remember { mutableFloatStateOf(valorGuardado) }
-    val distanciaKm = sliderPosition.roundToInt()
-
-    // Guardar el valor cuando cambia
-    DisposableEffect(distanciaKm) {
-        with(sharedPreferences.edit()) {
-            putFloat(PreferenciasUsuario.DISTANCIA_KEY, sliderPosition)
-            apply()
-        }
-
-        onDispose { }
-    }
-
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expandedRadar = !expandedRadar }
-                .padding(vertical = 16.dp, horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Radar de distancia",
-                modifier = Modifier.weight(1f),
-                fontSize = 16.sp
-            )
-            Icon(
-                imageVector = if (expandedRadar) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = Color.Gray
-            )
-        }
-
-        AnimatedVisibility(
-            visible = expandedRadar,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Slider(
-                    value = sliderPosition,
-                    onValueChange = { newValue ->
-                        sliderPosition = newValue
-                        // Guardar en SharedPreferences cuando cambia el valor
-                        with(sharedPreferences.edit()) {
-                            putFloat(PreferenciasUsuario.DISTANCIA_KEY, newValue)
-                            apply()
-                        }
-                    },
-                    valueRange = 10f..100f,
-                    steps = 9,  // Crear 9 pasos para tener intervalos de 10 km
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                Text(
-                    text = "$distanciaKm km",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
 
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -874,7 +1189,8 @@ fun OptionItem(text: String, onClick: () -> Unit) {
         Text(
             text = text,
             modifier = Modifier.weight(1f),
-            fontSize = 16.sp
+            fontSize = 16.sp,
+            color = Color.Black
         )
         Icon(
             imageVector = Icons.Default.KeyboardArrowRight,

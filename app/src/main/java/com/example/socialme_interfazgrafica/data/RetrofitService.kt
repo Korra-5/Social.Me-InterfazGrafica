@@ -7,9 +7,8 @@ import com.example.socialme_interfazgrafica.model.BloqueoDTO
 import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
-import com.example.socialme_interfazgrafica.model.ConfirmacionRegistroDTO
-import com.example.socialme_interfazgrafica.model.ConfirmarCambioEmailDTO
 import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
+import com.example.socialme_interfazgrafica.model.DenunciaDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.MensajeCreateDTO
 import com.example.socialme_interfazgrafica.model.MensajeDTO
@@ -26,6 +25,7 @@ import com.example.socialme_interfazgrafica.model.UsuarioUpdateDTO
 import com.example.socialme_interfazgrafica.model.VerificacionDTO
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -84,7 +84,7 @@ interface RetrofitService {
     suspend fun modificarUsuario(
         @Header("Authorization") token: String,
         @Body usuarioUpdateDTO: UsuarioUpdateDTO
-    ): Response<UsuarioDTO> // CORREGIDO: Devuelve UsuarioDTO, no ActividadCreateDTO
+    ): Response<UsuarioDTO>
 
     @DELETE("/Usuario/eliminarUsuario/{username}")
     suspend fun eliminarUsuario(
@@ -114,6 +114,62 @@ interface RetrofitService {
         @Path("email") email: String
     ): Response<Boolean>
 
+    // CONFIGURACIÓN DE PRIVACIDAD Y RADAR
+    @PUT("/Usuario/cambiarPrivacidadComunidad/{username}/{privacidad}")
+    suspend fun cambiarPrivacidadComunidad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("privacidad") privacidad: String
+    ): Response<UsuarioDTO>
+
+    @PUT("/Usuario/cambiarPrivacidadActividad/{username}/{privacidad}")
+    suspend fun cambiarPrivacidadActividad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("privacidad") privacidad: String
+    ): Response<UsuarioDTO>
+
+    @PUT("/Usuario/cambiarRadarDistancia/{username}/{radar}")
+    suspend fun cambiarRadarDistancia(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("radar") radar: String
+    ): Response<UsuarioDTO>
+
+    @GET("/Comunidad/verComunidadPorUsuario/{username}/{usuarioSolicitante}")
+    suspend fun verComunidadPorUsuario(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("usuarioSolicitante") usuarioSolicitante: String
+    ): Response<List<ComunidadDTO>>
+
+    @GET("/Actividad/verActividadPorUsername/{username}/{usuarioSolicitante}")
+    suspend fun verActividadPorUsername(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("usuarioSolicitante") usuarioSolicitante: String
+    ): Response<List<ActividadDTO>>
+
+    // ENDPOINTS PARA OBTENER CONFIGURACIONES DEL USUARIO
+
+    @GET("/Usuario/verPrivacidadActividad/{username}")
+    suspend fun verPrivacidadActividad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<ResponseBody>
+
+    @GET("/Usuario/verPrivacidadComunidad/{username}")
+    suspend fun verPrivacidadComunidad(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<ResponseBody>
+
+    @GET("/Usuario/verRadarDistancia/{username}")
+    suspend fun verRadarDistancia(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<ResponseBody>
+
     // AMISTADES
     @GET("/Usuario/verSolicitudesAmistad/{username}")
     suspend fun verSolicitudesAmistad(
@@ -133,23 +189,17 @@ interface RetrofitService {
         @Body solicitudAmistadDTO: SolicitudAmistadDTO
     ): Response<SolicitudAmistadDTO>
 
+
     @PUT("/Usuario/aceptarSolicitud/{id}")
     suspend fun aceptarSolicitud(
         @Header("Authorization") token: String,
         @Path("id") id: String
     ): Response<Boolean>
 
-    @DELETE("/Usuario/rechazarSolicitud/{id}") // AÑADIDO: Faltaba este endpoint
+    @DELETE("/Usuario/rechazarSolicitud/{id}")
     suspend fun rechazarSolicitud(
         @Header("Authorization") token: String,
         @Path("id") id: String
-    ): Response<Boolean>
-
-    @GET("/Usuario/verificarSolicitudPendiente/{remitente}/{destinatario}") // AÑADIDO: Faltaba este endpoint
-    suspend fun verificarSolicitudPendiente(
-        @Header("Authorization") token: String,
-        @Path("remitente") remitente: String,
-        @Path("destinatario") destinatario: String
     ): Response<Boolean>
 
     // BLOQUEOS
@@ -159,7 +209,7 @@ interface RetrofitService {
         @Body bloqueoDTO: BloqueoDTO
     ): Response<BloqueoDTO>
 
-    @HTTP(method = "DELETE", path = "/Usuario/desbloquearUsuario", hasBody = true) // CORREGIDO: Faltaba el "/"
+    @HTTP(method = "DELETE", path = "/Usuario/desbloquearUsuario", hasBody = true)
     suspend fun desbloquearUsuario(
         @Header("Authorization") token: String,
         @Body bloqueoDTO: BloqueoDTO
@@ -171,13 +221,6 @@ interface RetrofitService {
         @Path("username") username: String
     ): Response<List<UsuarioDTO>>
 
-    @GET("/Usuario/existeBloqueo/{usuario1}/{usuario2}") // AÑADIDO: Faltaba este endpoint
-    suspend fun existeBloqueo(
-        @Header("Authorization") token: String,
-        @Path("usuario1") usuario1: String,
-        @Path("usuario2") usuario2: String
-    ): Response<Boolean>
-
     // ==================== COMUNIDAD ====================
     @POST("/Comunidad/crearComunidad")
     suspend fun crearComunidad(
@@ -185,11 +228,6 @@ interface RetrofitService {
         @Body comunidadCreateDTO: ComunidadCreateDTO
     ): Response<ComunidadDTO>
 
-    @GET("/Comunidad/verComunidadPorUsuario/{username}")
-    suspend fun verComunidadPorUsuario(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<List<ComunidadDTO>>
 
     @GET("/Comunidad/verComunidadPorUrl/{url}")
     suspend fun verComunidadPorUrl(
@@ -208,31 +246,30 @@ interface RetrofitService {
         @Header("Authorization") token: String
     ): Response<List<ComunidadDTO>>
 
-    @GET("/Comunidad/verComunidadesPublicasEnZona/{distanciaKm}/{username}")
+    @GET("/Comunidad/verComunidadesPublicasEnZona/{username}")
     suspend fun verComunidadesPublicas(
         @Header("Authorization") token: String,
         @Path("username") username: String,
-        @Path("distanciaKm") distanciaKm: Float
     ): Response<List<ComunidadDTO>>
 
     @POST("/Comunidad/unirseComunidad")
     suspend fun unirseComunidad(
         @Body participantesComunidadDTO: ParticipantesComunidadDTO,
         @Header("Authorization") token: String
-    ): Response<RegistroResponse>
+    ): Response<ParticipantesComunidadDTO>
 
     @POST("/Comunidad/unirseComunidadPorCodigo/{codigo}")
     suspend fun unirseComunidadPorCodigo(
         @Body participantesComunidadDTO: ParticipantesComunidadDTO,
         @Path("codigo") codigo: String,
         @Header("Authorization") token: String
-    ): Response<RegistroResponse>
+    ): Response<ParticipantesComunidadDTO>
 
     @HTTP(method = "DELETE", path = "/Comunidad/salirComunidad", hasBody = true)
     suspend fun salirComunidad(
         @Body participantesComunidadDTO: ParticipantesComunidadDTO,
         @Header("Authorization") token: String
-    ): Response<RegistroResponse>
+    ): Response<ParticipantesComunidadDTO>
 
     @PUT("/Comunidad/modificarComunidad")
     suspend fun modificarComunidad(
@@ -244,7 +281,7 @@ interface RetrofitService {
     suspend fun eliminarComunidad(
         @Header("Authorization") token: String,
         @Path("url") url: String
-    ): Response<ComunidadDTO> // CORREGIDO: Devuelve ComunidadDTO, no ActividadCreateDTO
+    ): Response<ComunidadDTO>
 
     @POST("/Comunidad/booleanUsuarioApuntadoComunidad")
     suspend fun booleanUsuarioApuntadoComunidad(
@@ -272,7 +309,6 @@ interface RetrofitService {
         @Path("usuarioSolicitante") usuarioSolicitante: String
     ): Response<ParticipantesComunidadDTO>
 
-    // NUEVO ENDPOINT CORREGIDO
     @PUT("/Comunidad/cambiarCreadorComunidad/{comunidadUrl}/{creadorActual}/{nuevoCreador}")
     suspend fun cambiarCreadorComunidad(
         @Header("Authorization") token: String,
@@ -294,11 +330,6 @@ interface RetrofitService {
         @Path("id") id: String
     ): Response<ActividadDTO>
 
-    @GET("/Actividad/verActividadPorUsername/{username}")
-    suspend fun verActividadPorUsername(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<List<ActividadDTO>>
 
     @GET("/Actividad/verActividadNoParticipaUsuario/{username}")
     suspend fun verActividadNoParticipaUsuario(
@@ -311,11 +342,10 @@ interface RetrofitService {
         @Header("Authorization") token: String
     ): Response<List<ActividadDTO>>
 
-    @GET("/Actividad/verActividadesPublicasEnZona/{distanciaKm}/{username}")
+    @GET("/Actividad/verActividadesPublicasEnZona/{username}")
     suspend fun verActividadesPublicas(
         @Header("Authorization") token: String,
         @Path("username") username: String,
-        @Path("distanciaKm") distanciaKm: Float
     ): Response<List<ActividadDTO>>
 
     @GET("/Actividad/verActividadesPorComunidad/{comunidad}")
@@ -328,13 +358,13 @@ interface RetrofitService {
     suspend fun unirseActividad(
         @Body participantesActividadDTO: ParticipantesActividadDTO,
         @Header("Authorization") token: String
-    ): Response<RegistroResponse>
+    ): Response<ParticipantesActividadDTO>
 
     @HTTP(method = "DELETE", path = "/Actividad/salirActividad", hasBody = true)
     suspend fun salirActividad(
         @Body participantesActividadDTO: ParticipantesActividadDTO,
         @Header("Authorization") token: String
-    ): Response<RegistroResponse>
+    ): Response<ParticipantesActividadDTO>
 
     @PUT("/Actividad/modificarActividad")
     suspend fun modificarActividad(
@@ -360,11 +390,18 @@ interface RetrofitService {
         @Path("actividadId") actividadId: String
     ): Response<Int>
 
+    @GET("/Usuario/verificarSolicitudPendiente/{remitente}/{destinatario}")
+    suspend fun verificarSolicitudPendiente(
+        @Header("Authorization") token: String,
+        @Path("remitente") remitente: String,
+        @Path("destinatario") destinatario: String
+    ): Response<Boolean>
+
     @GET("/Actividad/verificarCreadorAdministradorActividad/{username}/{idActividad}")
     suspend fun verificarCreadorAdministradorActividad(
         @Header("Authorization") token: String,
         @Path("username") username: String,
-        @Path("idActividad") idActividad: String // CORREGIDO: era "idActvidad" (typo)
+        @Path("idActividad") idActividad: String
     ): Response<Boolean>
 
     // ==================== DENUNCIA ====================
@@ -372,7 +409,30 @@ interface RetrofitService {
     suspend fun crearDenuncia(
         @Header("Authorization") token: String,
         @Body denunciaCreateDTO: DenunciaCreateDTO
-    ): Response<DenunciaCreateDTO>
+    ): Response<DenunciaDTO>
+
+    @GET("/Denuncia/verDenunciasPuestas/{username}")
+    suspend fun verDenunciasPuestas(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<DenunciaDTO>>
+
+    @GET("/Denuncia/verTodasLasDenuncias")
+    suspend fun verTodasLasDenuncias(
+        @Header("Authorization") token: String
+    ): Response<List<DenunciaDTO>>
+
+    @GET("/Denuncia/verDenunciasNoCompletadas")
+    suspend fun verDenunciasNoCompletadas(
+        @Header("Authorization") token: String
+    ): Response<List<DenunciaDTO>>
+
+    @PUT("/Denuncia/completarDenuncia/{denunciaId}/{completado}")
+    suspend fun completarDenuncia(
+        @Header("Authorization") token: String,
+        @Path("denunciaId") denunciaId: String,
+        @Path("completado") completado: Boolean
+    ): Response<DenunciaDTO>
 
     // ==================== NOTIFICACIONES ====================
     @GET("/Notificacion/obtenerNotificaciones/{username}")
@@ -406,6 +466,11 @@ interface RetrofitService {
         @Path("comunidadUrl") comunidadUrl: String
     ): Response<List<MensajeDTO>>
 
+    @GET("verComunidadPorActividad/{idActividad}")
+    suspend fun verComunidadPorActividad(
+        @Header("Authorization") token: String,
+        @Path("idActividad") idActividad: String
+    ): Response<ComunidadDTO>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

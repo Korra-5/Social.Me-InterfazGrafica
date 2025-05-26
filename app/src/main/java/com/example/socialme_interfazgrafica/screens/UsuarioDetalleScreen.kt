@@ -25,10 +25,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -70,7 +70,9 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
+import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.BloqueoDTO
+import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.SolicitudAmistadDTO
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
@@ -83,6 +85,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,7 +111,11 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     var amigosDelUsuario by remember { mutableStateOf<List<UsuarioDTO>>(emptyList()) }
     var cargandoAmigos by remember { mutableStateOf(false) }
 
-    // Estados para el diálogo de denuncia
+    // Estados para las preferencias de privacidad del usuario del perfil - CORREGIDO
+    var privacidadComunidades by remember { mutableStateOf("AMIGOS") }
+    var privacidadActividades by remember { mutableStateOf("TODOS") }
+
+    // Estados para los diálogos de denuncia
     val showReportDialog = remember { mutableStateOf(false) }
     val reportReason = remember { mutableStateOf("") }
     val reportBody = remember { mutableStateOf("") }
@@ -151,6 +159,19 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         }
         .okHttpClient(okHttpClient)
         .build()
+
+    // Función para obtener mensaje de privacidad apropiado
+    fun obtenerMensajePrivacidad(privacidad: String, seccion: String): String {
+        return when (privacidad.uppercase()) {
+            "AMIGOS" -> if (esAmigo) {
+                "Error al cargar $seccion"
+            } else {
+                "Este usuario solo comparte sus $seccion con sus amigos"
+            }
+            "NADIE" -> "Este usuario ha decidido mantener sus $seccion privadas"
+            else -> "No se pueden mostrar las $seccion"
+        }
+    }
 
     // Función para enviar solicitud de amistad
     fun enviarSolicitudAmistad() {
@@ -227,34 +248,24 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         }
     }
 
-    // Función para verificar si hay solicitud pendiente
-    fun verificarSolicitudPendiente() {
-        scope.launch {
-            try {
-                val response = apiService.verificarSolicitudPendiente(authToken, currentUsername, username)
-
-                if (response.isSuccessful) {
-                    hayPendiente = response.body() ?: false
-                }
-            } catch (e: Exception) {
-                Log.e("UsuarioDetalles", "Error al verificar solicitud: ${e.message}")
-            }
-        }
-    }
-
-    // Cargar los datos del usuario y relaciones
+    // Cargar los datos del usuario y relaciones - CORREGIDO
     LaunchedEffect(username) {
         scope.launch {
             try {
                 val response = apiService.verUsuarioPorUsername(authToken, username)
                 if (response.isSuccessful) {
-                    usuario = response.body()
+                    val usuarioData = response.body()
+                    usuario = usuarioData
+
+                    // IMPORTANTE: Obtener las preferencias de privacidad del usuario real
+                    if (usuarioData != null) {
+                        privacidadComunidades = usuarioData.privacidadComunidades
+                        privacidadActividades = usuarioData.privacidadActividades
+                    }
+
                     isLoading = false
 
                     // Cargar información adicional
-                    if (!isOwnProfile) {
-                        verificarSolicitudPendiente()
-                    }
                     cargarAmigos()
                 } else {
                     errorMessage = "Error al cargar el usuario: ${response.code()}"
@@ -309,8 +320,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                         )
                     }
 
-                    // Modificación para DropdownMenu en ComunidadDetalleScreen, ActividadDetalleScreen, etc.
-
                     DropdownMenu(
                         expanded = showMenu.value,
                         onDismissRequest = { showMenu.value = false },
@@ -319,7 +328,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                 color = Color.White,
                                 shape = RoundedCornerShape(8.dp)
                             ),
-                        offset = DpOffset(x = 0.dp, y = 0.dp), // Cambiado para que aparezca justo debajo del botón
+                        offset = DpOffset(x = 0.dp, y = 0.dp),
                         properties = PopupProperties(
                             focusable = true,
                             dismissOnBackPress = true,
@@ -465,7 +474,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                         .background(colorResource(R.color.cyanSecundario)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (usuario!!.fotoPerfilId.isNotEmpty()) {
+                                    if (usuario!!.fotoPerfilId!!.isNotEmpty()) {
                                         val fotoPerfilUrl = "$baseUrl/files/download/${usuario!!.fotoPerfilId}"
                                         AsyncImage(
                                             model = ImageRequest.Builder(context)
@@ -514,9 +523,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                 // Botón de solicitud de amistad (solo si no es el propio usuario y no son amigos)
                                 if (!isOwnProfile && !esAmigo) {
                                     Spacer(modifier = Modifier.height(16.dp))
-// Sustituir en UsuarioDetallesScreen.kt
 
-// Botón de solicitud de amistad mejorado
                                     Button(
                                         onClick = { enviarSolicitudAmistad() },
                                         colors = ButtonDefaults.buttonColors(
@@ -525,9 +532,9 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                         ),
                                         enabled = !hayPendiente && !seSolicitoAmistad,
                                         modifier = Modifier
-                                            .fillMaxWidth(0.7f)  // Reducido el ancho
-                                            .height(40.dp),      // Reducida la altura
-                                        shape = RoundedCornerShape(20.dp), // Más redondeado
+                                            .fillMaxWidth(0.7f)
+                                            .height(40.dp),
+                                        shape = RoundedCornerShape(20.dp),
                                         elevation = ButtonDefaults.buttonElevation(
                                             defaultElevation = 2.dp,
                                             pressedElevation = 4.dp
@@ -541,7 +548,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                                 painter = painterResource(id = R.drawable.ic_add),
                                                 contentDescription = "Enviar solicitud",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp) // Tamaño reducido
+                                                modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
@@ -714,14 +721,32 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             }
                         }
 
-                        // Carrusel de Comunidades
+                        // Sección de Comunidades con privacidad - CORREGIDO
                         item {
-                            ComunidadCarousel(username = username, navController = navController)
+                            SeccionPrivacidad(
+                                titulo = "Comunidades",
+                                privacidad = privacidadComunidades,
+                                esAmigo = esAmigo,
+                                isOwnProfile = isOwnProfile,
+                                username = username,
+                                navController = navController,
+                                obtenerMensajePrivacidad = ::obtenerMensajePrivacidad,
+                                tipoContenido = "comunidades"
+                            )
                         }
 
-                        // Carrusel de Actividades
+                        // Sección de Actividades con privacidad - CORREGIDO
                         item {
-                            ActividadCarousel(username = username, navController = navController)
+                            SeccionPrivacidad(
+                                titulo = "Actividades",
+                                privacidad = privacidadActividades,
+                                esAmigo = esAmigo,
+                                isOwnProfile = isOwnProfile,
+                                username = username,
+                                navController = navController,
+                                obtenerMensajePrivacidad = ::obtenerMensajePrivacidad,
+                                tipoContenido = "actividades"
+                            )
                         }
 
                         // Espacio adicional al final para evitar que el contenido quede oculto
@@ -729,6 +754,346 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             Spacer(modifier = Modifier.height(80.dp))
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+// Composable para manejar secciones de privacidad
+@Composable
+fun SeccionPrivacidad(
+    titulo: String,
+    privacidad: String,
+    esAmigo: Boolean,
+    isOwnProfile: Boolean,
+    username: String,
+    navController: NavController,
+    obtenerMensajePrivacidad: (String, String) -> String,
+    tipoContenido: String
+) {
+    val deberíaMostrar = when (privacidad.uppercase()) {
+        "TODOS" -> true
+        "AMIGOS" -> isOwnProfile || esAmigo
+        "NADIE" -> isOwnProfile
+        else -> false
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = titulo,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorResource(R.color.azulPrimario),
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        if (deberíaMostrar) {
+            // Mostrar el contenido correspondiente
+            when (tipoContenido) {
+                "comunidades" -> ComunidadCarouselUsuario(username = username, navController = navController)
+                "actividades" -> ActividadCarouselUsuario(username = username, navController = navController)
+            }
+        } else {
+            // Mostrar mensaje de privacidad
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lock),
+                    contentDescription = "Contenido privado",
+                    tint = colorResource(R.color.textoSecundario),
+                    modifier = Modifier.size(48.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = obtenerMensajePrivacidad(privacidad, tipoContenido),
+                    color = colorResource(R.color.textoSecundario),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+// ComunidadCarousel CORREGIDO para UsuarioDetalleScreen
+@Composable
+fun ComunidadCarouselUsuario(username: String, navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+    var comunidades by remember { mutableStateOf<List<ComunidadDTO>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Obtener el username del usuario actual desde SharedPreferences
+    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
+
+    // Función para cargar las comunidades
+    fun cargarComunidades() {
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+
+            try {
+                // Obtener el token desde SharedPreferences
+                val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+                if (token.isEmpty()) {
+                    errorMessage = "No se ha encontrado un token de autenticación"
+                    isLoading = false
+                    return@launch
+                }
+
+                // CORREGIDO: Pasar correctamente el usuario solicitante
+                val authToken = "Bearer $token"
+                val response = apiService.verComunidadPorUsuario(authToken, username, currentUsername)
+
+                if (response.isSuccessful) {
+                    comunidades = response.body() ?: emptyList()
+                } else {
+                    if (response.code() == 500) {
+                        comunidades = emptyList()
+                    } else {
+                        errorMessage = when (response.code()) {
+                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                            403 -> "No tienes permisos para ver las comunidades de este usuario."
+                            404 -> "No se encontraron comunidades para este usuario."
+                            else -> "Error al cargar comunidades: ${response.message()}"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Cargar comunidades cuando se inicializa el componente
+    LaunchedEffect(username) {
+        cargarComunidades()
+    }
+
+    // Mostrar estado de carga, error o el carrusel
+    when {
+        isLoading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = colorResource(R.color.azulPrimario)
+                )
+            }
+        }
+        errorMessage != null -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = errorMessage!!,
+                        color = colorResource(R.color.error),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { cargarComunidades() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.azulPrimario)
+                        )
+                    ) {
+                        Text("Intentar de nuevo")
+                    }
+                }
+            }
+        }
+        comunidades.isEmpty() -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No pertenece a ninguna comunidad",
+                    color = colorResource(R.color.textoSecundario),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        else -> {
+            // Carrusel de comunidades optimizado
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(
+                    items = comunidades,
+                    key = { it.url }
+                ) { comunidad ->
+                    ComunidadCardDetalle(comunidad = comunidad, navController = navController)
+                }
+            }
+        }
+    }
+}
+
+// ActividadCarousel CORREGIDO para UsuarioDetalleScreen
+@Composable
+fun ActividadCarouselUsuario(username: String, navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+    var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Obtener el username del usuario actual desde SharedPreferences
+    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
+
+    // Función para cargar las actividades
+    fun cargarActividades() {
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+
+            try {
+                // Obtener el token desde SharedPreferences
+                val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+                if (token.isEmpty()) {
+                    errorMessage = "No se ha encontrado un token de autenticación"
+                    isLoading = false
+                    return@launch
+                }
+
+                // CORREGIDO: Pasar correctamente el usuario solicitante
+                val authToken = "Bearer $token"
+                val response = apiService.verActividadPorUsername(authToken, username, currentUsername)
+
+                if (response.isSuccessful) {
+                    actividades = response.body() ?: emptyList()
+                } else {
+                    if (response.code() == 500) {
+                        actividades = emptyList()
+                    } else {
+                        errorMessage = when (response.code()) {
+                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                            403 -> "No tienes permisos para ver las actividades de este usuario."
+                            404 -> "No se encontraron actividades para este usuario."
+                            else -> "Error al cargar actividades: ${response.message()}"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Cargar actividades cuando se inicializa el componente
+    LaunchedEffect(username) {
+        cargarActividades()
+    }
+
+    // Mostrar estado de carga, error o el carrusel
+    when {
+        isLoading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = colorResource(R.color.azulPrimario)
+                )
+            }
+        }
+        errorMessage != null -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = errorMessage!!,
+                        color = colorResource(R.color.error),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { cargarActividades() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.azulPrimario)
+                        )
+                    ) {
+                        Text("Intentar de nuevo")
+                    }
+                }
+            }
+        }
+        actividades.isEmpty() -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No participa en ninguna actividad",
+                    color = colorResource(R.color.textoSecundario),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        else -> {
+            // Carrusel de actividades optimizado
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(
+                    items = actividades,
+                    key = { it.nombre }
+                ) { actividad ->
+                    ActividadCardDetalle(actividad = actividad, navController = navController)
                 }
             }
         }
@@ -759,7 +1124,7 @@ fun AmigoItem(
                 .background(colorResource(R.color.cyanSecundario)),
             contentAlignment = Alignment.Center
         ) {
-            if (amigo.fotoPerfilId.isNotEmpty()) {
+            if (amigo.fotoPerfilId!!.isNotEmpty()) {
                 val fotoPerfilUrl = "$baseUrl/files/download/${amigo.fotoPerfilId}"
                 AsyncImage(
                     model = ImageRequest.Builder(context)
@@ -809,5 +1174,370 @@ fun AmigoItem(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+// Cards específicas para el detalle de usuario
+@Composable
+fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) {
+    val context = LocalContext.current
+    val baseUrl = "https://social-me-tfg.onrender.com"
+
+    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString("TOKEN", "") ?: ""
+    val authToken = "Bearer $token"
+
+    val fotoPerfilUrl = if (comunidad.fotoPerfilId.isNotEmpty())
+        "$baseUrl/files/download/${comunidad.fotoPerfilId}"
+    else ""
+
+    val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    val imageLoader = ImageLoader.Builder(context)
+        .memoryCachePolicy(CachePolicy.ENABLED)
+        .diskCachePolicy(CachePolicy.ENABLED)
+        .networkCachePolicy(CachePolicy.ENABLED)
+        .memoryCache {
+            MemoryCache.Builder(context)
+                .maxSizePercent(0.25)
+                .build()
+        }
+        .diskCache {
+            DiskCache.Builder()
+                .directory(context.cacheDir.resolve("comunidad_images"))
+                .maxSizeBytes(50 * 1024 * 1024)
+                .build()
+        }
+        .okHttpClient(okHttpClient)
+        .build()
+
+    Card(
+        modifier = Modifier
+            .width(180.dp)
+            .height(220.dp)
+            .clickable {
+                navController.navigate("comunidadDetalle/${comunidad.url}")
+            },
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = colorResource(R.color.white)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Foto de perfil
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(colorResource(R.color.cyanSecundario)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (fotoPerfilUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(fotoPerfilUrl)
+                            .crossfade(true)
+                            .size(128, 128)
+                            .placeholder(R.drawable.app_icon)
+                            .error(R.drawable.app_icon)
+                            .setHeader("Authorization", authToken)
+                            .memoryCacheKey(fotoPerfilUrl)
+                            .diskCacheKey(fotoPerfilUrl)
+                            .build(),
+                        contentDescription = "Foto de ${comunidad.nombre}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = R.drawable.app_icon),
+                        contentDescription = "Perfil por defecto",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Nombre de la comunidad
+            Text(
+                text = comunidad.nombre,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorResource(R.color.azulPrimario),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // URL
+            Text(
+                text = "@${comunidad.url}",
+                fontSize = 12.sp,
+                color = colorResource(R.color.textoSecundario),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Descripción
+            Text(
+                text = comunidad.descripcion,
+                fontSize = 12.sp,
+                color = Color.Black,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Tags/Intereses
+            if (comunidad.intereses.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val tagsToShow = if (comunidad.intereses.size > 2) 2 else comunidad.intereses.size
+
+                    items(comunidad.intereses.take(tagsToShow)) { interes ->
+                        Badge(
+                            containerColor = colorResource(R.color.cyanSecundario)
+                        ) {
+                            Text(
+                                text = interes,
+                                color = colorResource(R.color.azulPrimario),
+                                fontSize = 9.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+
+                    if (comunidad.intereses.size > 2) {
+                        item {
+                            Badge(
+                                containerColor = colorResource(R.color.cyanSecundario)
+                            ) {
+                                Text(
+                                    text = "+${comunidad.intereses.size - 2}",
+                                    color = colorResource(R.color.azulPrimario),
+                                    fontSize = 9.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Etiquetas privada/global
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (comunidad.privada) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lock),
+                        contentDescription = "Comunidad privada",
+                        tint = colorResource(R.color.textoSecundario),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = "Privada",
+                        fontSize = 10.sp,
+                        color = colorResource(R.color.textoSecundario)
+                    )
+                }
+
+                if (comunidad.comunidadGlobal) {
+                    if (comunidad.privada) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_user),
+                        contentDescription = "Comunidad global",
+                        tint = colorResource(R.color.textoSecundario),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = "Global",
+                        fontSize = 10.sp,
+                        color = colorResource(R.color.textoSecundario)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) {
+    val context = LocalContext.current
+    val baseUrl = "https://social-me-tfg.onrender.com"
+
+    val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString("TOKEN", "") ?: ""
+    val authToken = "Bearer $token"
+
+    val tieneImagenes = actividad.fotosCarruselIds.isNotEmpty()
+    val imagenUrl = if (tieneImagenes)
+        "$baseUrl/files/download/${actividad.fotosCarruselIds[0]}"
+    else ""
+
+    val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    val imageLoader = ImageLoader.Builder(context)
+        .memoryCachePolicy(CachePolicy.ENABLED)
+        .diskCachePolicy(CachePolicy.ENABLED)
+        .networkCachePolicy(CachePolicy.ENABLED)
+        .memoryCache {
+            MemoryCache.Builder(context)
+                .maxSizePercent(0.25)
+                .build()
+        }
+        .diskCache {
+            DiskCache.Builder()
+                .directory(context.cacheDir.resolve("actividad_images"))
+                .maxSizeBytes(50 * 1024 * 1024)
+                .build()
+        }
+        .okHttpClient(okHttpClient)
+        .build()
+
+    val fechaInicio = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaInicio)
+    val fechaFinalizacion = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaFinalizacion)
+
+    Card(
+        modifier = Modifier
+            .width(200.dp)
+            .height(250.dp)
+            .clickable {
+                navController.navigate("actividadDetalle/${actividad._id}")
+            },
+        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = colorResource(R.color.white)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Imagen de actividad
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colorResource(R.color.cyanSecundario)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (tieneImagenes) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(imagenUrl)
+                            .crossfade(true)
+                            .placeholder(R.drawable.app_icon)
+                            .error(R.drawable.app_icon)
+                            .setHeader("Authorization", authToken)
+                            .memoryCacheKey("actividad_${actividad.fotosCarruselIds[0]}")
+                            .diskCacheKey("actividad_${actividad.fotosCarruselIds[0]}")
+                            .build(),
+                        contentDescription = "Foto de ${actividad.nombre}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = R.drawable.app_icon),
+                        contentDescription = "Imagen por defecto",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Nombre de la actividad
+            Text(
+                text = actividad.nombre,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorResource(R.color.azulPrimario),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Creador
+            Text(
+                text = "Por: @${actividad.creador}",
+                fontSize = 12.sp,
+                color = colorResource(R.color.textoSecundario),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Descripción
+            Text(
+                text = actividad.descripcion,
+                fontSize = 12.sp,
+                color = Color.Black,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Fechas
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_calendar),
+                    contentDescription = "Fechas",
+                    tint = colorResource(R.color.textoSecundario),
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "$fechaInicio - $fechaFinalizacion",
+                    fontSize = 10.sp,
+                    color = colorResource(R.color.textoSecundario)
+                )
+            }
+        }
     }
 }

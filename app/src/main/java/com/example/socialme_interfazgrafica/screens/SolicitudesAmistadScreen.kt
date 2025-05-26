@@ -326,7 +326,7 @@ fun SolicitudCard(
                         .background(colorResource(R.color.cyanSecundario)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (usuario != null && usuario.fotoPerfilId.isNotEmpty()) {
+                    if (usuario != null && usuario.fotoPerfilId!!.isNotEmpty()) {
                         val fotoPerfilUrl = "$baseUrl/files/download/${usuario.fotoPerfilId}"
                         AsyncImage(
                             model = ImageRequest.Builder(context)

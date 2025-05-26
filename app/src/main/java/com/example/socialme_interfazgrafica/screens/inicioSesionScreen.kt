@@ -58,7 +58,6 @@ import kotlin.math.roundToInt
 
 // Constantes para SharedPreferences
 private const val SHARED_PREFS_NAME = "UserPrefs"
-private const val DISTANCIA_KEY = "RADAR_DISTANCIA"
 
 @Composable
 fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {

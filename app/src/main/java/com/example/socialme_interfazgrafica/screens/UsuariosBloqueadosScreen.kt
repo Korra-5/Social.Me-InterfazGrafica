@@ -281,7 +281,7 @@ fun UsuarioBloqueadoCard(
                         .background(colorResource(R.color.cyanSecundario)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (usuario.fotoPerfilId.isNotEmpty()) {
+                    if (usuario.fotoPerfilId!!.isNotEmpty()) {
                         val fotoPerfilUrl = "$baseUrl/files/download/${usuario.fotoPerfilId}"
                         AsyncImage(
                             model = ImageRequest.Builder(context)

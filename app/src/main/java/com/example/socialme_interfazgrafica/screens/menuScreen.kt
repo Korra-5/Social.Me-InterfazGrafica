@@ -49,7 +49,6 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
-import com.example.socialme_interfazgrafica.screens.PreferenciasUsuario.getDistanciaRadar
 import com.example.socialme_interfazgrafica.viewModel.NotificacionViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -78,7 +77,6 @@ fun MenuScreen(navController: NavController) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
         token.value = sharedPreferences.getString("TOKEN", "") ?: ""
-        radar.value = getDistanciaRadar(context).toString()
 
         // Cargar el número de solicitudes pendientes si el usuario está logueado
         if (username.value.isNotEmpty()) {
@@ -171,20 +169,18 @@ fun MenuScreen(navController: NavController) {
 
             // IMPORTANTE: Secciones de Comunidades y Actividades
             if (username.value.isNotEmpty()) {
-                ComunidadCarousel(username = username.value, navController)
+                ComunidadCarouselMenu(username = username.value, navController)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             if (username.value.isNotEmpty()) {
-                ActividadCarousel(username = username.value, navController)
+                ActividadCarouselMenu(username = username.value, navController)
             }
 
             if (username.value.isNotEmpty()){
                 VerTodasComunidadesCarrousel(username=username.value, navController, radar.value)
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -208,7 +204,6 @@ fun MenuScreen(navController: NavController) {
         )
     }
 }
-
 
 // Componente para mostrar un contador de notificaciones con tamaño reducido
 @Composable
@@ -265,6 +260,7 @@ fun BadgedIconImproved(
         }
     }
 }
+
 // Componente que podemos agregar al BottomNavBar con IconButton para notificaciones
 @Composable
 fun NotificacionIndicator(
@@ -366,6 +362,7 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
         }
     }
 }
+
 @Composable
 fun UserProfileHeader(
     username: String,
@@ -522,9 +519,8 @@ fun UserProfileHeader(
     }
 }
 
-// El resto del código permanece igual...
 @Composable
-fun ComunidadCarousel(username: String,navController: NavController) {
+fun ComunidadCarouselMenu(username: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -550,9 +546,10 @@ fun ComunidadCarousel(username: String,navController: NavController) {
                     return@launch
                 }
 
-                // Realizar la petición con el token formateado correctamente
+                // CORREGIDO: En MenuScreen, el usuario ve sus propias comunidades
+                // por lo que tanto username como usuarioSolicitante son el mismo
                 val authToken = "Bearer $token"
-                val response = apiService.verComunidadPorUsuario(authToken, username)
+                val response = apiService.verComunidadPorUsuario(authToken, username, username)
 
                 if (response.isSuccessful) {
                     comunidades = response.body() ?: emptyList()
@@ -672,8 +669,10 @@ fun ComunidadCarousel(username: String,navController: NavController) {
         }
     }
 }
+
+// CORREGIDO: ActividadCarousel para MenuScreen
 @Composable
-fun ActividadCarousel(username: String,navController:NavController) {
+fun ActividadCarouselMenu(username: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -683,7 +682,7 @@ fun ActividadCarousel(username: String,navController:NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Función para cargar las actividades
-    fun cargarActividades(navController:NavController) {
+    fun cargarActividades() {
         scope.launch {
             isLoading = true
             errorMessage = null
@@ -701,10 +700,11 @@ fun ActividadCarousel(username: String,navController:NavController) {
                     return@launch
                 }
 
-                // Realizar la petición con el token formateado correctamente
+                // CORREGIDO: En MenuScreen, el usuario ve sus propias actividades
+                // por lo que tanto username como usuarioSolicitante son el mismo
                 val authToken = "Bearer $token"
                 Log.d("ActividadCarousel", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadPorUsername(authToken, username)
+                val response = apiService.verActividadPorUsername(authToken, username, username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -741,7 +741,7 @@ fun ActividadCarousel(username: String,navController:NavController) {
     // Cargar actividades cuando se inicializa el componente
     LaunchedEffect(username) {
         Log.d("ActividadCarousel", "LaunchedEffect iniciado para usuario: $username")
-        cargarActividades(navController)
+        cargarActividades()
     }
 
     Column(
@@ -794,7 +794,7 @@ fun ActividadCarousel(username: String,navController:NavController) {
                         Button(
                             onClick = {
                                 Log.d("ActividadCarousel", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividades(navController)
+                                cargarActividades()
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
@@ -838,7 +838,9 @@ fun ActividadCarousel(username: String,navController:NavController) {
             }
         }
     }
-}@Composable
+}
+
+@Composable
 fun CarrouselActvidadesPorComunidad(username: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1002,6 +1004,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
         }
     }
 }
+
 // Modified Activity Card with navigation
 @Composable
 fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
@@ -1454,7 +1457,7 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
 
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
-                val response = apiService.verComunidadesPublicas(authToken, username, radarValue)
+                val response = apiService.verComunidadesPublicas(authToken, username)
 
                 if (response.isSuccessful) {
                     comunidades = response.body() ?: emptyList()
@@ -1595,7 +1598,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
     }
 
     // Función para cargar las actividades
-    fun cargarActividadesPublicasEnTuZona(navController: NavController) {
+    fun cargarActividadesPublicasEnTuZona() {
         scope.launch {
             isLoading = true
             errorMessage = null
@@ -1614,7 +1617,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                 // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 Log.d("CarrouselActividadesEnZona", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadesPublicas(authToken, username, radarValue)
+                val response = apiService.verActividadesPublicas(authToken, username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -1651,7 +1654,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
     // Cargar actividades cuando se inicializa el componente
     LaunchedEffect(username) {
         Log.d("CarrouselActividadesEnZona", "LaunchedEffect iniciado para usuario: $username")
-        cargarActividadesPublicasEnTuZona(navController)
+        cargarActividadesPublicasEnTuZona()
     }
 
     Column(
@@ -1704,7 +1707,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                         Button(
                             onClick = {
                                 Log.d("ActividadCarousel", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividadesPublicasEnTuZona(navController)
+                                cargarActividadesPublicasEnTuZona()
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)

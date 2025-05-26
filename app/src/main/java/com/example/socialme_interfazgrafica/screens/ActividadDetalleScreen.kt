@@ -49,6 +49,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.disk.DiskCache
@@ -83,6 +85,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -163,9 +170,23 @@ fun ActividadDetalleScreen(
                             )
                         }
 
+                        // Cargar la comunidad de la actividad
+                        val comunidadResponseDeferred = async(Dispatchers.IO) {
+                            retrofitService.verComunidadPorActividad(
+                                token = authToken,
+                                idActividad = actividadId
+                            )
+                        }
+
                         val participacionResponse = withTimeout(8000) { participacionResponseDeferred.await() }
+                        val comunidadResponse = withTimeout(8000) { comunidadResponseDeferred.await() }
+
                         isParticipating.value = participacionResponse.isSuccessful &&
                                 participacionResponse.body() == true
+
+                        if (comunidadResponse.isSuccessful) {
+                            comunidad.value = comunidadResponse.body()
+                        }
                     } else {
                         error.value = "No se pudo cargar la actividad: ${actividadResponse.message()}"
                     }
@@ -295,72 +316,6 @@ fun ActividadDetalleScreen(
                     showMenu = showMenu,
                     showReportDialog = showReportDialog
                 )
-
-                DropdownMenu(
-                    expanded = showMenu.value,
-                    onDismissRequest = { showMenu.value = false },
-                    modifier = Modifier
-                        .background(
-                            color = Color.White,
-                            shape = RoundedCornerShape(8.dp)
-                        ),
-                    offset = DpOffset(x = 0.dp, y = 0.dp),
-                    properties = PopupProperties(
-                        focusable = true,
-                        dismissOnBackPress = true,
-                        dismissOnClickOutside = true
-                    )
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_calendar),
-                                    contentDescription = "Reportar",
-                                    tint = colorResource(R.color.error),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Reportar actividad",
-                                    color = Color.Black
-                                )
-                            }
-                        },
-                        onClick = {
-                            showMenu.value = false
-                            showReportDialog.value = true
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-
-                    // Si es el creador, añadir opción para modificar
-                    if (actividad.value!!.creador == username.toString()) {
-                        Divider(color = Color.LightGray, thickness = 0.5.dp)
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_description),
-                                        contentDescription = "Modificar",
-                                        tint = colorResource(R.color.azulPrimario),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Modificar actividad",
-                                        color = Color.Black
-                                    )
-                                }
-                            },
-                            onClick = {
-                                showMenu.value = false
-                                navController.navigate(AppScreen.ModificarActividadScreen.createRoute(actividadId))
-                            },
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
             }
         }
     }
@@ -397,12 +352,6 @@ fun ActividadDetalleContent(
     // Estado para controlar si está cargando el contador de participantes
     val isLoadingParticipantes = remember { mutableStateOf(true) }
 
-    // Estado para verificar si el usuario es creador o administrador de la actividad
-    val isCreadorOAdmin = remember { mutableStateOf(false) }
-
-    // Estado para controlar si está cargando la verificación
-    val isLoadingVerificacion = remember { mutableStateOf(true) }
-
     // Cargar el número de participantes
     LaunchedEffect(actividad._id) {
         isLoadingParticipantes.value = true
@@ -428,44 +377,6 @@ fun ActividadDetalleContent(
                 cantidadParticipantes.value = participantes
             } finally {
                 isLoadingParticipantes.value = false
-            }
-        }
-    }
-
-    // Verificar si el usuario es creador o administrador de la actividad
-    LaunchedEffect(actividad._id) {
-        isLoadingVerificacion.value = true
-        scope.launch {
-            try {
-                val response = withContext(Dispatchers.IO) {
-                    withTimeout(10000) {
-                        retrofitService.verificarCreadorAdministradorActividad(
-                            idActividad = actividad._id,
-                            token = authToken,
-                            username = username
-                        )
-                    }
-                }
-
-                if (response.isSuccessful) {
-                    isCreadorOAdmin.value = response.isSuccessful && response.body() == true
-                } else {
-                    Log.e(
-                        "ActividadDetalle",
-                        "Error al verificar permisos: ${response.code()} - ${response.message()}"
-                    )
-                    Log.e("ActividadDetalle", "Error body: ${response.errorBody()?.string()}")
-                    isCreadorOAdmin.value = false
-                }
-            } catch (e: Exception) {
-                Log.e(
-                    "ActividadDetalle",
-                    "Excepción al verificar permisos: ${e.javaClass.simpleName} - ${e.message}"
-                )
-                e.printStackTrace()
-                isCreadorOAdmin.value = false
-            } finally {
-                isLoadingVerificacion.value = false
             }
         }
     }
@@ -546,20 +457,91 @@ fun ActividadDetalleContent(
                 )
             }
 
-            // Botón de tres puntos para opciones
-            IconButton(
-                onClick = { showMenu.value = true },
+            // Box para el botón de menú con posicionamiento correcto
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp)
-                    .size(36.dp)
-                    .background(Color.White.copy(alpha = 0.7f), CircleShape)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.MoreVert,
-                    contentDescription = "Opciones",
-                    tint = colorResource(R.color.azulPrimario),
-                )
+                IconButton(
+                    onClick = { showMenu.value = true },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = "Opciones",
+                        tint = colorResource(R.color.azulPrimario),
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu.value,
+                    onDismissRequest = { showMenu.value = false },
+                    modifier = Modifier
+                        .background(
+                            color = Color.White,
+                            shape = RoundedCornerShape(8.dp)
+                        ),
+                    offset = DpOffset(x = (-160).dp, y = 0.dp),
+                    properties = PopupProperties(
+                        focusable = true,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true
+                    )
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_calendar),
+                                    contentDescription = "Reportar",
+                                    tint = colorResource(R.color.error),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Reportar actividad",
+                                    color = Color.Black
+                                )
+                            }
+                        },
+                        onClick = {
+                            showMenu.value = false
+                            showReportDialog.value = true
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+
+                    // CORREGIDO: Comparación correcta del creador sin .toString()
+                    if (actividad.creador == username) {
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_description),
+                                        contentDescription = "Modificar",
+                                        tint = colorResource(R.color.azulPrimario),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Modificar actividad",
+                                        color = Color.Black
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showMenu.value = false
+                                navController.navigate(AppScreen.ModificarActividadScreen.createRoute(
+                                    actividad._id))
+                            },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -597,42 +579,53 @@ fun ActividadDetalleContent(
                 )
             }
 
-            // Lugar con icono
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario).copy(alpha = 0.3f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            // Ubicación con menor importancia visual
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_location),
-                        contentDescription = "Ubicación",
-                        tint = colorResource(R.color.azulPrimario),
-                        modifier = Modifier.size(24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Text(
-                        text = actividad.lugar,
-                        fontSize = 16.sp,
-                        color = Color.Black
-                    )
-                }
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_location),
+                    contentDescription = "Ubicación",
+                    tint = colorResource(R.color.textoSecundario),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = actividad.lugar,
+                    fontSize = 14.sp,
+                    color = colorResource(R.color.textoSecundario)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Mapa con coordenadas
+            if (actividad.coordenadas.latitud.isNotEmpty() && actividad.coordenadas.longitud.isNotEmpty()) {
+                Text(
+                    text = "Ubicación en el mapa",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    MapaActividad(
+                        latitud = actividad.coordenadas.latitud.toDoubleOrNull() ?: 0.0,
+                        longitud = actividad.coordenadas.longitud.toDoubleOrNull() ?: 0.0,
+                        lugar = actividad.lugar
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             Spacer(
                 modifier = Modifier
@@ -660,7 +653,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // El resto del código permanece igual...
             // Sección de organizadores
             Text(
                 text = "Organizadores",
@@ -670,18 +662,23 @@ fun ActividadDetalleContent(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Información de la comunidad
+            // Información de la comunidad - AHORA CLICABLE
             if (comunidad != null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 4.dp)
+                        .clickable {
+                            navController.navigate(
+                                AppScreen.ComunidadDetalleScreen.createRoute(comunidad.url)
+                            )
+                        },
                     colors = CardDefaults.cardColors(
                         containerColor = Color.White
                     ),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, colorResource(R.color.cyanSecundario).copy(alpha = 0.3f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -722,7 +719,7 @@ fun ActividadDetalleContent(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = comunidad.nombre,
                                 fontSize = 16.sp,
@@ -731,28 +728,40 @@ fun ActividadDetalleContent(
                             )
 
                             Text(
-                                text = "Comunidad",
+                                text = "Comunidad organizadora",
                                 fontSize = 14.sp,
                                 color = Color.Gray
                             )
                         }
+
+                        Icon(
+                            Icons.Filled.ArrowForward,
+                            contentDescription = "Ver comunidad",
+                            tint = colorResource(R.color.azulPrimario),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Información del creador
+            // Información del creador - AHORA CLICABLE
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 4.dp)
+                    .clickable {
+                        navController.navigate(
+                            AppScreen.UsuarioDetalleScreen.createRoute(actividad.creador)
+                        )
+                    },
                 colors = CardDefaults.cardColors(
                     containerColor = Color.White
                 ),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, colorResource(R.color.azulPrimario).copy(alpha = 0.3f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -777,7 +786,7 @@ fun ActividadDetalleContent(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = actividad.creador,
                             fontSize = 16.sp,
@@ -791,6 +800,13 @@ fun ActividadDetalleContent(
                             color = Color.Gray
                         )
                     }
+
+                    Icon(
+                        Icons.Filled.ArrowForward,
+                        contentDescription = "Ver usuario",
+                        tint = colorResource(R.color.azulPrimario),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -946,45 +962,65 @@ fun ActividadDetalleContent(
                     )
                 }
             }
-            // Botón MODIFICAR ACTIVIDAD
-            if (isCreadorOAdmin.value) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        // Navegar a la pantalla de modificación de actividad
-                        navController.navigate(
-                            AppScreen.ModificarActividadScreen.createRoute(actividad._id)
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(R.color.azulPrimario)
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 2.dp
-                    )
-                ) {
-                    if (isLoadingVerificacion.value) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = "MODIFICAR ACTIVIDAD",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun MapaActividad(
+    latitud: Double,
+    longitud: Double,
+    lugar: String
+) {
+    val context = LocalContext.current
+
+    AndroidView(
+        factory = { ctx ->
+            // Configurar osmdroid
+            Configuration.getInstance().load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
+
+            val mapView = MapView(ctx).apply {
+                setTileSource(TileSourceFactory.MAPNIK)
+                setMultiTouchControls(true)
+
+                // Configurar zoom y centro
+                val geoPoint = GeoPoint(latitud, longitud)
+                controller.setZoom(15.0)
+                controller.setCenter(geoPoint)
+
+                // Añadir marcador
+                val marker = Marker(this).apply {
+                    position = geoPoint
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = lugar
+                    snippet = "Ubicación de la actividad"
+                }
+                overlays.add(marker)
+
+                // Deshabilitar interacción (solo visualización)
+                setOnTouchListener { _, _ -> true }
+            }
+            mapView
+        },
+        modifier = Modifier.fillMaxSize()
+    ) { mapView ->
+        // Actualizar mapa si las coordenadas cambian
+        if (latitud != 0.0 && longitud != 0.0) {
+            val geoPoint = GeoPoint(latitud, longitud)
+            mapView.controller.setCenter(geoPoint)
+
+            // Limpiar marcadores existentes y añadir nuevo
+            mapView.overlays.clear()
+            val marker = Marker(mapView).apply {
+                position = geoPoint
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = lugar
+                snippet = "Ubicación de la actividad"
+            }
+            mapView.overlays.add(marker)
+            mapView.invalidate()
         }
     }
 }

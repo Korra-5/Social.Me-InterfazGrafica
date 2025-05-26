@@ -3,7 +3,6 @@ package com.example.socialme_interfazgrafica.screens
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,102 +56,20 @@ import androidx.navigation.NavController
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
-import com.paypal.android.sdk.payments.PayPalConfiguration
+import com.example.socialme_interfazgrafica.utils.PayPalConfig
 import com.paypal.android.sdk.payments.PayPalPayment
 import com.paypal.android.sdk.payments.PayPalService
 import com.paypal.android.sdk.payments.PaymentActivity
 import com.paypal.android.sdk.payments.PaymentConfirmation
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import java.math.BigDecimal
-import java.util.Properties
 
 // Constante para el precio
 const val PREMIUM_PRICE_EUR = "1.99"
-const val PREMIUM_PRICE_DECIMAL = 1.99
-
-object PayPalConfig {
-    private const val TAG = "PayPalConfig"
-    private var properties: Properties? = null
-    private var isInitialized = false
-    private var initError: String? = null
-
-    fun init(context: Context) {
-        Log.d(TAG, "Iniciando configuración de PayPal...")
-        if (!isInitialized) {
-            properties = Properties()
-            try {
-                Log.d(TAG, "Intentando cargar paypal-config.properties desde assets...")
-                val inputStream = context.assets.open("paypal-config.properties")
-                properties!!.load(inputStream)
-                inputStream.close()
-                Log.d(TAG, "Archivo cargado exitosamente")
-
-                // Verificar que el ClientID no sea el placeholder
-                val clientId = properties!!.getProperty("PAYPAL_APIKEY_PUBLICA", "").trim()
-                Log.d(TAG, "ClientID encontrado: ${clientId.take(20)}... (length: ${clientId.length})")
-
-                if (clientId.contains("Your_PayPal_Client_ID_Here") || clientId.isEmpty()) {
-                    initError = "ClientID de PayPal no configurado. Usa un ClientID real de PayPal Sandbox."
-                    Log.e(TAG, "Error: $initError")
-                } else if (clientId.length < 75) {
-                    initError = "ClientID parece ser inválido (muy corto: ${clientId.length} caracteres). Verifica que sea correcto."
-                    Log.e(TAG, "Error: $initError")
-                } else {
-                    Log.d(TAG, "ClientID parece válido (${clientId.length} caracteres)")
-                    // Verificar que empiece con A (formato típico de PayPal)
-                    if (!clientId.startsWith("A")) {
-                        Log.w(TAG, "Advertencia: ClientID no empieza con 'A', podría ser inválido")
-                    }
-                }
-
-                val mode = properties!!.getProperty("PAYPAL_MODE", "sandbox")
-                Log.d(TAG, "Modo PayPal: $mode")
-
-                isInitialized = true
-                Log.d(TAG, "Configuración de PayPal completada exitosamente")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error cargando configuración PayPal", e)
-                initError = "Error cargando configuración PayPal: ${e.message}"
-                // Valores por defecto para evitar crash
-                properties = Properties().apply {
-                    setProperty("PAYPAL_APIKEY_PUBLICA", "demo_client_id_for_testing")
-                    setProperty("PAYPAL_MODE", "sandbox")
-                }
-                isInitialized = true
-            }
-        } else {
-            Log.d(TAG, "PayPal ya está inicializado")
-        }
-    }
-
-    fun getClientId(): String {
-        return properties?.getProperty("PAYPAL_APIKEY_PUBLICA", "")?.trim() ?: "demo_client_id_for_testing"
-    }
-
-    fun getEnvironment(): String {
-        return properties?.getProperty("PAYPAL_MODE") ?: "sandbox"
-    }
-
-    fun isSandbox(): Boolean = getEnvironment() == "sandbox"
-
-    fun hasError(): Boolean = initError != null
-
-    fun getError(): String? = initError
-
-    fun isValidConfig(): Boolean {
-        val clientId = getClientId()
-        val isValid = !clientId.contains("demo_client_id") &&
-                !clientId.contains("Your_PayPal_Client_ID_Here") &&
-                clientId.isNotEmpty() &&
-                clientId.length >= 75 &&
-                clientId.startsWith("A")
-        Log.d(TAG, "Config es válido: $isValid (ClientID: ${clientId.take(20)}..., length: ${clientId.length})")
-        return isValid
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,20 +82,37 @@ fun ComprarPremiumScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isPremium by remember { mutableStateOf(false) }
     var isPayPalConfigured by remember { mutableStateOf(false) }
+    var isPayPalReady by remember { mutableStateOf(false) }
+    var payPalServiceIntent by remember { mutableStateOf<Intent?>(null) }
     val TAG = "ComprarPremiumScreen"
+
+    // Configuración de PayPal usando la nueva clase
+    val payPalConfig = remember {
+        try {
+            PayPalConfig.createPayPalConfiguration()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creando configuración PayPal", e)
+            null
+        }
+    }
 
     // Inicializar PayPal Config
     LaunchedEffect(Unit) {
-        Log.d(TAG, "Iniciando LaunchedEffect...")
-        PayPalConfig.init(context)
-        isPayPalConfigured = PayPalConfig.isValidConfig()
+        Log.d(TAG, "=== Iniciando LaunchedEffect ===")
+        try {
+            PayPalConfig.init(context)
+            isPayPalConfigured = PayPalConfig.isValidConfig()
 
-        Log.d(TAG, "PayPal configurado: $isPayPalConfigured")
+            Log.d(TAG, "PayPal configurado: $isPayPalConfigured")
 
-        if (PayPalConfig.hasError()) {
-            val error = PayPalConfig.getError()
-            Log.e(TAG, "Error de PayPal: $error")
-            errorMessage = error
+            if (PayPalConfig.hasError()) {
+                val error = PayPalConfig.getError()
+                Log.e(TAG, "Error de PayPal: $error")
+                errorMessage = error
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en LaunchedEffect", e)
+            errorMessage = "Error inicializando PayPal: ${e.message}"
         }
     }
 
@@ -186,41 +121,16 @@ fun ComprarPremiumScreen(navController: NavController) {
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val username = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    // Configuración de PayPal usando las credenciales del archivo
-    val payPalConfig = remember {
-        Log.d(TAG, "Creando configuración de PayPal...")
-        try {
-            val config = PayPalConfiguration()
-                .environment(
-                    if (PayPalConfig.isSandbox()) {
-                        Log.d(TAG, "Usando ambiente SANDBOX")
-                        PayPalConfiguration.ENVIRONMENT_SANDBOX
-                    } else {
-                        Log.d(TAG, "Usando ambiente PRODUCTION")
-                        PayPalConfiguration.ENVIRONMENT_PRODUCTION
-                    }
-                )
-                .clientId(PayPalConfig.getClientId())
-                .acceptCreditCards(true)
-                .merchantName("SocialMe")
-                .merchantPrivacyPolicyUri(Uri.parse("https://example.com/privacy"))
-                .merchantUserAgreementUri(Uri.parse("https://example.com/terms"))
-            Log.d(TAG, "Configuración de PayPal creada exitosamente")
-            config
-        } catch (e: Exception) {
-            Log.e(TAG, "Error creando configuración de PayPal", e)
-            throw e
-        }
-    }
-
+    // Launcher para PayPal
     val payPalLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        Log.d(TAG, "Resultado de PayPal recibido: ${result.resultCode}")
+        Log.d(TAG, "=== Resultado de PayPal recibido ===")
+        Log.d(TAG, "Result code: ${result.resultCode}")
 
         when (result.resultCode) {
             Activity.RESULT_OK -> {
-                Log.d(TAG, "Pago exitoso")
+                Log.d(TAG, "✅ Pago exitoso")
                 val confirm = result.data?.getParcelableExtra<PaymentConfirmation>(PaymentActivity.EXTRA_RESULT_CONFIRMATION)
                 if (confirm != null) {
                     try {
@@ -247,6 +157,9 @@ fun ComprarPremiumScreen(navController: NavController) {
                         Log.e(TAG, "Error procesando respuesta de PayPal", e)
                         errorMessage = "Error procesando el pago: ${e.message}"
                     }
+                } else {
+                    Log.e(TAG, "PaymentConfirmation es null")
+                    errorMessage = "Error: No se recibió confirmación del pago"
                 }
             }
             Activity.RESULT_CANCELED -> {
@@ -259,6 +172,7 @@ fun ComprarPremiumScreen(navController: NavController) {
             }
             else -> {
                 Log.w(TAG, "Resultado desconocido: ${result.resultCode}")
+                errorMessage = "Error desconocido en el pago"
             }
         }
         isLoading = false
@@ -285,21 +199,42 @@ fun ComprarPremiumScreen(navController: NavController) {
         }
     }
 
-    // Iniciar servicio de PayPal solo si está configurado
-    LaunchedEffect(isPayPalConfigured) {
-        if (isPayPalConfigured) {
+    // Iniciar servicio de PayPal con mejoras
+    LaunchedEffect(isPayPalConfigured, payPalConfig) {
+        if (isPayPalConfigured && payPalConfig != null) {
             try {
-                Log.d(TAG, "Iniciando servicio de PayPal...")
+                Log.d(TAG, "=== Iniciando servicio de PayPal ===")
                 val intent = Intent(context, PayPalService::class.java)
                 intent.putExtra(PayPalService.EXTRA_PAYPAL_CONFIGURATION, payPalConfig)
+
                 context.startService(intent)
-                Log.d(TAG, "Servicio de PayPal iniciado exitosamente")
+                payPalServiceIntent = intent
+
+                // Dar tiempo al servicio para inicializar
+                delay(3000)
+                isPayPalReady = true
+
+                Log.d(TAG, "✅ Servicio de PayPal iniciado exitosamente")
             } catch (e: Exception) {
-                Log.e(TAG, "Error iniciando servicio de PayPal", e)
+                Log.e(TAG, "❌ Error iniciando servicio de PayPal", e)
                 errorMessage = "Error iniciando PayPal: ${e.message}"
             }
         } else {
-            Log.d(TAG, "PayPal no configurado, saltando inicio de servicio")
+            Log.d(TAG, "PayPal no configurado o config es null")
+        }
+    }
+
+    // Limpiar servicio al salir
+    DisposableEffect(Unit) {
+        onDispose {
+            payPalServiceIntent?.let {
+                try {
+                    context.stopService(it)
+                    Log.d(TAG, "Servicio PayPal detenido")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error deteniendo servicio PayPal", e)
+                }
+            }
         }
     }
 
@@ -416,7 +351,6 @@ fun ComprarPremiumScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Precio centrado
                     Text(
                         text = "€$PREMIUM_PRICE_EUR",
                         fontSize = 36.sp,
@@ -427,7 +361,11 @@ fun ComprarPremiumScreen(navController: NavController) {
                     )
 
                     Text(
-                        text = if (isPayPalConfigured) "Pago seguro con PayPal Sandbox" else "PayPal no configurado - Solo demostración",
+                        text = when {
+                            !isPayPalConfigured -> "PayPal no configurado"
+                            !isPayPalReady -> "Iniciando PayPal..."
+                            else -> "Pago seguro con PayPal Sandbox"
+                        },
                         fontSize = 14.sp,
                         color = colorResource(R.color.textoSecundario),
                         textAlign = TextAlign.Center,
@@ -438,7 +376,7 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Botón de compra
+            // Botón de compra mejorado
             if (isPremium) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -457,21 +395,31 @@ fun ComprarPremiumScreen(navController: NavController) {
             } else {
                 Button(
                     onClick = {
-                        if (isPayPalConfigured) {
-                            Log.d(TAG, "Iniciando proceso de pago...")
-                            showConfirmDialog = true
-                        } else {
-                            val error = "PayPal no está configurado correctamente. Verifica el archivo paypal-config.properties"
-                            Log.w(TAG, error)
-                            errorMessage = error
+                        when {
+                            !isPayPalConfigured -> {
+                                val error = "PayPal no está configurado correctamente"
+                                Log.w(TAG, error)
+                                errorMessage = error
+                            }
+                            !isPayPalReady -> {
+                                Toast.makeText(context, "PayPal se está iniciando, espera un momento...", Toast.LENGTH_SHORT).show()
+                            }
+                            else -> {
+                                Log.d(TAG, "Iniciando proceso de pago...")
+                                showConfirmDialog = true
+                            }
                         }
                     },
-                    enabled = !isLoading,
+                    enabled = !isLoading && isPayPalConfigured,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPayPalConfigured) colorResource(R.color.azulPrimario) else Color.Gray
+                        containerColor = when {
+                            !isPayPalConfigured -> Color.Gray
+                            !isPayPalReady -> Color.Gray
+                            else -> colorResource(R.color.azulPrimario)
+                        }
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -483,7 +431,11 @@ fun ComprarPremiumScreen(navController: NavController) {
                         )
                     } else {
                         Text(
-                            text = if (isPayPalConfigured) "Comprar Premium con PayPal" else "PayPal no configurado",
+                            text = when {
+                                !isPayPalConfigured -> "PayPal no configurado"
+                                !isPayPalReady -> "Iniciando PayPal..."
+                                else -> "Comprar Premium con PayPal"
+                            },
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -495,10 +447,13 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             // Información de seguridad
             Text(
-                text = if (isPayPalConfigured) {
-                    "Pago 100% ficticio con PayPal Sandbox\nDinero de prueba - No se cobrará dinero real\nCredenciales de prueba necesarias"
-                } else {
-                    "Para habilitar PayPal:\n1. Ve a developer.paypal.com\n2. Crea una app Sandbox\n3. Copia el ClientID a paypal-config.properties"
+                text = when {
+                    isPayPalConfigured && isPayPalReady -> {
+                        "Pago 100% ficticio con PayPal Sandbox\nDinero de prueba - No se cobrará dinero real"
+                    }
+                    else -> {
+                        "Para habilitar PayPal:\n1. Verificar paypal-config.properties\n2. Reiniciar la app"
+                    }
                 },
                 fontSize = 12.sp,
                 color = colorResource(R.color.textoSecundario),
@@ -521,12 +476,16 @@ fun ComprarPremiumScreen(navController: NavController) {
                     onClick = {
                         showConfirmDialog = false
                         Log.d(TAG, "Usuario confirmó compra, iniciando PayPal...")
-                        iniciarPagoPayPal(
-                            payPalLauncher = payPalLauncher,
-                            payPalConfig = payPalConfig,
-                            context = context,
-                            onLoading = { isLoading = it }
-                        )
+                        if (payPalConfig != null) {
+                            iniciarPagoPayPal(
+                                payPalLauncher = payPalLauncher,
+                                payPalConfig = payPalConfig,
+                                context = context,
+                                onLoading = { isLoading = it }
+                            )
+                        } else {
+                            errorMessage = "Error: Configuración de PayPal no disponible"
+                        }
                     }
                 ) {
                     Text("Confirmar", color = colorResource(R.color.azulPrimario))
@@ -594,40 +553,51 @@ fun BenefitItem(text: String, icon: String) {
     }
 }
 
-// Función para iniciar el pago de PayPal con logs detallados
+// Función para iniciar el pago de PayPal MEJORADA
 private fun iniciarPagoPayPal(
     payPalLauncher: androidx.activity.result.ActivityResultLauncher<Intent>,
-    payPalConfig: PayPalConfiguration,
+    payPalConfig: com.paypal.android.sdk.payments.PayPalConfiguration,
     context: Context,
     onLoading: (Boolean) -> Unit
 ) {
     val TAG = "iniciarPagoPayPal"
     onLoading(true)
-    Log.d(TAG, "Iniciando proceso de pago con PayPal...")
+    Log.d(TAG, "=== Iniciando proceso de pago con PayPal ===")
 
     try {
-        // Crear el pago
+        // Crear el pago con validaciones
         Log.d(TAG, "Creando objeto de pago...")
         val payment = PayPalPayment(
             BigDecimal(PREMIUM_PRICE_EUR),
             "EUR",
             "SocialMe Premium - Upgrade",
             PayPalPayment.PAYMENT_INTENT_SALE
-        )
-        Log.d(TAG, "Pago creado: €$PREMIUM_PRICE_EUR EUR")
+        ).apply {
+            // Configuraciones adicionales
+            enablePayPalShippingAddressesRetrieval(false)
+        }
 
-        // Crear intent para PayPal
+        Log.d(TAG, "✅ Pago creado: €$PREMIUM_PRICE_EUR EUR")
+        Log.d(TAG, "Payment amount: €$PREMIUM_PRICE_EUR")
+        Log.d(TAG, "Currency: EUR")
+        Log.d(TAG, "Intent: SALE")
+
+        // Crear intent para PayPal con validaciones
         Log.d(TAG, "Creando intent para PayPal...")
-        val intent = Intent(context, PaymentActivity::class.java)
-        intent.putExtra(PayPalService.EXTRA_PAYPAL_CONFIGURATION, payPalConfig)
-        intent.putExtra(PaymentActivity.EXTRA_PAYMENT, payment)
+        val intent = Intent(context, PaymentActivity::class.java).apply {
+            putExtra(PayPalService.EXTRA_PAYPAL_CONFIGURATION, payPalConfig)
+            putExtra(PaymentActivity.EXTRA_PAYMENT, payment)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
 
         // Lanzar actividad de PayPal
         Log.d(TAG, "Lanzando actividad de PayPal...")
         payPalLauncher.launch(intent)
-        Log.d(TAG, "PayPal lanzado exitosamente")
+        Log.d(TAG, "✅ PayPal lanzado exitosamente")
+
     } catch (e: Exception) {
-        Log.e(TAG, "Error iniciando PayPal", e)
+        Log.e(TAG, "❌ Error iniciando PayPal", e)
+        Log.e(TAG, "Stack trace: ${e.stackTrace.joinToString("\n")}")
         onLoading(false)
         Toast.makeText(context, "Error iniciando PayPal: ${e.message}", Toast.LENGTH_LONG).show()
     }
