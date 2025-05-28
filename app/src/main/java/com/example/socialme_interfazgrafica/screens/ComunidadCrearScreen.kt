@@ -45,6 +45,7 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
@@ -55,44 +56,69 @@ import org.osmdroid.views.overlay.Overlay
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
+// Función para filtrar caracteres válidos (solo letras, números y espacios)
+fun filtrarCaracteresUrl(texto: String): String {
+    return texto.filter { char ->
+        char.isLetterOrDigit() || char.isWhitespace()
+    }
+}
+
+// Función para formatear el texto a URL válida
+fun formatearTextoAUrl(texto: String): String {
+    return texto
+        .trim()
+        .lowercase()
+        .replace(Regex("\\s+"), "-")
+        .replace(Regex("^-+"), "")
+        .replace(Regex("-+$"), "")
+}
+
+@Composable
+fun VistaPreviewUrl(texto: String) {
+    if (texto.isNotBlank()) {
+        val urlFormateada = formatearTextoAUrl(texto)
+        if (urlFormateada.isNotEmpty()) {
+            Text(
+                text = "URL resultante: $urlFormateada",
+                fontSize = 12.sp,
+                color = Color(0xFF6B7280),
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CrearComunidadScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Obtener SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
     val username = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    // Estado para los campos del formulario
     var url by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
-    var comunidadGlobal by remember { mutableStateOf(false) }
     var privada by remember { mutableStateOf(false) }
 
-    // Estado para intereses
     var nuevoInteres by remember { mutableStateOf("") }
     var intereses by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    // Estado para la imagen de perfil
     var imagenPerfil by remember { mutableStateOf<Uri?>(null) }
     var imagenPerfilBase64 by remember { mutableStateOf<String?>(null) }
 
-    // Estado para controlar la carga
     var isLoading by remember { mutableStateOf(false) }
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-    // Estado para el mapa y coordenadas
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var ubicacionSeleccionada by remember { mutableStateOf<GeoPoint?>(null) }
     var marker by remember { mutableStateOf<Marker?>(null) }
     var isMapExpanded by remember { mutableStateOf(false) }
     var isLoadingLocation by remember { mutableStateOf(false) }
 
-    // Estado para controlar los permisos
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -102,7 +128,6 @@ fun CrearComunidadScreen(navController: NavController) {
         )
     }
 
-    // Lanzador para seleccionar imagen de perfil
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -114,7 +139,6 @@ fun CrearComunidadScreen(navController: NavController) {
         }
     }
 
-    // Lanzador para solicitar permisos de ubicación
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -132,6 +156,49 @@ fun CrearComunidadScreen(navController: NavController) {
                 Toast.LENGTH_LONG
             ).show()
         }
+    }
+
+    // Función para validar los campos obligatorios
+    fun validarCampos(
+        url: String,
+        nombre: String,
+        descripcion: String,
+        intereses: List<String>
+    ): Pair<Boolean, String?> {
+        if (url.trim().isBlank()) {
+            return Pair(false, "La URL es requerida")
+        }
+
+        val urlFormateada = formatearTextoAUrl(url.trim())
+        if (urlFormateada.isEmpty()) {
+            return Pair(false, "La URL no puede estar vacía después del formateo")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(urlFormateada)) {
+            return Pair(false, "La URL contiene palabras no permitidas")
+        }
+
+        if (nombre.trim().isBlank()) {
+            return Pair(false, "El nombre es requerido")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(nombre.trim())) {
+            return Pair(false, "El nombre contiene palabras no permitidas")
+        }
+
+        if (descripcion.trim().isBlank()) {
+            return Pair(false, "La descripción es requerida")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(descripcion.trim())) {
+            return Pair(false, "La descripción contiene palabras no permitidas")
+        }
+
+        if (PalabrasMalsonantesValidator.validarLista(intereses)) {
+            return Pair(false, "Algunos intereses contienen palabras no permitidas")
+        }
+
+        return Pair(true, null)
     }
 
     Box(
@@ -178,7 +245,6 @@ fun CrearComunidadScreen(navController: NavController) {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Tarjeta principal con todos los campos
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -256,7 +322,10 @@ fun CrearComunidadScreen(navController: NavController) {
 
                         OutlinedTextField(
                             value = url,
-                            onValueChange = { url = it },
+                            onValueChange = {
+                                val textoFiltrado = filtrarCaracteresUrl(it)
+                                url = textoFiltrado
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(
@@ -272,6 +341,9 @@ fun CrearComunidadScreen(navController: NavController) {
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
+
+                        // Vista previa de la URL
+                        VistaPreviewUrl(url)
 
                         // Nombre de la comunidad
                         Text(
@@ -353,20 +425,13 @@ fun CrearComunidadScreen(navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                // Configuración y visualización del mapa
                                 DisposableEffect(Unit) {
                                     val map = MapView(context).apply {
                                         setMultiTouchControls(true)
                                         setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-
-                                        // Configurar el controlador del mapa
                                         controller.setZoom(15.0)
-
-                                        // Posición inicial (Madrid como ejemplo)
                                         val startPoint = GeoPoint(40.416775, -3.703790)
                                         controller.setCenter(startPoint)
-
-                                        // Configurar listener para clics en el mapa
                                         overlays.add(object : Overlay() {
                                             override fun onSingleTapConfirmed(
                                                 e: MotionEvent?,
@@ -388,11 +453,9 @@ fun CrearComunidadScreen(navController: NavController) {
 
                                     mapView = map
 
-                                    // Intentar obtener la ubicación actual si tenemos permisos
                                     if (hasLocationPermission) {
                                         obtenerUbicacionActual(context) { location ->
-                                            val geoPoint =
-                                                GeoPoint(location.latitude, location.longitude)
+                                            val geoPoint = GeoPoint(location.latitude, location.longitude)
                                             ubicacionSeleccionada = geoPoint
                                             actualizarMarcador(map, geoPoint)
                                         }
@@ -403,7 +466,6 @@ fun CrearComunidadScreen(navController: NavController) {
                                     }
                                 }
 
-                                // Vista del mapa
                                 mapView?.let { map ->
                                     AndroidView(
                                         factory = { map },
@@ -411,13 +473,11 @@ fun CrearComunidadScreen(navController: NavController) {
                                     )
                                 }
 
-                                // Botón para obtener ubicación actual
                                 FloatingActionButton(
                                     onClick = {
                                         if (hasLocationPermission) {
                                             obtenerUbicacionActual(context) { location ->
-                                                val geoPoint =
-                                                    GeoPoint(location.latitude, location.longitude)
+                                                val geoPoint = GeoPoint(location.latitude, location.longitude)
                                                 ubicacionSeleccionada = geoPoint
                                                 mapView?.let { actualizarMarcador(it, geoPoint) }
                                             }
@@ -439,7 +499,6 @@ fun CrearComunidadScreen(navController: NavController) {
                                     )
                                 }
 
-                                // Indicador de carga de ubicación
                                 if (isLoadingLocation) {
                                     CircularProgressIndicator(
                                         modifier = Modifier
@@ -449,7 +508,6 @@ fun CrearComunidadScreen(navController: NavController) {
                                     )
                                 }
 
-                                // Ícono para expandir/contraer el mapa
                                 IconButton(
                                     onClick = { isMapExpanded = !isMapExpanded },
                                     modifier = Modifier
@@ -467,15 +525,9 @@ fun CrearComunidadScreen(navController: NavController) {
                             }
                         }
 
-                        // Mostrar coordenadas seleccionadas
                         ubicacionSeleccionada?.let { ubicacion ->
                             Text(
-                                text = "Coordenadas seleccionadas:\nLatitud: ${
-                                    String.format(
-                                        "%.6f",
-                                        ubicacion.latitude
-                                    )
-                                }\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
+                                text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth(),
@@ -500,7 +552,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
-                        // Añadir interés
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -528,12 +579,14 @@ fun CrearComunidadScreen(navController: NavController) {
 
                             Button(
                                 onClick = {
-                                    if (nuevoInteres.isNotBlank() && !intereses.contains(
-                                            nuevoInteres
-                                        )
-                                    ) {
-                                        intereses = intereses + nuevoInteres
-                                        nuevoInteres = ""
+                                    val interesTrimmed = nuevoInteres.trim()
+                                    if (interesTrimmed.isNotBlank()) {
+                                        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(interesTrimmed)) {
+                                            Toast.makeText(context, "El interés contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
+                                        } else if (!intereses.contains(interesTrimmed)) {
+                                            intereses = intereses + interesTrimmed
+                                            nuevoInteres = ""
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
@@ -545,7 +598,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             }
                         }
 
-                        // Lista de intereses
                         if (intereses.isNotEmpty()) {
                             FlowRow(
                                 modifier = Modifier
@@ -601,7 +653,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
-                        // Comunidad global
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -619,15 +670,15 @@ fun CrearComunidadScreen(navController: NavController) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Comunidad global",
+                                    text = "Comunidad privada",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF1E293B)
                                 )
 
                                 Switch(
-                                    checked = comunidadGlobal,
-                                    onCheckedChange = { comunidadGlobal = it },
+                                    checked = privada,
+                                    onCheckedChange = { privada = it },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
                                         checkedTrackColor = Color(0xFF3B82F6),
@@ -636,175 +687,111 @@ fun CrearComunidadScreen(navController: NavController) {
                                     )
                                 )
                             }
-                            // Comunidad privada
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color(0xFFF8FAFC)
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Comunidad privada",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF1E293B)
-                                    )
+                        }
 
-                                    Switch(
-                                        checked = privada,
-                                        onCheckedChange = { privada = it },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = Color.White,
-                                            checkedTrackColor = Color(0xFF3B82F6),
-                                            uncheckedThumbColor = Color.White,
-                                            uncheckedTrackColor = Color(0xFFCBD5E1)
-                                        )
-                                    )
-                                }
-                            }
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                val (isValid, errorMsg) = validarCampos(url, nombre, descripcion, intereses)
+                                if (isValid) {
+                                    scope.launch {
+                                        isLoading = true
+                                        try {
+                                            Log.d("CrearComunidad", "Creando comunidad con token: ${authToken.take(10)}...")
 
-                            // Botón para crear comunidad
-                            Button(
-                                onClick = {
-                                    if (validarCampos(url, nombre, descripcion)) {
-                                        scope.launch {
-                                            isLoading = true
-                                            try {
-                                                Log.d(
-                                                    "CrearComunidad",
-                                                    "Creando comunidad con token: ${
-                                                        authToken.take(10)
-                                                    }..."
+                                            val coordenadas = ubicacionSeleccionada?.let {
+                                                Coordenadas(
+                                                    latitud = it.latitude.toString(),
+                                                    longitud = it.longitude.toString()
                                                 )
+                                            }
 
-                                                // Crear objeto de coordenadas
-                                                val coordenadas = ubicacionSeleccionada?.let {
-                                                    Coordenadas(
-                                                        latitud = it.latitude.toString(),
-                                                        longitud = it.longitude.toString()
-                                                    )
-                                                }
+                                            val comunidad = ComunidadCreateDTO(
+                                                url = formatearTextoAUrl(url.trim()),
+                                                nombre = nombre.trim(),
+                                                descripcion = descripcion.trim(),
+                                                intereses = intereses,
+                                                fotoPerfilBase64 = imagenPerfilBase64,
+                                                fotoPerfilId = null,
+                                                creador = username,
+                                                privada = privada,
+                                                coordenadas = coordenadas,
+                                                codigoUnion = null
+                                            )
 
-                                                val comunidad = ComunidadCreateDTO(
-                                                    url = url,
-                                                    nombre = nombre,
-                                                    descripcion = descripcion,
-                                                    intereses = intereses,
-                                                    fotoPerfilBase64 = imagenPerfilBase64,
-                                                    fotoPerfilId = null,
-                                                    creador = username,
-                                                    comunidadGlobal = comunidadGlobal,
-                                                    privada = privada,
-                                                    coordenadas = coordenadas, // Incluir las coordenadas
-                                                    codigoUnion = null
-                                                )
+                                            val response = retrofitService.crearComunidad(
+                                                token = "Bearer $authToken",
+                                                comunidadCreateDTO = comunidad
+                                            )
 
-                                                val response = retrofitService.crearComunidad(
-                                                    token = "Bearer $authToken",
-                                                    comunidadCreateDTO = comunidad
-                                                )
-
-                                                if (response.isSuccessful) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Comunidad creada correctamente",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                    navController.popBackStack()
-                                                } else {
-                                                    val errorMsg = response.errorBody()?.string()
-                                                        ?: "Error desconocido"
-                                                    val mensajeError =
-                                                        ErrorUtils.parseErrorMessage(errorMsg)
-                                                    Toast.makeText(
-                                                        context,
-                                                        mensajeError,
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
-                                                    Log.e("CrearComunidad", "Error: $errorMsg")
-                                                }
-                                            } catch (e: Exception) {
-                                                val mensajeError = ErrorUtils.parseErrorMessage(
-                                                    e.message ?: "Error desconocido"
-                                                )
+                                            if (response.isSuccessful) {
                                                 Toast.makeText(
                                                     context,
-                                                    mensajeError,
-                                                    Toast.LENGTH_LONG
+                                                    "Comunidad creada correctamente",
+                                                    Toast.LENGTH_SHORT
                                                 ).show()
-                                                Log.e(
-                                                    "CrearComunidad",
-                                                    "Excepción: ${e.message}",
-                                                    e
-                                                )
-                                            } finally {
-                                                isLoading = false
+                                                navController.popBackStack()
+                                            } else {
+                                                val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
+                                                val mensajeError = ErrorUtils.parseErrorMessage(errorMsg)
+                                                Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                                Log.e("CrearComunidad", "Error: $errorMsg")
                                             }
+                                        } catch (e: Exception) {
+                                            val mensajeError = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
+                                            Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                            Log.e("CrearComunidad", "Excepción: ${e.message}", e)
+                                        } finally {
+                                            isLoading = false
                                         }
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Por favor, completa todos los campos obligatorios",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
                                     }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(54.dp),
-                                enabled = !isLoading,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF1E3A8A),
-                                    disabledContainerColor = Color(0xFF94A3B8)
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                if (isLoading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color.White
-                                    )
                                 } else {
-                                    Text(
-                                        "CREAR COMUNIDAD",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
+                                    Toast.makeText(context, errorMsg ?: "Error de validación", Toast.LENGTH_SHORT).show()
                                 }
-                            }
-
-                            // Botón para cancelar
-                            OutlinedButton(
-                                onClick = { navController.popBackStack() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(54.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF1E3A8A)
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, Color(0xFF1E3A8A))
-                            ) {
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            enabled = !isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1E3A8A),
+                                disabledContainerColor = Color(0xFF94A3B8)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
                                 Text(
-                                    "CANCELAR",
+                                    "CREAR COMUNIDAD",
                                     fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             }
+                        }
+
+                        OutlinedButton(
+                            onClick = { navController.popBackStack() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF1E3A8A)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF1E3A8A))
+                        ) {
+                            Text(
+                                "CANCELAR",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -812,20 +799,7 @@ fun CrearComunidadScreen(navController: NavController) {
         }
     }
 }
-
-    // Función para validar los campos obligatorios
-    private fun validarCampos(
-        url: String,
-        nombre: String,
-        descripcion: String
-    ): Boolean {
-        return url.isNotBlank() && nombre.isNotBlank() && descripcion.isNotBlank()
-    }
-
-
-
-// Función para obtener la ubicación actual
-public fun obtenerUbicacionActual(context: Context, onLocationReceived: (Location) -> Unit) {
+fun obtenerUbicacionActual(context: Context, onLocationReceived: (Location) -> Unit) {
     try {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         if (ContextCompat.checkSelfPermission(
@@ -859,26 +833,18 @@ public fun obtenerUbicacionActual(context: Context, onLocationReceived: (Locatio
     }
 }
 
-// Función para actualizar el marcador en el mapa
-public fun actualizarMarcador(map: MapView, geoPoint: GeoPoint) {
-    // Eliminar marcadores existentes
+fun actualizarMarcador(map: MapView, geoPoint: GeoPoint) {
     val markersToRemove = map.overlays.filterIsInstance<Marker>()
     map.overlays.removeAll(markersToRemove)
 
-    // Crear nuevo marcador
     val newMarker = Marker(map).apply {
         position = geoPoint
         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         title = "Ubicación seleccionada"
     }
 
-    // Añadir marcador al mapa
     map.overlays.add(newMarker)
-
-    // Centrar el mapa en la ubicación seleccionada
     map.controller.setZoom(15.0)
     map.controller.setCenter(geoPoint)
-
-    // Forzar redibujado del mapa
     map.invalidate()
 }

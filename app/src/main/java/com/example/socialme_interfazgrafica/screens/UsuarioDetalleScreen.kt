@@ -1365,24 +1365,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
                         color = colorResource(R.color.textoSecundario)
                     )
                 }
-
-                if (comunidad.comunidadGlobal) {
-                    if (comunidad.privada) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_user),
-                        contentDescription = "Comunidad global",
-                        tint = colorResource(R.color.textoSecundario),
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "Global",
-                        fontSize = 10.sp,
-                        color = colorResource(R.color.textoSecundario)
-                    )
-                }
             }
         }
     }

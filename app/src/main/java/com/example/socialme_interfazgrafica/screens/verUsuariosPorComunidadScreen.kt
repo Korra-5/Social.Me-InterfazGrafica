@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,9 +34,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -99,6 +102,11 @@ fun VerUsuariosPorComunidadScreen(
     val selectedUser = remember { mutableStateOf<UsuarioDTO?>(null) }
     val checkboxConfirmed = remember { mutableStateOf(false) }
     val isChangingCreator = remember { mutableStateOf(false) }
+
+    // Estados para el diálogo de eliminar comunidad
+    val showDeleteCommunityDialog = remember { mutableStateOf(false) }
+    val deleteCheckboxConfirmed = remember { mutableStateOf(false) }
+    val isDeletingCommunity = remember { mutableStateOf(false) }
 
     // Estados existentes
     val isCreador = remember { mutableStateOf(false) }
@@ -248,6 +256,61 @@ fun VerUsuariosPorComunidadScreen(
                 isChangingCreator.value = false
                 showConfirmDialog.value = false
                 checkboxConfirmed.value = false
+            }
+        }
+    }
+
+    // Función para eliminar la comunidad
+    fun eliminarComunidad() {
+        scope.launch {
+            isDeletingCommunity.value = true
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    withTimeout(8000) {
+                        retrofitService.eliminarComunidad(
+                            token = authToken,
+                            url = comunidadId
+                        )
+                    }
+                }
+
+                if (response.isSuccessful) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            "Comunidad eliminada exitosamente",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        // Navegar al menú principal
+                        navController.navigate(AppScreen.MenuScreen.route) {
+                            // Limpiar el back stack para que no pueda volver
+                            popUpTo(AppScreen.MenuScreen.route) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            "Error al eliminar la comunidad: ${response.message()}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } finally {
+                isDeletingCommunity.value = false
+                showDeleteCommunityDialog.value = false
+                deleteCheckboxConfirmed.value = false
             }
         }
     }
@@ -417,6 +480,142 @@ fun VerUsuariosPorComunidadScreen(
         )
     }
 
+    // Diálogo de confirmación para eliminar comunidad
+    if (showDeleteCommunityDialog.value) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteCommunityDialog.value = false
+                deleteCheckboxConfirmed.value = false
+            },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = "Advertencia",
+                        tint = colorResource(R.color.error),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Eliminar comunidad",
+                        fontWeight = FontWeight.Bold,
+                        color = colorResource(R.color.error)
+                    )
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "¿Estás seguro que quieres eliminar permanentemente la comunidad:",
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = colorResource(R.color.error).copy(alpha = 0.1f)
+                        ),
+                        border = BorderStroke(1.dp, colorResource(R.color.error))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = nombreComunidad,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = colorResource(R.color.error)
+                            )
+                            Text(
+                                text = "@$comunidadId",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "⚠️ ADVERTENCIA: Esta acción es IRREVERSIBLE",
+                        color = colorResource(R.color.error),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    Text(
+                        text = "• Se eliminarán todos los datos de la comunidad\n" +
+                                "• Se perderán todas las actividades asociadas\n" +
+                                "• Se eliminarán todos los mensajes del chat\n" +
+                                "• Todos los miembros serán expulsados automáticamente",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            deleteCheckboxConfirmed.value = !deleteCheckboxConfirmed.value
+                        }
+                    ) {
+                        Checkbox(
+                            checked = deleteCheckboxConfirmed.value,
+                            onCheckedChange = { deleteCheckboxConfirmed.value = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = colorResource(R.color.error)
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Entiendo que esta acción eliminará permanentemente la comunidad y todos sus datos",
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        eliminarComunidad()
+                    },
+                    enabled = deleteCheckboxConfirmed.value && !isDeletingCommunity.value,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.error),
+                        disabledContainerColor = Color.Gray
+                    )
+                ) {
+                    if (isDeletingCommunity.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("ELIMINAR COMUNIDAD")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteCommunityDialog.value = false
+                        deleteCheckboxConfirmed.value = false
+                    },
+                    enabled = !isDeletingCommunity.value
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -507,6 +706,13 @@ fun VerUsuariosPorComunidadScreen(
                     }
                 }
                 else -> {
+                    // Calcular usuarios disponibles para selección (excluir al creador actual)
+                    val usuariosDisponibles = if (esModoSeleccionCreador) {
+                        usuarios.value.filter { it.username != username }
+                    } else {
+                        usuarios.value
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -514,40 +720,91 @@ fun VerUsuariosPorComunidadScreen(
                     ) {
                         // Mensaje especial para modo selección de creador
                         if (esModoSeleccionCreador) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = colorResource(R.color.azulPrimario).copy(alpha = 0.1f)
-                                ),
-                                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp)
+                            if (usuariosDisponibles.isEmpty()) {
+                                // Caso especial: solo hay un miembro (el creador)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = colorResource(R.color.error).copy(alpha = 0.1f)
+                                    ),
+                                    border = BorderStroke(1.dp, colorResource(R.color.error))
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_user),
-                                            contentDescription = "Info",
-                                            tint = colorResource(R.color.azulPrimario),
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Warning,
+                                                contentDescription = "Advertencia",
+                                                tint = colorResource(R.color.error),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "No hay otros miembros",
+                                                fontWeight = FontWeight.Bold,
+                                                color = colorResource(R.color.error)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(12.dp))
                                         Text(
-                                            text = "Selecciona nuevo creador",
-                                            fontWeight = FontWeight.Bold,
-                                            color = colorResource(R.color.azulPrimario)
+                                            text = "Eres el único miembro de esta comunidad. No puedes transferir el liderazgo porque no hay otros usuarios.",
+                                            fontSize = 14.sp,
+                                            color = Color.DarkGray,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Tu única opción es eliminar la comunidad completamente.",
+                                            fontSize = 14.sp,
+                                            color = colorResource(R.color.error),
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.Medium
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Para abandonar la comunidad, primero debes designar a un nuevo creador. Selecciona un miembro de la lista.",
-                                        fontSize = 14.sp,
-                                        color = Color.DarkGray
-                                    )
+                                }
+                            } else {
+                                // Caso normal: hay otros miembros disponibles
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = colorResource(R.color.azulPrimario).copy(alpha = 0.1f)
+                                    ),
+                                    border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_user),
+                                                contentDescription = "Info",
+                                                tint = colorResource(R.color.azulPrimario),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Selecciona nuevo creador",
+                                                fontWeight = FontWeight.Bold,
+                                                color = colorResource(R.color.azulPrimario)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Para abandonar la comunidad, primero debes designar a un nuevo creador. Selecciona un miembro de la lista.",
+                                            fontSize = 14.sp,
+                                            color = Color.DarkGray
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -577,23 +834,33 @@ fun VerUsuariosPorComunidadScreen(
                         )
 
                         // Contador de miembros
+                        val textoContador = if (esModoSeleccionCreador) {
+                            "${usuariosDisponibles.size} ${if (usuariosDisponibles.size == 1) "miembro disponible" else "miembros disponibles"}"
+                        } else {
+                            "${usuarios.value.size} ${if (usuarios.value.size == 1) "miembro" else "miembros"}"
+                        }
+
                         Text(
-                            text = "${usuarios.value.size} ${if (usuarios.value.size == 1) "miembro" else "miembros"}",
+                            text = textoContador,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.DarkGray,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
-                        // Lista de usuarios
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(usuarios.value) { usuario ->
-                                // En modo selección de creador, excluir al usuario actual
-                                if (esModoSeleccionCreador && usuario.username == username) {
-                                    // No mostrar al usuario actual en modo selección
-                                } else {
+                        // Lista de usuarios o mensaje si no hay usuarios disponibles
+                        if (esModoSeleccionCreador && usuariosDisponibles.isEmpty()) {
+                            // No mostrar LazyColumn si no hay usuarios disponibles en modo selección
+                            Spacer(modifier = Modifier.weight(1f))
+                        } else {
+                            // Lista de usuarios
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.weight(1f) // Importante: esto permite que el botón se quede abajo
+                            ) {
+                                val listaAMostrar = if (esModoSeleccionCreador) usuariosDisponibles else usuarios.value
+
+                                items(listaAMostrar) { usuario ->
                                     val puedeEliminar = if (!esModoSeleccionCreador) {
                                         when {
                                             isCreador.value -> usuario.username != username
@@ -632,11 +899,78 @@ fun VerUsuariosPorComunidadScreen(
                                         textoAccion = if (esModoSeleccionCreador) "hacer creador" else null
                                     )
                                 }
+
+                                item {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                            }
+                        }
+
+                        // Botón para eliminar comunidad (solo en modo selección de creador)
+                        if (esModoSeleccionCreador) {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Divider(
+                                color = Color.LightGray,
+                                thickness = 1.dp,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+
+                            Text(
+                                text = if (esModoSeleccionCreador && usuariosDisponibles.isEmpty()) {
+                                    "Como eres el único miembro, tu única opción es:"
+                                } else {
+                                    "¿Prefieres eliminar la comunidad?"
+                                },
+                                fontSize = 14.sp,
+                                color = if (esModoSeleccionCreador && usuariosDisponibles.isEmpty()) {
+                                    colorResource(R.color.error)
+                                } else {
+                                    Color.Gray
+                                },
+                                textAlign = TextAlign.Center,
+                                fontWeight = if (esModoSeleccionCreador && usuariosDisponibles.isEmpty()) {
+                                    FontWeight.Medium
+                                } else {
+                                    FontWeight.Normal
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+
+                            OutlinedButton(
+                                onClick = {
+                                    showDeleteCommunityDialog.value = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = colorResource(R.color.error),
+                                ),
+                                border = BorderStroke(1.dp, colorResource(R.color.error)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Delete,
+                                        contentDescription = "Eliminar",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "ELIMINAR COMUNIDAD",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
-                            item {
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }

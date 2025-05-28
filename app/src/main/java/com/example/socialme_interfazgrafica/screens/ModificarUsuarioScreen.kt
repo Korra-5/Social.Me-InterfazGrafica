@@ -76,10 +76,12 @@ import com.example.socialme_interfazgrafica.model.UsuarioUpdateDTO
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModificarUsuarioScreen(username: String, navController: NavController) {
@@ -92,6 +94,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
 
     // Estados para los datos del usuario
     val usuarioOriginal = remember { mutableStateOf<UsuarioDTO?>(null) }
+    val newUsername = remember { mutableStateOf("") } // Nuevo campo para el username editable
     val nombre = remember { mutableStateOf("") }
     val apellido = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
@@ -111,6 +114,83 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
     // Estados para manejo de imágenes
     val fotoPerfilBase64 = remember { mutableStateOf<String?>(null) }
     val fotoPerfilUri = remember { mutableStateOf<Uri?>(null) }
+
+    // Función de validación actualizada
+    fun validarCampos(
+        newUsername: String,
+        nombre: String,
+        apellido: String,
+        email: String,
+        descripcion: String,
+        municipio: String,
+        provincia: String,
+        intereses: List<String>
+    ): Pair<Boolean, String?> {
+
+        if (newUsername.isEmpty()) {
+            return Pair(false, "El nombre de usuario no puede estar vacío")
+        }
+
+        if (newUsername.length < 3) {
+            return Pair(false, "El nombre de usuario debe tener al menos 3 caracteres")
+        }
+
+        if (newUsername.length > 20) {
+            return Pair(false, "El nombre de usuario no puede tener más de 20 caracteres")
+        }
+
+        // Verificar que solo contenga letras, números y guiones bajos
+        if (!newUsername.matches(Regex("^[a-zA-Z0-9_]+$"))) {
+            return Pair(false, "El nombre de usuario solo puede contener letras, números y guiones bajos")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(newUsername)) {
+            return Pair(false, "El nombre de usuario contiene palabras no permitidas")
+        }
+
+        if (nombre.isEmpty()) {
+            return Pair(false, "El nombre no puede estar vacío")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(nombre)) {
+            return Pair(false, "El nombre contiene palabras no permitidas")
+        }
+
+        if (apellido.isEmpty()) {
+            return Pair(false, "El apellido no puede estar vacío")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(apellido)) {
+            return Pair(false, "El apellido contiene palabras no permitidas")
+        }
+
+        if (email.isEmpty()) {
+            return Pair(false, "El email no puede estar vacío")
+        }
+
+        // Validar formato de email
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            return Pair(false, "El formato del email no es válido")
+        }
+
+        if (descripcion.isNotEmpty() && PalabrasMalsonantesValidator.contienepalabrasmalsonantes(descripcion)) {
+            return Pair(false, "La descripción contiene palabras no permitidas")
+        }
+
+        if (municipio.isNotEmpty() && PalabrasMalsonantesValidator.contienepalabrasmalsonantes(municipio)) {
+            return Pair(false, "El municipio contiene palabras no permitidas")
+        }
+
+        if (provincia.isNotEmpty() && PalabrasMalsonantesValidator.contienepalabrasmalsonantes(provincia)) {
+            return Pair(false, "La provincia contiene palabras no permitidas")
+        }
+
+        if (PalabrasMalsonantesValidator.validarLista(intereses)) {
+            return Pair(false, "Algunos intereses contienen palabras no permitidas")
+        }
+
+        return Pair(true, null)
+    }
 
     // Carga inicial de datos del usuario
     LaunchedEffect(username) {
@@ -133,19 +213,22 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                 )
 
                 usuarioOriginal.value = usuario
+                newUsername.value = usuario.username // Inicializar con el username actual
                 nombre.value = usuario.nombre
                 apellido.value = usuario.apellido
                 email.value = usuario.email
                 descripcion.value = usuario.descripcion
                 intereses.value = usuario.intereses
 
-                // Asignación de dirección
-                municipio.value = usuario.direccion!!.municipio ?: ""
-                provincia.value = usuario.direccion!!.provincia ?: ""
+                // Manejar dirección que puede ser null
+                usuario.direccion?.let { dir ->
+                    municipio.value = dir.municipio ?: ""
+                    provincia.value = dir.provincia ?: ""
+                }
 
                 Log.d(
                     "ModificarUsuario",
-                    "Valores asignados: nombre=${nombre.value}, apellido=${apellido.value}"
+                    "Valores asignados: username=${newUsername.value}, nombre=${nombre.value}, apellido=${apellido.value}"
                 )
             } else {
                 val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
@@ -169,10 +252,8 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
     ) { uri: Uri? ->
         uri?.let {
             fotoPerfilUri.value = it
-            // Convertir a Base64 con compresión y verificación
             scope.launch {
                 try {
-                    // Usar la función de compresión
                     val base64 = compressAndConvertToBase64(it, context)
                     if (base64 != null) {
                         fotoPerfilBase64.value = base64
@@ -192,7 +273,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                         "Error al procesar la imagen: ${e.message}",
                         Toast.LENGTH_SHORT
                     ).show()
-                    fotoPerfilUri.value = null // Limpiar URI si hay error
+                    fotoPerfilUri.value = null
                 }
             }
         }
@@ -283,7 +364,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                 .padding(bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Vista previa de la imagen de perfil
                             Box(
                                 modifier = Modifier
                                     .size(80.dp)
@@ -291,7 +371,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     .background(colorResource(R.color.cyanSecundario))
                                     .border(1.dp, colorResource(R.color.azulPrimario), CircleShape)
                             ) {
-                                // Si hay una nueva imagen seleccionada, mostrarla
                                 if (fotoPerfilUri.value != null) {
                                     AsyncImage(
                                         model = fotoPerfilUri.value,
@@ -300,21 +379,19 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else if (usuarioOriginal.value?.fotoPerfilId?.isNotEmpty() == true) {
-                                    // Si no hay nueva imagen pero existe una foto de perfil, mostrarla
                                     val fotoPerfilUrl =
                                         "${baseUrl}/files/download/${usuarioOriginal.value?.fotoPerfilId}"
                                     AsyncImage(
                                         model = ImageRequest.Builder(context)
                                             .data(fotoPerfilUrl)
                                             .crossfade(true)
-                                            .setHeader("Authorization", authToken)
+                                            .setHeader("Authorization", "Bearer $authToken")
                                             .build(),
                                         contentDescription = "Foto de perfil",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {
-// Si no hay imagen, mostrar un ícono
                                     Icon(
                                         imageVector = Icons.Default.Person,
                                         contentDescription = "Foto de perfil",
@@ -341,7 +418,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             }
                         }
 
-                        // Username (no editable)
+                        // Username (ahora editable)
                         Text(
                             text = "Nombre de usuario",
                             fontSize = 16.sp,
@@ -351,18 +428,16 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                         )
 
                         OutlinedTextField(
-                            value = username,
-                            onValueChange = { /* No permitir cambios */ },
+                            value = newUsername.value,
+                            onValueChange = { newUsername.value = it },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Nombre de usuario", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
                                 unfocusedBorderColor = colorResource(R.color.cyanSecundario),
-                                focusedTextColor = colorResource(R.color.textoSecundario),
-                                unfocusedTextColor = colorResource(R.color.textoSecundario)
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
                             ),
-                            readOnly = true, // Campo no editable
-                            enabled = false,
                             shape = RoundedCornerShape(12.dp)
                         )
 
@@ -494,9 +569,13 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
 
                             Button(
                                 onClick = {
-                                    if (interesInput.value.isNotEmpty() && !intereses.value.contains(interesInput.value)) {
-                                        intereses.value = intereses.value + interesInput.value
-                                        interesInput.value = ""
+                                    if (interesInput.value.isNotEmpty()) {
+                                        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(interesInput.value)) {
+                                            Toast.makeText(context, "El interés contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
+                                        } else if (!intereses.value.contains(interesInput.value)) {
+                                            intereses.value = intereses.value + interesInput.value
+                                            interesInput.value = ""
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
@@ -630,79 +709,89 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
 
                         Button(
                             onClick = {
-                                if (nombre.value.isEmpty()) {
-                                    errorMessage.value = "El nombre no puede estar vacío"
+                                val (isValid, errorMsg) = validarCampos(
+                                    newUsername.value,
+                                    nombre.value,
+                                    apellido.value,
+                                    email.value,
+                                    descripcion.value,
+                                    municipio.value,
+                                    provincia.value,
+                                    intereses.value
+                                )
+
+                                if (!isValid) {
+                                    errorMessage.value = errorMsg
                                     return@Button
                                 }
 
-                                if (apellido.value.isEmpty()) {
-                                    errorMessage.value = "El apellido no puede estar vacío"
-                                    return@Button
-                                }
-
-                                if (email.value.isEmpty()) {
-                                    errorMessage.value = "El email no puede estar vacío"
-                                    return@Button
-                                }
-
-                                val direccion = Direccion(
+                                // Crear objeto direccion con los valores actuales
+                                val direccionObj = Direccion(
                                     municipio = municipio.value,
                                     provincia = provincia.value
                                 )
 
-                                // Preparar objeto de actualización
+                                // Verificar si el username cambió
+                                val usernameCambiado = newUsername.value != username
+
+                                // Crear UsuarioUpdateDTO - SIEMPRE enviar valores actuales (no null)
                                 val usuarioUpdate = UsuarioUpdateDTO(
                                     currentUsername = username,
-                                    newUsername = null, // No permitir cambios de username
-                                    email = email.value,
-                                    nombre = nombre.value,
-                                    apellido = apellido.value,
-                                    descripcion = descripcion.value,
-                                    intereses = intereses.value,
-                                    fotoPerfilBase64 = fotoPerfilBase64.value,
+                                    newUsername = if (usernameCambiado) newUsername.value else null,
+                                    email = email.value,                    // Siempre enviar valor actual
+                                    nombre = nombre.value,                  // Siempre enviar valor actual
+                                    apellido = apellido.value,              // Siempre enviar valor actual
+                                    descripcion = descripcion.value,        // Siempre enviar valor actual
+                                    intereses = intereses.value,            // Siempre enviar lista actual
+                                    fotoPerfilBase64 = if (!fotoPerfilBase64.value.isNullOrEmpty()) {
+                                        fotoPerfilBase64.value
+                                    } else {
+                                        null
+                                    },
                                     fotoPerfilId = usuarioOriginal.value?.fotoPerfilId,
-                                    direccion = direccion
+                                    direccion = direccionObj                // Siempre enviar dirección actual
                                 )
 
-                                // Guardar el email original para compararlo después
-                                val emailOriginal = usuarioOriginal.value?.email ?: ""
-                                val emailCambiado = email.value != emailOriginal
-
-                                // Enviar actualización
                                 isSaving.value = true
                                 scope.launch {
                                     try {
-                                        Log.d(
-                                            "ModificarUsuario",
-                                            "Iniciando petición de actualización"
-                                        )
+                                        Log.d("ModificarUsuario", "Iniciando petición de modificación")
+                                        Log.d("ModificarUsuario", "Username actual: $username, Nuevo username: ${newUsername.value}")
+
                                         val response = withContext(Dispatchers.IO) {
-                                            retrofitService.modificarUsuario(
+                                            retrofitService.iniciarModificacionUsuario(
                                                 "Bearer $authToken",
                                                 usuarioUpdateDTO = usuarioUpdate
                                             )
                                         }
 
-                                        Log.d(
-                                            "ModificarUsuario",
-                                            "Respuesta recibida: ${response.code()}"
-                                        )
-                                        if (response.isSuccessful) {
-                                            // Verificar si el email ha cambiado
-                                            if (emailCambiado) {
-                                                // Si el email ha cambiado, navegar a la pantalla de verificación
-                                                Log.d("ModificarUsuario", "Email cambiado. Redirigiendo a verificación")
+                                        Log.d("ModificarUsuario", "Respuesta recibida: ${response.code()}")
+                                        if (response.isSuccessful && response.body() != null) {
+                                            val responseBody = response.body()!!
+                                            val requiresVerification = responseBody["requiresVerification"] == "true"
+
+                                            if (requiresVerification) {
+                                                // Si requiere verificación, navegar a la pantalla de verificación
+                                                val emailToVerify = responseBody["email"] ?: email.value
                                                 withContext(Dispatchers.Main) {
                                                     navController.navigate(
                                                         AppScreen.EmailVerificationScreen.createRoute(
-                                                            email = email.value,
-                                                            username = username,
+                                                            email = emailToVerify,
+                                                            username = if (usernameCambiado) newUsername.value else username,
                                                             isRegistration = false
                                                         )
                                                     )
                                                 }
                                             } else {
-                                                // Si el email no ha cambiado, simplemente volver atrás
+                                                // Si no requiere verificación, modificación completada
+                                                // Si cambió el username, actualizar SharedPreferences
+                                                if (usernameCambiado) {
+                                                    val editor = sharedPreferences.edit()
+                                                    editor.putString("USERNAME", newUsername.value)
+                                                    editor.apply()
+                                                    Log.d("ModificarUsuario", "Username actualizado en SharedPreferences: ${newUsername.value}")
+                                                }
+
                                                 withContext(Dispatchers.Main) {
                                                     Toast.makeText(
                                                         context,
@@ -713,32 +802,16 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                                 }
                                             }
                                         } else {
-                                            val errorBody = response.errorBody()?.string()
-                                                ?: "Sin cuerpo de error"
-                                            Log.e(
-                                                "ModificarUsuario",
-                                                "Error al actualizar: ${response.code()} - $errorBody"
-                                            )
-                                            errorMessage.value =
-                                                "Error al actualizar: ${response.code()} - ${response.message()}\n$errorBody"
+                                            val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
+                                            Log.e("ModificarUsuario", "Error al modificar: ${response.code()} - $errorBody")
+                                            errorMessage.value = "Error al modificar: ${response.code()} - ${response.message()}\n$errorBody"
                                         }
                                     } catch (e: Exception) {
-                                        Log.e("ModificarUsuario", "Excepción al actualizar", e)
-                                        Log.e(
-                                            "ModificarUsuario",
-                                            "Tipo de excepción: ${e.javaClass.name}"
-                                        )
-                                        Log.e(
-                                            "ModificarUsuario",
-                                            "Mensaje de excepción: ${e.message}"
-                                        )
-                                        Log.e(
-                                            "ModificarUsuario",
-                                            "Stack trace: ${e.stackTraceToString()}"
-                                        )
-                                        errorMessage.value = ErrorUtils.parseErrorMessage(
-                                            e.message ?: "Error desconocido"
-                                        )
+                                        Log.e("ModificarUsuario", "Excepción al modificar", e)
+                                        Log.e("ModificarUsuario", "Tipo de excepción: ${e.javaClass.name}")
+                                        Log.e("ModificarUsuario", "Mensaje de excepción: ${e.message}")
+                                        Log.e("ModificarUsuario", "Stack trace: ${e.stackTraceToString()}")
+                                        errorMessage.value = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
                                     } finally {
                                         isSaving.value = false
                                     }
@@ -822,6 +895,14 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
+                    }
+                }
+
+                // Auto-limpiar mensaje de error después de 5 segundos
+                LaunchedEffect(errorMessage.value) {
+                    if (errorMessage.value != null) {
+                        kotlinx.coroutines.delay(5000)
+                        errorMessage.value = null
                     }
                 }
             }

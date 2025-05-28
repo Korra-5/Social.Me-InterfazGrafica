@@ -120,10 +120,10 @@ fun MenuScreen(navController: NavController) {
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Perfil de usuario con tamaño ampliado (ahora ocupa más espacio)
+                // Perfil de usuario
                 Box(
                     modifier = Modifier
-                        .weight(1.3f)
+                        .weight(1.5f)
                 ) {
                     UserProfileHeader(
                         username = username.value,
@@ -131,29 +131,17 @@ fun MenuScreen(navController: NavController) {
                     )
                 }
 
-                // Espacio entre perfil y botones
-                Spacer(modifier = Modifier.width(10.dp))
+                // Espacio entre perfil y botón
+                Spacer(modifier = Modifier.width(1.dp))
 
-                // Contenedor para los botones (ahora con menor peso)
-                Row(
-                    modifier = Modifier.weight(0.7f),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                // Botón que ocupa todo el espacio restante
+                Box(
+                    modifier = Modifier.weight(0.5f),
+                    contentAlignment = Alignment.CenterEnd
                 ) {
-                    // Botón de notificaciones con contador
-                    BadgedIconImproved(
-                        count = notificacionViewModel.numeroNoLeidas.toInt(),
-                        iconPainter = painterResource(id = R.drawable.ic_email),
-                        contentDescription = "Notificaciones",
-                        onClick = { navController.navigate(AppScreen.NotificacionesScreen.route) }
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // Botón de solicitudes de amistad con contador
                     BadgedIconImproved(
                         count = solicitudesPendientes,
-                        iconPainter = painterResource(id = R.drawable.ic_user),
+                        iconPainter = painterResource(id = R.drawable.ic_email),
                         contentDescription = "Solicitudes de Amistad",
                         onClick = { navController.navigate(AppScreen.SolicitudesAmistadScreen.route) },
                         isAmistadButton = true
@@ -1090,7 +1078,7 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
                     .fillMaxWidth()
                     .height(100.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(colorResource(R.color.cyanSecundario)),
+                    .background(colorResource(R.color.background)),
                 contentAlignment = Alignment.Center
             ) {
                 if (tieneImagenes) {
@@ -1259,7 +1247,7 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(colorResource(R.color.cyanSecundario)),
+                    .background(colorResource(R.color.background)),
                 contentAlignment = Alignment.Center
             ) {
                 if (fotoPerfilUrl.isNotEmpty()) {
@@ -1392,24 +1380,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = "Privada",
-                        fontSize = 10.sp,
-                        color = colorResource(R.color.textoSecundario)
-                    )
-                }
-
-                if (comunidad.comunidadGlobal) {
-                    if (comunidad.privada) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_user),
-                        contentDescription = "Comunidad global",
-                        tint = colorResource(R.color.textoSecundario),
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "Global",
                         fontSize = 10.sp,
                         color = colorResource(R.color.textoSecundario)
                     )

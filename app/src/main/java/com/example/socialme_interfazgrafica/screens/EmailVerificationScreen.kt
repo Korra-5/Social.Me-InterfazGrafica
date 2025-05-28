@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,12 +22,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.socialme_interfazgrafica.R
-import com.example.socialme_interfazgrafica.data.RetrofitService
-import com.example.socialme_interfazgrafica.model.VerificacionDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
+import com.example.socialme_interfazgrafica.viewModel.VerificacionState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmailVerificationScreen(
@@ -37,7 +38,7 @@ fun EmailVerificationScreen(
     viewModel: UserViewModel
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val context = LocalContext.current // Obtener el context
 
     // Estados para manejar la entrada del código y los mensajes
     var verificationCode by remember { mutableStateOf("") }
@@ -47,12 +48,52 @@ fun EmailVerificationScreen(
     var remainingTime by remember { mutableStateOf(300) } // 5 minutos en segundos
     var codeResent by remember { mutableStateOf(false) }
 
+    // Observar el estado de verificación
+    val verificacionState by viewModel.verificacionState.observeAsState()
+
     // Temporizador para el tiempo restante
     LaunchedEffect(codeResent) {
         remainingTime = 300
         while (remainingTime > 0) {
             delay(1000)
             remainingTime--
+        }
+    }
+
+    // Manejar cambios en el estado de verificación
+    LaunchedEffect(verificacionState) {
+        val currentState = verificacionState
+        when (currentState) {
+            is VerificacionState.Loading -> {
+                isSubmitting = true
+                errorMessage = null
+                successMessage = null
+            }
+            is VerificacionState.Success -> {
+                isSubmitting = false
+                successMessage = currentState.message
+                // Esperar un momento y navegar
+                delay(1500)
+                if (isRegistration) {
+                    // Resetear estados antes de navegar
+                    viewModel.resetRegistroState()
+                    navController.navigate(AppScreen.InicioSesionScreen.route) {
+                        popUpTo(AppScreen.RegistroUsuarioScreen.route) { inclusive = true }
+                        popUpTo(AppScreen.EmailVerificationScreen.route) { inclusive = true }
+                    }
+                } else {
+                    // Para modificación, volver al perfil
+                    viewModel.resetRegistroState()
+                    navController.popBackStack()
+                }
+            }
+            is VerificacionState.Error -> {
+                isSubmitting = false
+                errorMessage = currentState.message
+            }
+            else -> {
+                isSubmitting = false
+            }
         }
     }
 
@@ -70,9 +111,17 @@ fun EmailVerificationScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             // Barra superior
             TopAppBar(
-                title = { Text(text = "Verificación de correo") },
+                title = {
+                    Text(
+                        text = if (isRegistration) "Verificación de registro" else "Verificación de modificación"
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        // Resetear estados al ir hacia atrás
+                        viewModel.resetRegistroState()
+                        navController.popBackStack()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Volver"
@@ -106,7 +155,7 @@ fun EmailVerificationScreen(
 
                 // Título y descripción
                 Text(
-                    text = "Verifica tu correo electrónico",
+                    text = if (isRegistration) "Verifica tu correo electrónico" else "Verifica tu nuevo correo",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = colorResource(R.color.azulPrimario),
@@ -169,10 +218,12 @@ fun EmailVerificationScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                    colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = colorResource(R.color.azulPrimario),
                         unfocusedBorderColor = colorResource(R.color.textoSecundario),
-                        focusedLabelColor = colorResource(R.color.azulPrimario)
+                        focusedLabelColor = colorResource(R.color.azulPrimario),
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black
                     ),
                     isError = errorMessage != null
                 )
@@ -199,7 +250,7 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botón para verificar el código
+                // Botón para verificar el código - AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
                 Button(
                     onClick = {
                         if (verificationCode.length != 6) {
@@ -208,29 +259,20 @@ fun EmailVerificationScreen(
                         }
 
                         errorMessage = null
-                        isSubmitting = true
 
-                        scope.launch {
+                        if (isRegistration) {
+                            // Para registro de nuevo usuario
                             viewModel.verificarCodigo(email, verificationCode) { success ->
-                                if (success) {
-                                    successMessage = "¡Verificación exitosa!"
-                                    // Esperar un momento para mostrar el mensaje de éxito
-                                    scope.launch {
-                                        delay(1500)
-                                        if (isRegistration) {
-                                            // Ir a la pantalla de inicio de sesión después del registro
-                                            navController.navigate(AppScreen.InicioSesionScreen.route) {
-                                                popUpTo(AppScreen.RegistroUsuarioScreen.route) { inclusive = true }
-                                            }
-                                        } else {
-                                            // Volver a la pantalla anterior (posiblemente modificación de perfil)
-                                            navController.popBackStack()
-                                        }
-                                    }
-                                } else {
-                                    errorMessage = "Código incorrecto. Por favor, verifica e intenta nuevamente."
-                                }
-                                isSubmitting = false
+                                // El callback se mantiene por compatibilidad
+                            }
+                        } else {
+                            // Para modificación de usuario existente - AHORA PASA EL CONTEXT
+                            viewModel.verificarCodigoModificacion(
+                                context = context, // Pasar el context aquí
+                                email = email,
+                                codigo = verificationCode
+                            ) { success ->
+                                // El callback se mantiene por compatibilidad
                             }
                         }
                     },

@@ -44,11 +44,6 @@ import java.util.concurrent.TimeUnit
 interface RetrofitService {
 
     // ==================== USUARIO ====================
-    @POST("/Usuario/register")
-    suspend fun insertUser(
-        @Body usuario: UsuarioRegisterDTO
-    ): Response<RegistroResponse>
-
     @POST("/Usuario/login")
     suspend fun loginUser(
         @Body usuario: UsuarioLoginDTO
@@ -80,6 +75,20 @@ interface RetrofitService {
         @Query("usuarioActual") usuarioActual: String
     ): Response<List<UsuarioDTO>>
 
+    // NUEVOS ENDPOINTS PARA MODIFICACIÓN CON VERIFICACIÓN
+    @PUT("/Usuario/iniciarModificacionUsuario")
+    suspend fun iniciarModificacionUsuario(
+        @Header("Authorization") token: String,
+        @Body usuarioUpdateDTO: UsuarioUpdateDTO
+    ): Response<Map<String, String>>
+
+    @POST("/Usuario/completarModificacionUsuario")
+    suspend fun completarModificacionUsuario(
+        @Header("Authorization") token: String,
+        @Body verificacionDTO: VerificacionDTO
+    ): Response<UsuarioDTO>
+
+    // MANTENER PARA COMPATIBILIDAD
     @PUT("/Usuario/modificarUsuario")
     suspend fun modificarUsuario(
         @Header("Authorization") token: String,
@@ -471,6 +480,13 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("idActividad") idActividad: String
     ): Response<ComunidadDTO>
+
+    // ENDPOINTS DE REGISTRO CON VERIFICACIÓN
+    @POST("Usuario/iniciarRegistro")
+    suspend fun iniciarRegistro(@Body usuarioRegisterDTO: UsuarioRegisterDTO): Response<Map<String, String>>
+
+    @POST("Usuario/completarRegistro")
+    suspend fun completarRegistro(@Body verificacionDTO: VerificacionDTO): Response<UsuarioDTO>
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {

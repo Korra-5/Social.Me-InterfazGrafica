@@ -91,6 +91,7 @@ import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -99,6 +100,22 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import java.io.ByteArrayOutputStream
+
+@Composable
+fun VistaPreviewUrl(texto: String, modifier: Modifier = Modifier) {
+    if (texto.isNotBlank()) {
+        val urlFormateada = formatearTextoAUrl(texto)
+        if (urlFormateada.isNotEmpty()) {
+            Text(
+                text = "URL resultante: $urlFormateada",
+                fontSize = 12.sp,
+                color = colorResource(R.color.textoSecundario),
+                modifier = modifier.padding(top = 4.dp, start = 4.dp),
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -153,6 +170,48 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
         )
     }
 
+    // Función de validación
+    fun validarCampos(): Pair<Boolean, String?> {
+        if (nombre.value.trim().isEmpty()) {
+            return Pair(false, "El nombre de la comunidad no puede estar vacío")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(nombre.value.trim())) {
+            return Pair(false, "El nombre contiene palabras no permitidas")
+        }
+
+        if (descripcion.value.trim().isEmpty()) {
+            return Pair(false, "La descripción no puede estar vacía")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(descripcion.value.trim())) {
+            return Pair(false, "La descripción contiene palabras no permitidas")
+        }
+
+        val urlFormateada = formatearTextoAUrl(url.value)
+        if (urlFormateada.isEmpty()) {
+            return Pair(false, "La URL no puede estar vacía después del formateo")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(urlFormateada)) {
+            return Pair(false, "La URL contiene palabras no permitidas")
+        }
+
+        if (intereses.value.isEmpty()) {
+            return Pair(false, "Debes añadir al menos un interés")
+        }
+
+        if (PalabrasMalsonantesValidator.validarLista(intereses.value)) {
+            return Pair(false, "Algunos intereses contienen palabras no permitidas")
+        }
+
+        if (PalabrasMalsonantesValidator.validarLista(administradores.value)) {
+            return Pair(false, "Algunos administradores contienen palabras no permitidas")
+        }
+
+        return Pair(true, null)
+    }
+
     // Lanzador para solicitar permisos de ubicación
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -198,6 +257,15 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                 isPrivada.value = comunidad.privada
                 administradores.value = comunidad.administradores ?: emptyList()
 
+                // Configurar ubicación si existe
+                comunidad.coordenadas?.let { coords ->
+                    val lat = coords.latitud.toDoubleOrNull()
+                    val lng = coords.longitud.toDoubleOrNull()
+                    if (lat != null && lng != null) {
+                        ubicacionSeleccionada = GeoPoint(lat, lng)
+                    }
+                }
+
                 Log.d("ModificarComunidad", "Valores asignados: nombre=${nombre.value}, desc=${descripcion.value}")
             } else {
                 val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
@@ -220,10 +288,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     ) { uri: Uri? ->
         uri?.let {
             fotoPerfilUri.value = it
-            // Convertir a Base64 con compresión y verificación
             scope.launch {
                 try {
-                    // Usar la nueva función de compresión
                     val base64 = compressAndConvertToBase64(it, context)
                     if (base64 != null) {
                         fotoPerfilBase64.value = base64
@@ -235,7 +301,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                 } catch (e: Exception) {
                     Log.e("ModificarComunidad", "Error al procesar imagen de perfil", e)
                     Toast.makeText(context, "Error al procesar la imagen: ${e.message}", Toast.LENGTH_SHORT).show()
-                    fotoPerfilUri.value = null // Limpiar URI si hay error
+                    fotoPerfilUri.value = null
                 }
             }
         }
@@ -246,15 +312,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            fotosCarruselUri.value = uris
-            // Convertir a Base64 con compresión y verificación
+            // Agregar las nuevas URIs a las existentes
+            fotosCarruselUri.value = fotosCarruselUri.value + uris
             scope.launch {
                 val newFotosBase64 = mutableListOf<String>()
                 var errorOcurred = false
 
                 uris.forEachIndexed { index, uri ->
                     try {
-                        // Usar la función de compresión
                         val base64 = compressAndConvertToBase64(uri, context)
                         if (base64 != null) {
                             newFotosBase64.add(base64)
@@ -275,13 +340,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                 }
 
                 if (!errorOcurred || newFotosBase64.isNotEmpty()) {
-                    fotosCarruselBase64.value = newFotosBase64
+                    // Agregar las nuevas imágenes base64 a las existentes
+                    fotosCarruselBase64.value = fotosCarruselBase64.value + newFotosBase64
                     Log.d("ModificarComunidad", "Se procesaron ${newFotosBase64.size} imágenes de carrusel correctamente")
-                } else {
-                    // Si hubo algún error, limpiar las URI
-                    if (newFotosBase64.isEmpty()) {
-                        fotosCarruselUri.value = emptyList()
-                    }
                 }
             }
         }
@@ -415,7 +476,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                         model = ImageRequest.Builder(context)
                                             .data(fotoPerfilUrl)
                                             .crossfade(true)
-                                            .setHeader("Authorization", authToken)
+                                            .setHeader("Authorization", "Bearer $authToken")
                                             .build(),
                                         contentDescription = "Foto de perfil",
                                         contentScale = ContentScale.Crop,
@@ -460,7 +521,10 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
 
                         OutlinedTextField(
                             value = url.value,
-                            onValueChange = { url.value = it },
+                            onValueChange = {
+                                val textoFiltrado = filtrarCaracteresUrl(it)
+                                url.value = textoFiltrado
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("URL de la comunidad", color = colorResource(R.color.textoSecundario)) },
                             colors = OutlinedTextFieldDefaults.colors(
@@ -471,6 +535,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
+
+                        // Vista previa de la URL
+                        VistaPreviewUrl(url.value)
 
                         // Nombre de la comunidad
                         Text(
@@ -542,20 +609,16 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                // Configuración y visualización del mapa
-                                DisposableEffect(Unit) {
+                                DisposableEffect(ubicacionSeleccionada) {
                                     val map = MapView(context).apply {
                                         setMultiTouchControls(true)
                                         setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-
-                                        // Configurar el controlador del mapa
                                         controller.setZoom(15.0)
 
-                                        // Posición inicial (Madrid como ejemplo)
-                                        val startPoint = GeoPoint(40.416775, -3.703790)
+                                        // Usar la ubicación seleccionada o Madrid como punto inicial
+                                        val startPoint = ubicacionSeleccionada ?: GeoPoint(40.416775, -3.703790)
                                         controller.setCenter(startPoint)
 
-                                        // Configurar listener para clics en el mapa
                                         overlays.add(object : Overlay() {
                                             override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
                                                 mapView?.let {
@@ -574,13 +637,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
 
                                     mapView = map
 
-                                    // Intentar obtener la ubicación actual si tenemos permisos
-                                    if (hasLocationPermission) {
-                                        obtenerUbicacionActual(context) { location ->
-                                            val geoPoint = GeoPoint(location.latitude, location.longitude)
-                                            ubicacionSeleccionada = geoPoint
-                                            actualizarMarcador(map, geoPoint)
-                                        }
+                                    // Si ya hay una ubicación seleccionada, mostrar el marcador
+                                    ubicacionSeleccionada?.let { location ->
+                                        actualizarMarcador(map, location)
                                     }
 
                                     onDispose {
@@ -588,7 +647,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     }
                                 }
 
-                                // Vista del mapa
                                 mapView?.let { map ->
                                     AndroidView(
                                         factory = { map },
@@ -596,7 +654,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     )
                                 }
 
-                                // Botón para obtener ubicación actual
                                 FloatingActionButton(
                                     onClick = {
                                         if (hasLocationPermission) {
@@ -623,7 +680,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     )
                                 }
 
-                                // Indicador de carga de ubicación
                                 if (isLoadingLocation) {
                                     CircularProgressIndicator(
                                         modifier = Modifier
@@ -633,7 +689,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     )
                                 }
 
-                                // Ícono para expandir/contraer el mapa
                                 IconButton(
                                     onClick = { isMapExpanded = !isMapExpanded },
                                     modifier = Modifier
@@ -651,7 +706,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             }
                         }
 
-                        // Mostrar coordenadas seleccionadas
                         ubicacionSeleccionada?.let { ubicacion ->
                             Text(
                                 text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
@@ -740,9 +794,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
 
                             Button(
                                 onClick = {
-                                    if (interesInput.value.isNotEmpty() && !intereses.value.contains(interesInput.value)) {
-                                        intereses.value = intereses.value + interesInput.value
-                                        interesInput.value = ""
+                                    val interesTrimmed = interesInput.value.trim()
+                                    if (interesTrimmed.isNotEmpty()) {
+                                        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(interesTrimmed)) {
+                                            Toast.makeText(context, "El interés contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
+                                        } else if (!intereses.value.contains(interesTrimmed)) {
+                                            intereses.value = intereses.value + interesTrimmed
+                                            interesInput.value = ""
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
@@ -833,9 +892,14 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
 
                             Button(
                                 onClick = {
-                                    if (adminInput.value.isNotEmpty() && !administradores.value.contains(adminInput.value)) {
-                                        administradores.value = administradores.value + adminInput.value
-                                        adminInput.value = ""
+                                    val adminTrimmed = adminInput.value.trim()
+                                    if (adminTrimmed.isNotEmpty()) {
+                                        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(adminTrimmed)) {
+                                            Toast.makeText(context, "El nombre de administrador contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
+                                        } else if (!administradores.value.contains(adminTrimmed)) {
+                                            administradores.value = administradores.value + adminTrimmed
+                                            adminInput.value = ""
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
@@ -950,67 +1014,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             )
                         }
 
-                        // Vista previa de imágenes de carrusel
-                        if (fotosCarruselUri.value.isNotEmpty()) {
-                            Text(
-                                text = "Nuevas imágenes seleccionadas: ${fotosCarruselUri.value.size}",
-                                fontSize = 14.sp,
-                                color = colorResource(R.color.textoSecundario),
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp)
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(fotosCarruselUri.value) { uri ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .border(1.dp, colorResource(R.color.cyanSecundario), RoundedCornerShape(12.dp))
-                                    ) {
-                                        AsyncImage(
-                                            model = uri,
-                                            contentDescription = "Imagen de carrusel",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-
-                                        // Botón para eliminar imagen
-                                        IconButton(
-                                            onClick = {
-                                                val newUris = fotosCarruselUri.value.toMutableList()
-                                                newUris.remove(uri)
-                                                fotosCarruselUri.value = newUris
-
-                                                val index = fotosCarruselUri.value.indexOf(uri)
-                                                if (index >= 0 && index < fotosCarruselBase64.value.size) {
-                                                    val newBase64List = fotosCarruselBase64.value.toMutableList()
-                                                    newBase64List.removeAt(index)
-                                                    fotosCarruselBase64.value = newBase64List
-                                                }
-                                            },
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(4.dp)
-                                                .size(28.dp)
-                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Eliminar",
-                                                tint = colorResource(R.color.error),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        } else if (comunidadOriginal.value?.fotoCarruselIds?.isNotEmpty() == true) {
+                        // Vista previa de imágenes de carrusel actuales
+                        if (comunidadOriginal.value?.fotoCarruselIds?.isNotEmpty() == true) {
                             Text(
                                 text = "Imágenes actuales: ${comunidadOriginal.value?.fotoCarruselIds?.size ?: 0}",
                                 fontSize = 14.sp,
@@ -1037,7 +1042,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                             model = ImageRequest.Builder(context)
                                                 .data(imagenUrl)
                                                 .crossfade(true)
-                                                .setHeader("Authorization", authToken)
+                                                .setHeader("Authorization", "Bearer $authToken")
                                                 .build(),
                                             contentDescription = "Imagen de carrusel",
                                             contentScale = ContentScale.Crop,
@@ -1048,23 +1053,75 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             }
                         }
 
+                        // Vista previa de nuevas imágenes seleccionadas
+                        if (fotosCarruselUri.value.isNotEmpty()) {
+                            Text(
+                                text = "Nuevas imágenes seleccionadas: ${fotosCarruselUri.value.size}",
+                                fontSize = 14.sp,
+                                color = colorResource(R.color.textoSecundario),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(fotosCarruselUri.value) { uri ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, colorResource(R.color.cyanSecundario), RoundedCornerShape(12.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = uri,
+                                            contentDescription = "Nueva imagen de carrusel",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        IconButton(
+                                            onClick = {
+                                                val index = fotosCarruselUri.value.indexOf(uri)
+                                                val newUris = fotosCarruselUri.value.toMutableList()
+                                                newUris.removeAt(index)
+                                                fotosCarruselUri.value = newUris
+
+                                                if (index < fotosCarruselBase64.value.size) {
+                                                    val newBase64List = fotosCarruselBase64.value.toMutableList()
+                                                    newBase64List.removeAt(index)
+                                                    fotosCarruselBase64.value = newBase64List
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(28.dp)
+                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = colorResource(R.color.error),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Botones de acción
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
                             onClick = {
-                                if (nombre.value.isEmpty()) {
-                                    errorMessage.value = "El nombre de la comunidad no puede estar vacío"
-                                    return@Button
-                                }
-
-                                if (descripcion.value.isEmpty()) {
-                                    errorMessage.value = "La descripción no puede estar vacía"
-                                    return@Button
-                                }
-
-                                if (intereses.value.isEmpty()) {
-                                    errorMessage.value = "Debes añadir al menos un interés"
+                                val (isValid, errorMsg) = validarCampos()
+                                if (!isValid) {
+                                    errorMessage.value = errorMsg
                                     return@Button
                                 }
 
@@ -1078,9 +1135,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 // Preparar objeto de actualización
                                 val comunidadUpdate = ComunidadUpdateDTO(
                                     currentURL = comunidadUrl,
-                                    newUrl = url.value,
-                                    nombre = nombre.value,
-                                    descripcion = descripcion.value,
+                                    newUrl = formatearTextoAUrl(url.value),
+                                    nombre = nombre.value.trim(),
+                                    descripcion = descripcion.value.trim(),
                                     intereses = intereses.value,
                                     fotoPerfilBase64 = fotoPerfilBase64.value,
                                     fotoPerfilId = comunidadOriginal.value?.fotoPerfilId,
@@ -1381,7 +1438,7 @@ suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
             }
 
             // Redimensionar si es muy grande
-            val maxSize = 800 // 800px máximo para cualquier dimensión
+            val maxSize = 800
             val width = originalBitmap.width
             val height = originalBitmap.height
 
@@ -1397,29 +1454,23 @@ suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
                 newHeight = maxSize
                 newWidth = (maxSize / ratio).toInt()
             } else {
-                // Si ya es menor que el tamaño máximo, mantener dimensiones
                 newWidth = width
                 newHeight = height
             }
 
-            // Solo redimensionar si es necesario
             val resizedBitmap = if (width != newWidth || height != newHeight) {
                 Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
             } else {
                 originalBitmap
             }
 
-            // Comprimir
             val outputStream = ByteArrayOutputStream()
-            // Usar una calidad moderada para reducir tamaño
             resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 75, outputStream)
             val byteArray = outputStream.toByteArray()
 
-            // Verificar tamaño final
             val sizeInKb = byteArray.size / 1024
             Log.d("CompressImage", "Tamaño de imagen comprimida: $sizeInKb KB")
 
-            // Convertir a Base64 sin saltos de línea
             return@withContext Base64.encodeToString(byteArray, Base64.NO_WRAP)
         } catch (e: Exception) {
             Log.e("CompressImage", "Error comprimiendo imagen", e)

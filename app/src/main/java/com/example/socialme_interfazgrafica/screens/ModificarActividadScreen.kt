@@ -62,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,6 +91,7 @@ import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.screens.actualizarMarcador
 import com.example.socialme_interfazgrafica.screens.obtenerUbicacionActual
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -99,7 +101,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-
 @Composable
 fun ModificarActividadScreen(actividadId: String, navController: NavController) {
     val context = LocalContext.current
@@ -109,7 +110,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
     val baseUrl = "https://social-me-tfg.onrender.com"
 
-    // Estados para los datos de la actividad
     val actividadOriginal = remember { mutableStateOf<ActividadDTO?>(null) }
     val nombre = remember { mutableStateOf("") }
     val descripcion = remember { mutableStateOf("") }
@@ -117,37 +117,30 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
     val fechaFinalizacion = remember { mutableStateOf<Date?>(null) }
     val lugar = remember { mutableStateOf("") }
 
-    // Estado para mostrar diálogos de fecha y hora
     val showFechaInicioDatePicker = remember { mutableStateOf(false) }
     val showFechaInicioTimePicker = remember { mutableStateOf(false) }
     val showFechaFinDatePicker = remember { mutableStateOf(false) }
     val showFechaFinTimePicker = remember { mutableStateOf(false) }
 
-    // Estados para la carga y errores
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
 
-    // Estado para confirmar eliminación
     val showDeleteConfirmation = remember { mutableStateOf(false) }
     val isDeleting = remember { mutableStateOf(false) }
 
-    // Estados para manejo de imágenes
     val fotosCarruselBase64 = remember { mutableStateOf<List<String>>(emptyList()) }
     val fotosCarruselUri = remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    // Estado para el mapa y coordenadas
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var ubicacionSeleccionada by remember { mutableStateOf<GeoPoint?>(null) }
     var marker by remember { mutableStateOf<Marker?>(null) }
     var isMapExpanded by remember { mutableStateOf(false) }
     var isLoadingLocation by remember { mutableStateOf(false) }
 
-    // Formateador de fecha
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-    // Estado para controlar los permisos
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -157,7 +150,43 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         )
     }
 
-    // Lanzador para solicitar permisos de ubicación
+    fun updateDate(date: Long, currentDateTime: MutableState<Date?>) {
+        val calendar = Calendar.getInstance()
+
+        currentDateTime.value?.let {
+            calendar.time = it
+            val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+
+            calendar.timeInMillis = date
+
+            calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+            calendar.set(Calendar.MINUTE, minute)
+        } ?: run {
+            calendar.timeInMillis = date
+            calendar.set(Calendar.HOUR_OF_DAY, 12)
+            calendar.set(Calendar.MINUTE, 0)
+        }
+
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        currentDateTime.value = calendar.time
+    }
+
+    fun updateTime(hour: Int, minute: Int, currentDateTime: MutableState<Date?>) {
+        val calendar = Calendar.getInstance()
+
+        if (currentDateTime.value != null) {
+            calendar.time = currentDateTime.value!!
+        }
+
+        calendar.set(Calendar.HOUR_OF_DAY, hour)
+        calendar.set(Calendar.MINUTE, minute)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        currentDateTime.value = calendar.time
+    }
+
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -177,14 +206,51 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         }
     }
 
-    // Carga inicial de datos de la actividad
+    // Función de validación
+    fun validarCampos(): Pair<Boolean, String?> {
+        if (nombre.value.trim().isEmpty()) {
+            return Pair(false, "El nombre de la actividad no puede estar vacío")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(nombre.value.trim())) {
+            return Pair(false, "El nombre contiene palabras no permitidas")
+        }
+
+        if (descripcion.value.trim().isEmpty()) {
+            return Pair(false, "La descripción no puede estar vacía")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(descripcion.value.trim())) {
+            return Pair(false, "La descripción contiene palabras no permitidas")
+        }
+
+        if (lugar.value.trim().isEmpty()) {
+            return Pair(false, "El lugar no puede estar vacío")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(lugar.value.trim())) {
+            return Pair(false, "El lugar contiene palabras no permitidas")
+        }
+
+        if (fechaInicio.value == null) {
+            return Pair(false, "Debes seleccionar una fecha de inicio")
+        }
+
+        if (fechaFinalizacion.value == null) {
+            return Pair(false, "Debes seleccionar una fecha de finalización")
+        }
+
+        if (fechaInicio.value!! >= fechaFinalizacion.value!!) {
+            return Pair(false, "La fecha de inicio debe ser anterior a la fecha de finalización")
+        }
+
+        return Pair(true, null)
+    }
+
     LaunchedEffect(actividadId) {
         isLoading.value = true
         try {
-            Log.d(
-                "ModificarActividad",
-                "Intentando cargar datos para actividad con ID: $actividadId"
-            )
+            Log.d("ModificarActividad", "Intentando cargar datos para actividad con ID: $actividadId")
             Log.d("ModificarActividad", "Token de autenticación: ${authToken.take(10)}...")
 
             val response = withContext(Dispatchers.IO) {
@@ -195,10 +261,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
 
             if (response.isSuccessful && response.body() != null) {
                 val actividad = response.body()!!
-                Log.d(
-                    "ModificarActividad",
-                    "Datos recibidos: nombre=${actividad.nombre}, descripción=${actividad.descripcion}"
-                )
+                Log.d("ModificarActividad", "Datos recibidos: nombre=${actividad.nombre}, descripción=${actividad.descripcion}")
 
                 actividadOriginal.value = actividad
                 nombre.value = actividad.nombre
@@ -207,18 +270,20 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                 fechaFinalizacion.value = actividad.fechaFinalizacion
                 lugar.value = actividad.lugar
 
-                Log.d(
-                    "ModificarActividad",
-                    "Valores asignados: nombre=${nombre.value}, desc=${descripcion.value}"
-                )
+                // Configurar ubicación si existe
+                actividad.coordenadas?.let { coords ->
+                    val lat = coords.latitud.toDoubleOrNull()
+                    val lng = coords.longitud.toDoubleOrNull()
+                    if (lat != null && lng != null) {
+                        ubicacionSeleccionada = GeoPoint(lat, lng)
+                    }
+                }
+
+                Log.d("ModificarActividad", "Valores asignados: nombre=${nombre.value}, desc=${descripcion.value}")
             } else {
                 val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
-                Log.e(
-                    "ModificarActividad",
-                    "Error al cargar datos: ${response.code()} - $errorBody"
-                )
-                errorMessage.value =
-                    "Error al cargar los datos de la actividad: ${response.code()} - ${response.message()}"
+                Log.e("ModificarActividad", "Error al cargar datos: ${response.code()} - $errorBody")
+                errorMessage.value = "Error al cargar los datos de la actividad: ${response.code()} - ${response.message()}"
             }
         } catch (e: Exception) {
             Log.e("API", "Exception class: ${e.javaClass.name}")
@@ -230,76 +295,48 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         }
     }
 
-    // Launcher para seleccionar imágenes de carrusel
     val fotosCarruselLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            fotosCarruselUri.value = uris
-            // Convertir a Base64 con compresión y verificación
+            // Agregar las nuevas URIs a las existentes
+            fotosCarruselUri.value = fotosCarruselUri.value + uris
             scope.launch {
                 val newFotosBase64 = mutableListOf<String>()
                 var errorOcurred = false
 
                 uris.forEachIndexed { index, uri ->
                     try {
-                        // Usar la función de compresión
                         val base64 = compressAndConvertToBase64(uri, context)
                         if (base64 != null) {
                             newFotosBase64.add(base64)
-                            Log.d(
-                                "ModificarActividad",
-                                "Base64 generado para carrusel $index (longitud): ${base64.length}"
-                            )
+                            Log.d("ModificarActividad", "Base64 generado para carrusel $index (longitud): ${base64.length}")
                         } else {
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    context,
-                                    "Error al procesar la imagen $index",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "Error al procesar la imagen $index", Toast.LENGTH_SHORT).show()
                             }
                             errorOcurred = true
                         }
                     } catch (e: Exception) {
-                        Log.e(
-                            "ModificarActividad",
-                            "Error al procesar imagen de carrusel $index",
-                            e
-                        )
+                        Log.e("ModificarActividad", "Error al procesar imagen de carrusel $index", e)
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context,
-                                "Error al procesar la imagen $index: ${e.message}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(context, "Error al procesar la imagen $index: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                         errorOcurred = true
                     }
                 }
 
                 if (!errorOcurred || newFotosBase64.isNotEmpty()) {
-                    fotosCarruselBase64.value = newFotosBase64
-                    Log.d(
-                        "ModificarActividad",
-                        "Se procesaron ${newFotosBase64.size} imágenes de carrusel correctamente"
-                    )
-                } else {
-                    // Si hubo algún error, limpiar las URI
-                    if (newFotosBase64.isEmpty()) {
-                        fotosCarruselUri.value = emptyList()
-                    }
+                    // Agregar las nuevas imágenes base64 a las existentes
+                    fotosCarruselBase64.value = fotosCarruselBase64.value + newFotosBase64
+                    Log.d("ModificarActividad", "Se procesaron ${newFotosBase64.size} imágenes de carrusel correctamente")
                 }
             }
         }
     }
 
-    // Efecto para depurar si los valores se están actualizando correctamente
     LaunchedEffect(nombre.value, descripcion.value) {
-        Log.d(
-            "ModificarActividad",
-            "Valores actuales: nombre=${nombre.value}, desc=${descripcion.value}"
-        )
+        Log.d("ModificarActividad", "Valores actuales: nombre=${nombre.value}, desc=${descripcion.value}")
     }
 
     Box(
@@ -313,7 +350,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Barra superior con botón de retroceso, título y botón de eliminar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -321,7 +357,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Grupo del botón de retroceso y título
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = {
@@ -348,7 +383,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                     )
                 }
 
-                // Botón de eliminar actividad
                 IconButton(
                     onClick = {
                         showDeleteConfirmation.value = true
@@ -375,7 +409,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                     CircularProgressIndicator(color = Color(0xFF3B82F6))
                 }
             } else {
-                // Formulario para editar los datos de la actividad
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -392,7 +425,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        // Nombre de la actividad
                         Text(
                             text = "Nombre de la actividad",
                             fontSize = 16.sp,
@@ -420,7 +452,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Descripción
                         Text(
                             text = "Descripción",
                             fontSize = 16.sp,
@@ -451,7 +482,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             minLines = 3
                         )
 
-                        // Sección del mapa
                         Text(
                             text = "Ubicación",
                             fontSize = 16.sp,
@@ -472,20 +502,15 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                // Configuración y visualización del mapa
-                                DisposableEffect(Unit) {
+                                DisposableEffect(ubicacionSeleccionada) {
                                     val map = MapView(context).apply {
                                         setMultiTouchControls(true)
                                         setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-
-                                        // Configurar el controlador del mapa
                                         controller.setZoom(15.0)
 
-                                        // Posición inicial (Madrid como ejemplo)
-                                        val startPoint = GeoPoint(40.416775, -3.703790)
+                                        val startPoint = ubicacionSeleccionada ?: GeoPoint(40.416775, -3.703790)
                                         controller.setCenter(startPoint)
 
-                                        // Configurar listener para clics en el mapa
                                         overlays.add(object : Overlay() {
                                             override fun onSingleTapConfirmed(
                                                 e: MotionEvent?,
@@ -507,14 +532,8 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
 
                                     mapView = map
 
-                                    // Intentar obtener la ubicación actual si tenemos permisos
-                                    if (hasLocationPermission) {
-                                        obtenerUbicacionActual(context) { location ->
-                                            val geoPoint =
-                                                GeoPoint(location.latitude, location.longitude)
-                                            ubicacionSeleccionada = geoPoint
-                                            actualizarMarcador(map, geoPoint)
-                                        }
+                                    ubicacionSeleccionada?.let { location ->
+                                        actualizarMarcador(map, location)
                                     }
 
                                     onDispose {
@@ -522,7 +541,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     }
                                 }
 
-                                // Vista del mapa
                                 mapView?.let { map ->
                                     AndroidView(
                                         factory = { map },
@@ -530,13 +548,11 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     )
                                 }
 
-                                // Botón para obtener ubicación actual
                                 FloatingActionButton(
                                     onClick = {
                                         if (hasLocationPermission) {
                                             obtenerUbicacionActual(context) { location ->
-                                                val geoPoint =
-                                                    GeoPoint(location.latitude, location.longitude)
+                                                val geoPoint = GeoPoint(location.latitude, location.longitude)
                                                 ubicacionSeleccionada = geoPoint
                                                 mapView?.let { actualizarMarcador(it, geoPoint) }
                                             }
@@ -558,7 +574,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     )
                                 }
 
-                                // Indicador de carga de ubicación
                                 if (isLoadingLocation) {
                                     CircularProgressIndicator(
                                         modifier = Modifier
@@ -568,7 +583,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     )
                                 }
 
-                                // Ícono para expandir/contraer el mapa
                                 IconButton(
                                     onClick = { isMapExpanded = !isMapExpanded },
                                     modifier = Modifier
@@ -586,7 +600,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             }
                         }
 
-                        // Mostrar coordenadas seleccionadas
                         ubicacionSeleccionada?.let { ubicacion ->
                             Text(
                                 text = "Coordenadas seleccionadas:\nLatitud: ${
@@ -610,7 +623,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             )
                         }
 
-                        // Lugar
                         Text(
                             text = "Lugar",
                             fontSize = 16.sp,
@@ -638,7 +650,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Fecha y hora de inicio
                         Text(
                             text = "Fecha y hora de inicio",
                             fontSize = 16.sp,
@@ -652,7 +663,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Botón para seleccionar fecha de inicio
                             OutlinedButton(
                                 onClick = { showFechaInicioDatePicker.value = true },
                                 modifier = Modifier
@@ -672,7 +682,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 )
                             }
 
-                            // Botón para seleccionar hora de inicio
                             OutlinedButton(
                                 onClick = { showFechaInicioTimePicker.value = true },
                                 modifier = Modifier
@@ -693,7 +702,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             }
                         }
 
-                        // Fecha y hora de finalización
                         Text(
                             text = "Fecha y hora de finalización",
                             fontSize = 16.sp,
@@ -707,7 +715,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Botón para seleccionar fecha de finalización
                             OutlinedButton(
                                 onClick = { showFechaFinDatePicker.value = true },
                                 modifier = Modifier
@@ -727,7 +734,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 )
                             }
 
-                            // Botón para seleccionar hora de finalización
                             OutlinedButton(
                                 onClick = { showFechaFinTimePicker.value = true },
                                 modifier = Modifier
@@ -747,362 +753,388 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 )
                             }
                         }
-                    }
 
-                    // Fotos de carrusel
-                    Text(
-                        text = "Fotos de carrusel",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E3A8A),
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-
-                    Button(
-                        onClick = {
-                            fotosCarruselLauncher.launch("image/*")
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3B82F6)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Añadir imágenes",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        // Fotos de carrusel
                         Text(
-                            "Seleccionar imágenes",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    // Vista previa de imágenes de carrusel
-                    if (fotosCarruselUri.value.isNotEmpty()) {
-                        Text(
-                            text = "Nuevas imágenes seleccionadas: ${fotosCarruselUri.value.size}",
-                            fontSize = 14.sp,
-                            color = Color(0xFF64748B),
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            text = "Fotos de carrusel",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E3A8A),
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                         )
 
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Button(
+                            onClick = {
+                                fotosCarruselLauncher.launch("image/*")
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF3B82F6)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            items(fotosCarruselUri.value) { uri ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
-                                ) {
-                                    AsyncImage(
-                                        model = uri,
-                                        contentDescription = "Imagen de carrusel",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Añadir imágenes",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Seleccionar imágenes",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
-                                    // Botón para eliminar imagen
-                                    IconButton(
-                                        onClick = {
-                                            val newUris = fotosCarruselUri.value.toMutableList()
-                                            newUris.remove(uri)
-                                            fotosCarruselUri.value = newUris
+                        // Mostrar imágenes actuales
+                        if (actividadOriginal.value?.fotosCarruselIds?.isNotEmpty() == true) {
+                            Text(
+                                text = "Imágenes actuales: ${actividadOriginal.value?.fotosCarruselIds?.size ?: 0}",
+                                fontSize = 14.sp,
+                                color = Color(0xFF64748B),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
 
-                                            val index = fotosCarruselUri.value.indexOf(uri)
-                                            if (index >= 0 && index < fotosCarruselBase64.value.size) {
-                                                val newBase64List =
-                                                    fotosCarruselBase64.value.toMutableList()
-                                                newBase64List.removeAt(index)
-                                                fotosCarruselBase64.value = newBase64List
-                                            }
-                                        },
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(
+                                    actividadOriginal.value?.fotosCarruselIds ?: emptyList()
+                                ) { imagenId ->
+                                    val imagenUrl = "${baseUrl}/files/download/$imagenId"
+                                    Box(
                                         modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(4.dp)
-                                            .size(28.dp)
-                                            .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                            .size(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
                                     ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Eliminar",
-                                            tint = Color(0xFFEF4444),
-                                            modifier = Modifier.size(16.dp)
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(imagenUrl)
+                                                .crossfade(true)
+                                                .setHeader("Authorization", "Bearer $authToken")
+                                                .build(),
+                                            contentDescription = "Imagen de carrusel",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
                                         )
                                     }
                                 }
                             }
                         }
-                    } else if (actividadOriginal.value?.fotosCarruselIds?.isNotEmpty() == true) {
-                        Text(
-                            text = "Imágenes actuales: ${actividadOriginal.value?.fotosCarruselIds?.size ?: 0}",
-                            fontSize = 14.sp,
-                            color = Color(0xFF64748B),
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
 
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(
-                                actividadOriginal.value?.fotosCarruselIds ?: emptyList()
-                            ) { imagenId ->
-                                val imagenUrl = "${baseUrl}/files/download/$imagenId"
-                                Box(
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
-                                ) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data(imagenUrl)
-                                            .crossfade(true)
-                                            .setHeader("Authorization", authToken)
-                                            .build(),
-                                        contentDescription = "Imagen de carrusel",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                        // Mostrar nuevas imágenes seleccionadas
+                        if (fotosCarruselUri.value.isNotEmpty()) {
+                            Text(
+                                text = "Nuevas imágenes seleccionadas: ${fotosCarruselUri.value.size}",
+                                fontSize = 14.sp,
+                                color = Color(0xFF64748B),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(fotosCarruselUri.value) { uri ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = uri,
+                                            contentDescription = "Nueva imagen de carrusel",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        IconButton(
+                                            onClick = {
+                                                val index = fotosCarruselUri.value.indexOf(uri)
+                                                val newUris = fotosCarruselUri.value.toMutableList()
+                                                newUris.removeAt(index)
+                                                fotosCarruselUri.value = newUris
+
+                                                if (index < fotosCarruselBase64.value.size) {
+                                                    val newBase64List = fotosCarruselBase64.value.toMutableList()
+                                                    newBase64List.removeAt(index)
+                                                    fotosCarruselBase64.value = newBase64List
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(28.dp)
+                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = Color(0xFFEF4444),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Botones de acción
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
-                        onClick = {
-                            if (nombre.value.isEmpty()) {
-                                errorMessage.value =
-                                    "El nombre de la actividad no puede estar vacío"
-                                return@Button
-                            }
+                        Button(
+                            onClick = {
+                                val (isValid, errorMsg) = validarCampos()
+                                if (!isValid) {
+                                    errorMessage.value = errorMsg
+                                    return@Button
+                                }
 
-                            if (descripcion.value.isEmpty()) {
-                                errorMessage.value = "La descripción no puede estar vacía"
-                                return@Button
-                            }
+                                val coordenadas = ubicacionSeleccionada?.let {
+                                    Coordenadas(
+                                        latitud = it.latitude.toString(),
+                                        longitud = it.longitude.toString()
+                                    )
+                                }
 
-                            if (lugar.value.isEmpty()) {
-                                errorMessage.value = "El lugar no puede estar vacío"
-                                return@Button
-                            }
 
-                            if (fechaInicio.value == null) {
-                                errorMessage.value = "Debes seleccionar una fecha de inicio"
-                                return@Button
-                            }
+                                val actividadUpdate = ActividadUpdateDTO(
+                                    _id = actividadId,
+                                    nombre = nombre.value.trim(),
+                                    descripcion = descripcion.value.trim(),
+                                    lugar = lugar.value.trim(),
+                                    fechaInicio = fechaInicio.value!!,
+                                    fechaFinalizacion = fechaFinalizacion.value!!,
+                                    fotosCarruselBase64 = if (fotosCarruselBase64.value.isNotEmpty()) fotosCarruselBase64.value else null,
+                                    fotosCarruselIds = actividadOriginal.value?.fotosCarruselIds ?: emptyList(),  // CAMBIO AQUÍ
+                                    coordenadas = coordenadas
+                                )
 
-                            if (fechaFinalizacion.value == null) {
-                                errorMessage.value = "Debes seleccionar una fecha de finalización"
-                                return@Button
-                            }
+                                isSaving.value = true
+                                scope.launch {
+                                    try {
+                                        Log.d("ModificarActividad", "Iniciando petición de actualización")
+                                        val response = withContext(Dispatchers.IO) {
+                                            retrofitService.modificarActividad(
+                                                "Bearer $authToken",
+                                                actividadUpdateDTO = actividadUpdate
+                                            )
+                                        }
 
-                            if (fechaInicio.value!! > fechaFinalizacion.value!!) {
-                                errorMessage.value =
-                                    "La fecha de inicio debe ser anterior a la fecha de finalización"
-                                return@Button
-                            }
-
-                            val coordenadas = ubicacionSeleccionada?.let {
-                                Coordenadas(
-                                    latitud = it.latitude.toString(),
-                                    longitud = it.longitude.toString()
+                                        Log.d("ModificarActividad", "Respuesta recibida: ${response.code()}")
+                                        if (response.isSuccessful) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Actividad actualizada correctamente",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                navController.popBackStack()
+                                            }
+                                        } else {
+                                            val errorBody =
+                                                response.errorBody()?.string() ?: "Sin cuerpo de error"
+                                            Log.e(
+                                                "ModificarActividad",
+                                                "Error al actualizar: ${response.code()} - $errorBody"
+                                            )
+                                            errorMessage.value =
+                                                "Error al actualizar: ${response.code()} - ${response.message()}\n$errorBody"
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("ModificarActividad", "Excepción al actualizar", e)
+                                        errorMessage.value = ErrorUtils.parseErrorMessage(
+                                            e.message ?: "Error desconocido"
+                                        )
+                                    } finally {
+                                        isSaving.value = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            enabled = !isSaving.value,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1E3A8A),
+                                disabledContainerColor = Color(0xFF94A3B8)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isSaving.value) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text(
+                                    "GUARDAR CAMBIOS",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             }
+                        }
 
-                            // Preparar objeto de actualización
-                            val actividadUpdate = ActividadUpdateDTO(
-                                _id = actividadId,
-                                nombre = nombre.value,
-                                descripcion = descripcion.value,
-                                lugar = lugar.value,
-                                fechaInicio = fechaInicio.value!!,
-                                fechaFinalizacion = fechaFinalizacion.value!!,
-                                fotosCarruselBase64 = if (fotosCarruselBase64.value.isNotEmpty()) fotosCarruselBase64.value else null,
-                                fotosCarruselIds = actividadOriginal.value?.fotosCarruselIds,
-                                coordenadas = coordenadas
-                            )
-
-                            // Enviar actualización
-                            isSaving.value = true
-                            scope.launch {
-                                try {
-                                    Log.d(
-                                        "ModificarActividad",
-                                        "Iniciando petición de actualización"
-                                    )
-                                    val response = withContext(Dispatchers.IO) {
-                                        retrofitService.modificarActividad(
-                                            "Bearer $authToken",
-                                            actividadUpdateDTO = actividadUpdate
-                                        )
-                                    }
-
-                                    Log.d(
-                                        "ModificarActividad",
-                                        "Respuesta recibida: ${response.code()}"
-                                    )
-                                    if (response.isSuccessful) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(
-                                                context,
-                                                "Actividad actualizada correctamente",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            navController.popBackStack()
-                                        }
-                                    } else {
-                                        val errorBody =
-                                            response.errorBody()?.string() ?: "Sin cuerpo de error"
-                                        Log.e(
-                                            "ModificarActividad",
-                                            "Error al actualizar: ${response.code()} - $errorBody"
-                                        )
-                                        errorMessage.value =
-                                            "Error al actualizar: ${response.code()} - ${response.message()}\n$errorBody"
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("ModificarActividad", "Excepción al actualizar", e)
-                                    errorMessage.value = ErrorUtils.parseErrorMessage(
-                                        e.message ?: "Error desconocido"
-                                    )
-                                } finally {
-                                    isSaving.value = false
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        enabled = !isSaving.value,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF1E3A8A),
-                            disabledContainerColor = Color(0xFF94A3B8)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        if (isSaving.value) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
-                        } else {
+                        OutlinedButton(
+                            onClick = {
+                                navController.popBackStack()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF1E3A8A)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF1E3A8A))
+                        ) {
                             Text(
-                                "GUARDAR CAMBIOS",
+                                "CANCELAR",
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
+                }
+            }
 
-                    // Botón para cancelar
-                    OutlinedButton(
-                        onClick = {
-                            navController.popBackStack()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF1E3A8A)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFF1E3A8A))
+            if (errorMessage.value != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFEE2E2)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Error",
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            "CANCELAR",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            text = errorMessage.value ?: "",
+                            color = Color(0xFFEF4444),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
         }
 
-        // Mensaje de error si existe
-        if (errorMessage.value != null) {
-            Card(
+        if (isSaving.value) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFEE2E2)
-                ),
-                shape = RoundedCornerShape(12.dp)
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Card(
+                    modifier = Modifier.size(120.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Clear,
-                        contentDescription = "Error",
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = errorMessage.value ?: "",
-                        color = Color(0xFFEF4444),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF3B82F6),
+                            strokeWidth = 3.dp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Guardando...",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569)
+                        )
+                    }
                 }
             }
         }
     }
 
-    // Date & Time Pickers
+    // Date Picker para fecha de inicio
     if (showFechaInicioDatePicker.value) {
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 val calendar = Calendar.getInstance()
-                calendar.time = fechaInicio.value ?: Date()
-                calendar.set(Calendar.YEAR, year)
-                calendar.set(Calendar.MONTH, month)
-                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                if (fechaInicio.value != null) {
+                    calendar.time = fechaInicio.value!!
+                } else {
+                    calendar.set(Calendar.HOUR_OF_DAY, 12)
+                    calendar.set(Calendar.MINUTE, 0)
+                    calendar.set(Calendar.SECOND, 0)
+                    calendar.set(Calendar.MILLISECOND, 0)
+                }
+                calendar.set(year, month, dayOfMonth)
                 fechaInicio.value = calendar.time
                 showFechaInicioDatePicker.value = false
             },
-            Calendar.getInstance().get(Calendar.YEAR),
-            Calendar.getInstance().get(Calendar.MONTH),
-            Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+            fechaInicio.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.YEAR)
+            } ?: Calendar.getInstance().get(Calendar.YEAR),
+            fechaInicio.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.MONTH)
+            } ?: Calendar.getInstance().get(Calendar.MONTH),
+            fechaInicio.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.DAY_OF_MONTH)
+            } ?: Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         ).show()
     }
 
     if (showFechaInicioTimePicker.value) {
-        val calendar = Calendar.getInstance()
-        calendar.time = fechaInicio.value ?: Date()
         TimePickerDialog(
             context,
             { _, hourOfDay, minute ->
-                val newCalendar = Calendar.getInstance()
-                newCalendar.time = fechaInicio.value ?: Date()
-                newCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
-                newCalendar.set(Calendar.MINUTE, minute)
-                fechaInicio.value = newCalendar.time
+                val calendar = Calendar.getInstance()
+                if (fechaInicio.value != null) {
+                    calendar.time = fechaInicio.value!!
+                }
+                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                fechaInicio.value = calendar.time
                 showFechaInicioTimePicker.value = false
             },
-            calendar.get(Calendar.HOUR_OF_DAY),
-            calendar.get(Calendar.MINUTE),
+            fechaInicio.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.HOUR_OF_DAY)
+            } ?: 12,
+            fechaInicio.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.MINUTE)
+            } ?: 0,
             true
         ).show()
     }
@@ -1112,80 +1144,65 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
             context,
             { _, year, month, dayOfMonth ->
                 val calendar = Calendar.getInstance()
-                calendar.time = fechaFinalizacion.value ?: Date()
-                calendar.set(Calendar.YEAR, year)
-                calendar.set(Calendar.MONTH, month)
-                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                if (fechaFinalizacion.value != null) {
+                    calendar.time = fechaFinalizacion.value!!
+                } else {
+                    calendar.set(Calendar.HOUR_OF_DAY, 13)
+                    calendar.set(Calendar.MINUTE, 0)
+                    calendar.set(Calendar.SECOND, 0)
+                    calendar.set(Calendar.MILLISECOND, 0)
+                }
+                calendar.set(year, month, dayOfMonth)
                 fechaFinalizacion.value = calendar.time
                 showFechaFinDatePicker.value = false
             },
-            Calendar.getInstance().get(Calendar.YEAR),
-            Calendar.getInstance().get(Calendar.MONTH),
-            Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+            fechaFinalizacion.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.YEAR)
+            } ?: Calendar.getInstance().get(Calendar.YEAR),
+            fechaFinalizacion.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.MONTH)
+            } ?: Calendar.getInstance().get(Calendar.MONTH),
+            fechaFinalizacion.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.DAY_OF_MONTH)
+            } ?: Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         ).show()
     }
 
     if (showFechaFinTimePicker.value) {
-        val calendar = Calendar.getInstance()
-        calendar.time = fechaFinalizacion.value ?: Date()
         TimePickerDialog(
             context,
             { _, hourOfDay, minute ->
-                val newCalendar = Calendar.getInstance()
-                newCalendar.time = fechaFinalizacion.value ?: Date()
-                newCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
-                newCalendar.set(Calendar.MINUTE, minute)
-                fechaFinalizacion.value = newCalendar.time
+                val calendar = Calendar.getInstance()
+                if (fechaFinalizacion.value != null) {
+                    calendar.time = fechaFinalizacion.value!!
+                }
+                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                fechaFinalizacion.value = calendar.time
                 showFechaFinTimePicker.value = false
             },
-            calendar.get(Calendar.HOUR_OF_DAY),
-            calendar.get(Calendar.MINUTE),
+            fechaFinalizacion.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.HOUR_OF_DAY)
+            } ?: 13,
+            fechaFinalizacion.value?.let {
+                val cal = Calendar.getInstance()
+                cal.time = it
+                cal.get(Calendar.MINUTE)
+            } ?: 0,
             true
         ).show()
     }
 
-    // Overlay de carga mientras se está guardando
-    if (isSaving.value) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                modifier = Modifier
-                    .size(120.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = Color(0xFF3B82F6),
-                        strokeWidth = 3.dp
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Guardando...",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF475569)
-                    )
-                }
-            }
-        }
-    }
-
-
-// Dialog para confirmar eliminación
     if (showDeleteConfirmation.value) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation.value = false },
@@ -1210,7 +1227,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         isDeleting.value = true
                         showDeleteConfirmation.value = false
 
-                        // Llamada a la API para eliminar la actividad
                         scope.launch {
                             try {
                                 val response = withContext(Dispatchers.IO) {
@@ -1271,7 +1287,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         )
     }
 
-// Overlay para la eliminación en progreso
     if (isDeleting.value) {
         Box(
             modifier = Modifier
@@ -1280,12 +1295,9 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
             contentAlignment = Alignment.Center
         ) {
             Card(
-                modifier = Modifier
-                    .size(120.dp),
+                modifier = Modifier.size(120.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
@@ -1297,9 +1309,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         color = Color(0xFFEF4444),
                         strokeWidth = 3.dp
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
                     Text(
                         text = "Eliminando...",
                         fontSize = 14.sp,
@@ -1308,49 +1318,40 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                     )
                 }
             }
-
         }
     }
 }
 
-    // Función para comprimir y convertir imágenes a Base64
-    private suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val contentResolver = context.contentResolver
-                val inputStream = contentResolver.openInputStream(uri)
+private suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
+    return withContext(Dispatchers.IO) {
+        try {
+            val contentResolver = context.contentResolver
+            val inputStream = contentResolver.openInputStream(uri)
 
-                // Leer la imagen como un bitmap
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
 
-                // Comprimir la imagen
-                val compressedBitmap = Bitmap.createScaledBitmap(
-                    bitmap,
-                    (bitmap.width * 0.7).toInt(),
-                    (bitmap.height * 0.7).toInt(),
-                    true
-                )
+            val compressedBitmap = Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * 0.7).toInt(),
+                (bitmap.height * 0.7).toInt(),
+                true
+            )
 
-                // Convertir a bytes
-                val outputStream = ByteArrayOutputStream()
-                compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
-                val byteArray = outputStream.toByteArray()
+            val outputStream = ByteArrayOutputStream()
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+            val byteArray = outputStream.toByteArray()
 
-                // Convertir a Base64
-                val base64String = Base64.encodeToString(byteArray, Base64.DEFAULT)
+            val base64String = Base64.encodeToString(byteArray, Base64.DEFAULT)
 
-                // Liberar recursos
-                bitmap.recycle()
-                compressedBitmap.recycle()
-                outputStream.close()
+            bitmap.recycle()
+            compressedBitmap.recycle()
+            outputStream.close()
 
-                // Devolver el string en Base64
-                base64String
-            } catch (e: Exception) {
-                Log.e("ModificarActividad", "Error al procesar imagen", e)
-                null
-            }
+            base64String
+        } catch (e: Exception) {
+            Log.e("ModificarActividad", "Error al procesar imagen", e)
+            null
         }
     }
-
+}

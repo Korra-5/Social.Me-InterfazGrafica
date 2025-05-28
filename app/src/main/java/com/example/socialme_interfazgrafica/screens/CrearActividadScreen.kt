@@ -56,6 +56,7 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
+import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -69,48 +70,39 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Obtener SharedPreferences en lugar de usar SessionManager
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
     val username = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    // Estado para los campos del formulario
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
     var lugar by remember { mutableStateOf("") }
     var privada by remember { mutableStateOf(false) }
 
-    // Estado para fechas con MutableState para poder actualizarlas desde los pickers
     val fechaInicio = remember { mutableStateOf<Date?>(null) }
     val fechaFinalizacion = remember { mutableStateOf<Date?>(null) }
 
-    // Estados para mostrar los pickers de fecha y hora
     val showFechaInicioDatePicker = remember { mutableStateOf(false) }
     val showFechaInicioTimePicker = remember { mutableStateOf(false) }
     val showFechaFinDatePicker = remember { mutableStateOf(false) }
     val showFechaFinTimePicker = remember { mutableStateOf(false) }
 
-    // Formatos para mostrar fecha y hora
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val dateTimeFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
-    // Estado para las imágenes
     var imagenes by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var imagenesBase64 by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    // Estado para controlar la carga
     var isLoading by remember { mutableStateOf(false) }
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-    // Estado para el mapa y coordenadas
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var ubicacionSeleccionada by remember { mutableStateOf<GeoPoint?>(null) }
     var marker by remember { mutableStateOf<Marker?>(null) }
     var isMapExpanded by remember { mutableStateOf(false) }
     var isLoadingLocation by remember { mutableStateOf(false) }
 
-    // Estado para controlar los permisos
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -120,7 +112,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         )
     }
 
-    // Lanzador para solicitar permisos de ubicación
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -140,39 +131,35 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         }
     }
 
-    // Lanzador para seleccionar imágenes
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
+            // Agregar las nuevas imágenes a las existentes
             imagenes = imagenes + uris
             scope.launch {
                 val base64List = uris.map { uri ->
                     convertToBase64(context, uri)
                 }
+                // Agregar los nuevos base64 a los existentes
                 imagenesBase64 = imagenesBase64 + base64List.filterNotNull()
             }
         }
     }
 
-    // Función para actualizar fecha manteniendo la hora existente
     fun updateDate(date: Long, currentDateTime: MutableState<Date?>) {
         val calendar = Calendar.getInstance()
 
-        // Si ya hay una fecha, conservar la hora
         currentDateTime.value?.let {
             calendar.time = it
             val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
             val minute = calendar.get(Calendar.MINUTE)
 
-            // Establecer nueva fecha
             calendar.timeInMillis = date
 
-            // Restaurar hora previa
             calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
             calendar.set(Calendar.MINUTE, minute)
         } ?: run {
-            // Si no hay fecha previa, usar mediodía como hora por defecto
             calendar.timeInMillis = date
             calendar.set(Calendar.HOUR_OF_DAY, 12)
             calendar.set(Calendar.MINUTE, 0)
@@ -183,11 +170,9 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         currentDateTime.value = calendar.time
     }
 
-    // Función para actualizar hora manteniendo la fecha existente
     fun updateTime(hour: Int, minute: Int, currentDateTime: MutableState<Date?>) {
         val calendar = Calendar.getInstance()
 
-        // Si ya hay una fecha, mantenerla
         if (currentDateTime.value != null) {
             calendar.time = currentDateTime.value!!
         }
@@ -197,6 +182,53 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
         currentDateTime.value = calendar.time
+    }
+
+    // Función para validar los campos obligatorios
+    fun validarCampos(
+        nombre: String,
+        descripcion: String,
+        lugar: String,
+        fechaInicio: Date?,
+        fechaFinalizacion: Date?
+    ): Pair<Boolean, String?> {
+        if (nombre.trim().isBlank()) {
+            return Pair(false, "El nombre es requerido")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(nombre.trim())) {
+            return Pair(false, "El nombre contiene palabras no permitidas")
+        }
+
+        if (descripcion.trim().isBlank()) {
+            return Pair(false, "La descripción es requerida")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(descripcion.trim())) {
+            return Pair(false, "La descripción contiene palabras no permitidas")
+        }
+
+        if (lugar.trim().isBlank()) {
+            return Pair(false, "El lugar es requerido")
+        }
+
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(lugar.trim())) {
+            return Pair(false, "El lugar contiene palabras no permitidas")
+        }
+
+        if (fechaInicio == null) {
+            return Pair(false, "La fecha de inicio es requerida")
+        }
+
+        if (fechaFinalizacion == null) {
+            return Pair(false, "La fecha de finalización es requerida")
+        }
+
+        if (fechaInicio >= fechaFinalizacion) {
+            return Pair(false, "La fecha de inicio debe ser anterior a la fecha de finalización")
+        }
+
+        return Pair(true, null)
     }
 
     Box(
@@ -234,7 +266,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                     )
                 )
             },
-            containerColor = Color.Transparent // Hacer el scaffold transparente para que se vea el fondo
+            containerColor = Color.Transparent
         ) { paddingValues ->
             Column(
                 modifier = Modifier
@@ -244,7 +276,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Tarjeta principal con todos los campos
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -310,7 +341,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             minLines = 3
                         )
 
-
                         // Sección del mapa
                         Text(
                             text = "Ubicación",
@@ -332,20 +362,13 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                // Configuración y visualización del mapa
                                 DisposableEffect(Unit) {
                                     val map = MapView(context).apply {
                                         setMultiTouchControls(true)
                                         setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-
-                                        // Configurar el controlador del mapa
                                         controller.setZoom(15.0)
-
-                                        // Posición inicial (Madrid como ejemplo)
                                         val startPoint = GeoPoint(40.416775, -3.703790)
                                         controller.setCenter(startPoint)
-
-                                        // Configurar listener para clics en el mapa
                                         overlays.add(object : Overlay() {
                                             override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
                                                 mapView?.let {
@@ -364,7 +387,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
 
                                     mapView = map
 
-                                    // Intentar obtener la ubicación actual si tenemos permisos
                                     if (hasLocationPermission) {
                                         obtenerUbicacionActual(context) { location ->
                                             val geoPoint = GeoPoint(location.latitude, location.longitude)
@@ -378,7 +400,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                     }
                                 }
 
-                                // Vista del mapa
                                 mapView?.let { map ->
                                     AndroidView(
                                         factory = { map },
@@ -386,7 +407,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                     )
                                 }
 
-                                // Botón para obtener ubicación actual
                                 FloatingActionButton(
                                     onClick = {
                                         if (hasLocationPermission) {
@@ -413,7 +433,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                     )
                                 }
 
-                                // Indicador de carga de ubicación
                                 if (isLoadingLocation) {
                                     CircularProgressIndicator(
                                         modifier = Modifier
@@ -423,7 +442,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                     )
                                 }
 
-                                // Ícono para expandir/contraer el mapa
                                 IconButton(
                                     onClick = { isMapExpanded = !isMapExpanded },
                                     modifier = Modifier
@@ -441,7 +459,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             }
                         }
 
-                        // Mostrar coordenadas seleccionadas
                         ubicacionSeleccionada?.let { ubicacion ->
                             Text(
                                 text = "Coordenadas seleccionadas:\nLatitud: ${String.format("%.6f", ubicacion.latitude)}\nLongitud: ${String.format("%.6f", ubicacion.longitude)}",
@@ -505,7 +522,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                 .padding(bottom = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Botón para seleccionar fecha de inicio
                             OutlinedButton(
                                 onClick = { showFechaInicioDatePicker.value = true },
                                 modifier = Modifier
@@ -525,7 +541,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                 )
                             }
 
-                            // Botón para seleccionar hora de inicio
                             OutlinedButton(
                                 onClick = { showFechaInicioTimePicker.value = true },
                                 modifier = Modifier
@@ -561,7 +576,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                 .padding(bottom = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Botón para seleccionar fecha de finalización
                             OutlinedButton(
                                 onClick = { showFechaFinDatePicker.value = true },
                                 modifier = Modifier
@@ -581,7 +595,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                 )
                             }
 
-                            // Botón para seleccionar hora de finalización
                             OutlinedButton(
                                 onClick = { showFechaFinTimePicker.value = true },
                                 modifier = Modifier
@@ -647,7 +660,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             color = colorResource(R.color.textoPrimario)
                         )
 
-                        // Vista previa de imágenes seleccionadas
                         if (imagenes.isNotEmpty()) {
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -690,7 +702,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // Botón para añadir imágenes
                         Button(
                             onClick = { imagePickerLauncher.launch("image/*") },
                             modifier = Modifier.fillMaxWidth(),
@@ -714,10 +725,10 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Botón para crear actividad
                         Button(
                             onClick = {
-                                if (validarCampos(nombre, descripcion, lugar, fechaInicio.value, fechaFinalizacion.value)) {
+                                val (isValid, errorMsg) = validarCampos(nombre, descripcion, lugar, fechaInicio.value, fechaFinalizacion.value)
+                                if (isValid) {
                                     scope.launch {
                                         isLoading = true
                                         try {
@@ -731,8 +742,8 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                             }
 
                                             val actividad = ActividadCreateDTO(
-                                                nombre = nombre,
-                                                descripcion = descripcion,
+                                                nombre = nombre.trim(),
+                                                descripcion = descripcion.trim(),
                                                 comunidad = comunidadUrl,
                                                 creador = username,
                                                 fechaInicio = fechaInicio.value!!,
@@ -741,7 +752,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                                 fotosCarruselIds = null,
                                                 privada = privada,
                                                 coordenadas = coordenadas,
-                                                lugar = lugar
+                                                lugar = lugar.trim()
                                             )
 
                                             val response = retrofitService.crearActividad(
@@ -767,11 +778,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                         }
                                     }
                                 } else {
-                                    Toast.makeText(
-                                        context,
-                                        "Por favor, completa todos los campos obligatorios",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, errorMsg ?: "Error de validación", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             modifier = Modifier
@@ -800,7 +807,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             }
                         }
 
-                        // Botón para cancelar
                         OutlinedButton(
                             onClick = { navController.popBackStack() },
                             modifier = Modifier
@@ -855,7 +861,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                 showModeToggle = false
             )
 
-            // Cuando selecciona una fecha, actualizar el estado
             LaunchedEffect(datePickerState.selectedDateMillis) {
                 datePickerState.selectedDateMillis?.let { date ->
                     updateDate(date, fechaInicio)
@@ -864,7 +869,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         }
     }
 
-    // Time Picker para hora de inicio
     if (showFechaInicioTimePicker.value) {
         TimePickerDialog(
             onDismissRequest = { showFechaInicioTimePicker.value = false },
@@ -875,7 +879,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         )
     }
 
-    // Date Picker para fecha de finalización
     if (showFechaFinDatePicker.value) {
         DatePickerDialog(
             onDismissRequest = { showFechaFinDatePicker.value = false },
@@ -906,7 +909,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                 showModeToggle = false
             )
 
-            // Cuando selecciona una fecha, actualizar el estado
             LaunchedEffect(datePickerState.selectedDateMillis) {
                 datePickerState.selectedDateMillis?.let { date ->
                     updateDate(date, fechaFinalizacion)
@@ -915,7 +917,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         }
     }
 
-    // Time Picker para hora de finalización
     if (showFechaFinTimePicker.value) {
         TimePickerDialog(
             onDismissRequest = { showFechaFinTimePicker.value = false },
@@ -955,7 +956,6 @@ fun TimePickerDialog(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Time picker
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -963,7 +963,6 @@ fun TimePickerDialog(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Hour selector
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "Hora:",
@@ -1005,7 +1004,6 @@ fun TimePickerDialog(
 
                     Text(":", fontWeight = FontWeight.Bold, fontSize = 28.sp, color = colorResource(R.color.textoPrimario))
 
-                    // Minute selector
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "Minuto:",
@@ -1078,30 +1076,12 @@ fun TimePickerDialog(
     }
 }
 
-// Función para validar los campos obligatorios
-private fun validarCampos(
-    nombre: String,
-    descripcion: String,
-    lugar: String,
-    fechaInicio: Date?,
-    fechaFinalizacion: Date?
-): Boolean {
-    return nombre.isNotBlank() &&
-            descripcion.isNotBlank() &&
-            lugar.isNotBlank() &&
-            fechaInicio != null &&
-            fechaFinalizacion != null
-}
-
-// Función optimizada para convertir imagen a Base64
 fun convertToBase64(context: Context, uri: Uri): String? {
     return try {
         val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
         inputStream?.use { stream ->
-            // Decodificar el stream a un bitmap
             val bitmap = BitmapFactory.decodeStream(stream)
 
-            // Redimensionar si es necesario
             val maxSize = 800
             val width = bitmap.width
             val height = bitmap.height
@@ -1122,23 +1102,19 @@ fun convertToBase64(context: Context, uri: Uri): String? {
                 newHeight = height
             }
 
-            // Redimensionar bitmap si es necesario
             val resizedBitmap = if (width != newWidth || height != newHeight) {
                 Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
             } else {
                 bitmap
             }
 
-            // Comprimir el bitmap a JPEG con calidad del 75%
             val outputStream = ByteArrayOutputStream()
             resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 75, outputStream)
 
-            // Liberar memoria si se creó un nuevo bitmap
             if (resizedBitmap != bitmap) {
                 bitmap.recycle()
             }
 
-            // Convertir a base64 sin saltos de línea
             val byteArray = outputStream.toByteArray()
             val sizeInKb = byteArray.size / 1024
             Log.d("ConvertToBase64", "Tamaño de imagen: $sizeInKb KB")

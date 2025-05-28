@@ -472,12 +472,12 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     color = colorResource(R.color.textoSecundario)
                 )
 
-                // Etiquetas privada/global
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
-                ) {
-                    if (comunidad.privada) {
+                // Etiqueta privada (eliminada la referencia a global)
+                if (comunidad.privada) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+                    ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lock),
                             contentDescription = "Comunidad privada",
@@ -491,24 +491,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                             color = colorResource(R.color.textoSecundario)
                         )
                     }
-
-                    if (comunidad.comunidadGlobal) {
-                        if (comunidad.privada) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_user),
-                            contentDescription = "Comunidad global",
-                            tint = colorResource(R.color.textoSecundario),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Global",
-                            fontSize = 14.sp,
-                            color = colorResource(R.color.textoSecundario)
-                        )
-                    }
+                } else {
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 // En algún lugar de tu ComunidadDetalleScreen
@@ -628,7 +612,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Creado por: @${comunidad.creador}",
+                        text = "Gestionada por: @${comunidad.creador}",
                         fontSize = 16.sp,
                         color = Color.Black
                     )

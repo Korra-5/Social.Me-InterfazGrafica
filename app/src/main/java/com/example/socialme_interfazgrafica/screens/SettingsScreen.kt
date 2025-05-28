@@ -335,7 +335,6 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
         )
     }
 }
-
 // PrivacidadSection que carga valores directamente del servidor
 @Composable
 fun PrivacidadSection() {
@@ -567,7 +566,12 @@ fun PrivacidadSection() {
                         DropdownMenu(
                             expanded = expandedComunidades,
                             onDismissRequest = { expandedComunidades = false },
-                            modifier = Modifier.fillMaxWidth(0.5f)
+                            modifier = Modifier
+                                .fillMaxWidth(0.5f)
+                                .background(
+                                    Color.White,
+                                    RoundedCornerShape(8.dp)
+                                )
                         ) {
                             opcionesDisplay.forEach { opcion ->
                                 DropdownMenuItem(
@@ -621,7 +625,12 @@ fun PrivacidadSection() {
                         DropdownMenu(
                             expanded = expandedActividades,
                             onDismissRequest = { expandedActividades = false },
-                            modifier = Modifier.fillMaxWidth(0.5f)
+                            modifier = Modifier
+                                .fillMaxWidth(0.5f)
+                                .background(
+                                    Color.White,
+                                    RoundedCornerShape(8.dp)
+                                )
                         ) {
                             opcionesDisplay.forEach { opcion ->
                                 DropdownMenuItem(

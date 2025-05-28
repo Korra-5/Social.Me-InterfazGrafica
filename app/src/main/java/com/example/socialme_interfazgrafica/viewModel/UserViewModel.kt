@@ -21,14 +21,16 @@ import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
 import com.example.socialme_interfazgrafica.model.VerificacionDTO
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 
 sealed class RegistroState {
     object Initial : RegistroState()
     object Loading : RegistroState()
-    data class Success(val data: RegistroResponse) : RegistroState()
+    data class Success(val message: String, val email: String) : RegistroState()
     data class Error(val code: Int, val message: String) : RegistroState()
 }
 
@@ -37,6 +39,13 @@ sealed class LoginState {
     object Loading : LoginState()
     data class Success(val token: String, val role: String?) : LoginState()
     data class Error(val code: Int, val message: String) : LoginState()
+}
+
+sealed class VerificacionState {
+    object Initial : VerificacionState()
+    object Loading : VerificacionState()
+    data class Success(val message: String) : VerificacionState()
+    data class Error(val message: String) : VerificacionState()
 }
 
 class UserViewModel : ViewModel() {
@@ -48,6 +57,9 @@ class UserViewModel : ViewModel() {
 
     private val _loginState = MutableLiveData<LoginState>(LoginState.Initial)
     val loginState: LiveData<LoginState> = _loginState
+
+    private val _verificacionState = MutableLiveData<VerificacionState>(VerificacionState.Initial)
+    val verificacionState: LiveData<VerificacionState> = _verificacionState
 
     private val _registroExitoso = MutableLiveData<Boolean>()
     val registroExitoso: LiveData<Boolean> = _registroExitoso
@@ -172,22 +184,29 @@ class UserViewModel : ViewModel() {
             fotoPerfil = fotoPerfil
         )
 
-        Log.d("RegistroVM", "Intentando registrar usuario: $usuario")
+        Log.d("RegistroVM", "Intentando iniciar registro para usuario: $usuario")
 
         viewModelScope.launch {
             try {
-                val response = apiService.insertUser(usuario)
+                val response = apiService.iniciarRegistro(usuario)
 
                 if (response.isSuccessful) {
-                    Log.d("RegistroVM", "Registro exitoso: ${response.body()}")
-                    _registroState.value = RegistroState.Success(response.body()!!)
+                    response.body()?.let { result ->
+                        Log.d("RegistroVM", "Registro iniciado exitosamente: $result")
+                        _registroState.value = RegistroState.Success(
+                            result["message"] ?: "Código enviado",
+                            result["email"] ?: email
+                        )
+                    } ?: run {
+                        _registroState.value = RegistroState.Error(-1, "Respuesta vacía del servidor")
+                    }
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Error desconocido"
-                    Log.e("RegistroVM", "Error en registro: Código ${response.code()}, Mensaje: $errorBody")
+                    Log.e("RegistroVM", "Error en inicio de registro: Código ${response.code()}, Mensaje: $errorBody")
                     _registroState.value = RegistroState.Error(response.code(), errorBody)
                 }
             } catch (e: Exception) {
-                Log.e("RegistroVM", "Excepción en registro: ${e.message}", e)
+                Log.e("RegistroVM", "Excepción en inicio de registro: ${e.message}", e)
                 _registroState.value = RegistroState.Error(-1, e.message ?: "Error desconocido")
             }
         }
@@ -264,21 +283,107 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    // Nuevo método para verificar el código de email
+    // Método para verificar código de REGISTRO
     fun verificarCodigo(email: String, codigo: String, onComplete: (Boolean) -> Unit) {
+        _verificacionState.value = VerificacionState.Loading
+
         viewModelScope.launch {
             try {
                 val verificacionDTO = VerificacionDTO(email = email, codigo = codigo)
-                val response = apiService.verificarCodigo(verificacionDTO)
-                onComplete(response.isSuccessful && response.body() == true)
+                val response = apiService.completarRegistro(verificacionDTO)
+
+                if (response.isSuccessful) {
+                    response.body()?.let { usuario ->
+                        _verificacionState.value = VerificacionState.Success("¡Usuario creado exitosamente!")
+                        Log.d("UserViewModel", "Usuario creado exitosamente: ${usuario.username}")
+                        onComplete(true)
+                    } ?: run {
+                        _verificacionState.value = VerificacionState.Error("Respuesta vacía del servidor")
+                        onComplete(false)
+                    }
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Error al verificar código"
+                    _verificacionState.value = VerificacionState.Error(errorMsg)
+                    Log.e("UserViewModel", "Error al verificar código: $errorMsg")
+                    onComplete(false)
+                }
             } catch (e: Exception) {
+                val errorMsg = e.message ?: "Error de conexión"
+                _verificacionState.value = VerificacionState.Error(errorMsg)
                 Log.e("UserViewModel", "Error al verificar código: ${e.message}")
                 onComplete(false)
             }
         }
     }
 
-    // Nuevo método para reenviar el código
+    // MÉTODO CORREGIDO para verificar código de MODIFICACIÓN - AHORA RECIBE CONTEXT
+    fun verificarCodigoModificacion(context: Context, email: String, codigo: String, onComplete: (Boolean) -> Unit) {
+        _verificacionState.value = VerificacionState.Loading
+
+        viewModelScope.launch {
+            try {
+                val verificacionDTO = VerificacionDTO(email = email, codigo = codigo)
+
+                // Obtener token real de SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+                val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
+
+                if (authToken.isEmpty()) {
+                    _verificacionState.value = VerificacionState.Error("No se encontró token de autenticación. Inicia sesión nuevamente.")
+                    onComplete(false)
+                    return@launch
+                }
+
+                val response = withContext(Dispatchers.IO) {
+                    apiService.completarModificacionUsuario(
+                        token = "Bearer $authToken",
+                        verificacionDTO = verificacionDTO
+                    )
+                }
+
+                if (response.isSuccessful) {
+                    response.body()?.let { usuario ->
+                        // Actualizar SharedPreferences si cambió el username
+                        val currentUsername = sharedPreferences.getString("USERNAME", "")
+                        if (usuario.username != currentUsername) {
+                            val editor = sharedPreferences.edit()
+                            editor.putString("USERNAME", usuario.username)
+                            editor.apply()
+                            Log.d("UserViewModel", "Username actualizado en SharedPreferences: ${usuario.username}")
+                        }
+
+                        _verificacionState.value = VerificacionState.Success("Perfil actualizado correctamente")
+                        Log.d("UserViewModel", "Usuario modificado exitosamente: ${usuario.username}")
+                        onComplete(true)
+                    } ?: run {
+                        _verificacionState.value = VerificacionState.Error("Respuesta vacía del servidor")
+                        onComplete(false)
+                    }
+                } else {
+                    val errorMsg = when (response.code()) {
+                        400 -> "Código de verificación incorrecto o expirado"
+                        401 -> "Token de autenticación inválido. Inicia sesión nuevamente."
+                        404 -> "No se encontraron datos de modificación"
+                        else -> "Error al verificar el código: ${response.code()}"
+                    }
+                    _verificacionState.value = VerificacionState.Error(errorMsg)
+                    Log.e("UserViewModel", "Error al verificar código modificación: $errorMsg")
+                    onComplete(false)
+                }
+            } catch (e: Exception) {
+                val errorMsg = when {
+                    e.message?.contains("timeout") == true -> "Tiempo de espera agotado. Inténtalo de nuevo."
+                    e.message?.contains("network") == true -> "Error de conexión. Verifica tu internet."
+                    else -> "Error al verificar el código: ${e.message}"
+                }
+                _verificacionState.value = VerificacionState.Error(errorMsg)
+                Log.e("UserViewModel", "Error al verificar código modificación: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
+    // Método para reenviar el código
     fun reenviarCodigo(email: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
@@ -305,5 +410,14 @@ class UserViewModel : ViewModel() {
         _mensajeError.value = ""
 
         Log.d("UserViewModel", "Estado de login reseteado correctamente")
+    }
+
+    /**
+     * Resetea el estado de registro para evitar navegaciones automáticas indeseadas
+     */
+    fun resetRegistroState() {
+        _registroState.value = RegistroState.Initial
+        _verificacionState.value = VerificacionState.Initial
+        Log.d("UserViewModel", "Estado de registro reseteado correctamente")
     }
 }

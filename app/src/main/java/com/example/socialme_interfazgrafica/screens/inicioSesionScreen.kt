@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,9 +28,8 @@ import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.viewModel.LoginState
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,10 +38,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Slider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -51,12 +51,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.roundToInt
 
-// Constantes para SharedPreferences
 private const val SHARED_PREFS_NAME = "UserPrefs"
 
 @Composable
@@ -66,31 +69,43 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Separate state variables for different success messages
+    var passwordVisible by remember { mutableStateOf(false) }
     var showRegistrationSuccessMessage by remember { mutableStateOf(false) }
     var showLoginSuccessMessage by remember { mutableStateOf(false) }
-
-    // Estado local para el rol del usuario
     val userRole = remember { mutableStateOf("") }
-
-    // Contexto local para Toast y SharedPreferences
     val context = LocalContext.current
 
     // Observar el estado de login del ViewModel
     val loginState by viewModel.loginState.observeAsState()
     val tokenLogin by viewModel.tokenLogin.observeAsState("")
 
+    // ✨ ANIMACIÓN DEL FONDO
+    val infiniteTransition = rememberInfiniteTransition(label = "background")
+    val animatedOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing), // 4 segundos más suave
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "offset"
+    )
+
+    // Animación para la card
+    val cardScale by animateFloatAsState(
+        targetValue = if (isLoading) 0.98f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "card_scale"
+    )
+
     // Verificar si viene de registro exitoso
     val registroExitoso = navController.currentBackStackEntry
         ?.savedStateHandle
         ?.get<Boolean>("registro_exitoso") ?: false
 
-    // Si viene de registro exitoso, mostrar mensaje
     LaunchedEffect(registroExitoso) {
         if (registroExitoso) {
             showRegistrationSuccessMessage = true
-            // Reset the flag so it doesn't show again on navigation
             navController.currentBackStackEntry?.savedStateHandle?.set("registro_exitoso", false)
         }
     }
@@ -107,11 +122,8 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                 isLoading = false
                 showLoginSuccessMessage = true
                 showRegistrationSuccessMessage = false
-
-                // Extraer el rol del resultado del login
                 userRole.value = state.role ?: "USER"
 
-                // Guardar datos en SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 with(sharedPreferences.edit()) {
                     putString("TOKEN", state.token)
@@ -120,23 +132,12 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                     apply()
                 }
 
-                // Log para debugging
-                Log.d("InicioSesionScreen", "Login exitoso - Usuario: $username, Rol: ${userRole.value}")
-
-                // Mostrar mensaje y navegar después de un breve delay
                 try {
-                    Toast.makeText(
-                        context,
-                        "Bienvenido, $username",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    // Navegar a la pantalla de menú
+                    Toast.makeText(context, "Bienvenido, $username", Toast.LENGTH_SHORT).show()
                     navController.navigate(AppScreen.MenuScreen.route) {
                         popUpTo(AppScreen.InicioSesionScreen.route) { inclusive = true }
                     }
                 } catch (e: Exception) {
-                    Log.e("InicioSesionScreen", "Error en navegación: ${e.message}")
                     errorMessage = "Error interno: ${e.message}"
                 }
             }
@@ -146,64 +147,122 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                 showLoginSuccessMessage = false
                 showRegistrationSuccessMessage = false
             }
-            else -> {
-                isLoading = false
-            }
+            else -> isLoading = false
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorResource(R.color.background))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        colorResource(R.color.azulPrimario), // Tu color #FF3D5A80
+                        Color(0xFF5A7BA8), // Variación más clara
+                        Color(0xFF7B9BC9)  // Variación aún más clara
+                    ),
+                    // La magia de la animación: los puntos se mueven
+                    start = androidx.compose.ui.geometry.Offset(0f, animatedOffset * 1000),
+                    end = androidx.compose.ui.geometry.Offset(1000f, (1 - animatedOffset) * 1000)
+                )
+            )
     ) {
+        // Círculos decorativos de fondo
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .offset(x = (-50).dp, y = 100.dp)
+                .background(
+                    Color.White.copy(alpha = 0.1f),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 50.dp, y = (-30).dp)
+                .background(
+                    Color.White.copy(alpha = 0.1f),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-                .align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.app_icon),
-                contentDescription = "Logo",
+            // Logo con animación
+            Card(
                 modifier = Modifier
-                    .size(200.dp)
-                    .padding(bottom = 30.dp)
-            )
+                    .size(120.dp)
+                    .shadow(
+                        elevation = 20.dp,
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        ambientColor = Color.Black.copy(alpha = 0.3f)
+                    ),
+                shape = androidx.compose.foundation.shape.CircleShape,
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.app_icon),
+                        contentDescription = "Logo",
+                        modifier = Modifier.size(80.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Bienvenido",
-                fontSize = 28.sp,
+                text = "¡BIENVENIDO!",
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                color = colorResource(R.color.azulPrimario),
+                color = Color.White,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Text(
                 text = "Inicia sesión para continuar",
                 fontSize = 16.sp,
-                color = colorResource(R.color.textoSecundario),
-                modifier = Modifier.padding(bottom = 30.dp)
+                color = Color.White.copy(alpha = 0.9f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 40.dp)
             )
 
+            // Card principal
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorResource(R.color.white)
-                )
+                    .graphicsLayer(
+                        scaleX = cardScale,
+                        scaleY = cardScale
+                    )
+                    .shadow(
+                        elevation = 25.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        ambientColor = Color.Black.copy(alpha = 0.4f),
+                        spotColor = Color.Black.copy(alpha = 0.4f)
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    //Campo para el usuario
+                    // Campo usuario
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
@@ -212,26 +271,33 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_user),
                                 contentDescription = "Usuario",
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(24.dp),
                                 tint = colorResource(R.color.azulPrimario)
                             )
                         },
                         singleLine = true,
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .padding(bottom = 20.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colorResource(R.color.azulPrimario),
                             unfocusedBorderColor = colorResource(R.color.cyanSecundario),
                             focusedLabelColor = colorResource(R.color.azulPrimario),
                             unfocusedLabelColor = colorResource(R.color.textoSecundario),
                             focusedTextColor = colorResource(R.color.black),
-                            unfocusedTextColor = colorResource(R.color.black)
+                            unfocusedTextColor = colorResource(R.color.black),
+                            cursorColor = colorResource(R.color.azulPrimario),
+                            // ✨ COLORES PARA ESTADO DESHABILITADO
+                            disabledTextColor = Color(0xFF424242),        // Gris oscuro para texto
+                            disabledLabelColor = Color(0xFF757575),       // Gris medio para label
+                            disabledBorderColor = colorResource(R.color.cyanSecundario),
+                            disabledLeadingIconColor = colorResource(R.color.azulPrimario).copy(alpha = 0.6f)
                         )
                     )
 
-                    // Campo de contraseña
+                    // Campo contraseña
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -240,55 +306,94 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_lock),
                                 contentDescription = "Contraseña",
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(24.dp),
                                 tint = colorResource(R.color.azulPrimario)
                             )
                         },
-                        visualTransformation = PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { passwordVisible = !passwordVisible },
+                                enabled = !isLoading
+                            ) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Close else Icons.Default.Search,
+                                    contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+                                    tint = colorResource(R.color.azulPrimario)
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 24.dp),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colorResource(R.color.azulPrimario),
                             unfocusedBorderColor = colorResource(R.color.cyanSecundario),
                             focusedLabelColor = colorResource(R.color.azulPrimario),
                             unfocusedLabelColor = colorResource(R.color.textoSecundario),
                             focusedTextColor = colorResource(R.color.black),
-                            unfocusedTextColor = colorResource(R.color.black)
+                            unfocusedTextColor = colorResource(R.color.black),
+                            cursorColor = colorResource(R.color.azulPrimario),
+                            // ✨ COLORES PARA ESTADO DESHABILITADO
+                            disabledTextColor = Color(0xFF424242),        // Gris oscuro para texto
+                            disabledLabelColor = Color(0xFF757575),       // Gris medio para label
+                            disabledBorderColor = colorResource(R.color.cyanSecundario),
+                            disabledLeadingIconColor = colorResource(R.color.azulPrimario).copy(alpha = 0.6f),
+                            disabledTrailingIconColor = colorResource(R.color.azulPrimario).copy(alpha = 0.6f)
                         )
                     )
 
-                    // Mensaje de error
-                    if (errorMessage != null) {
-                        Text(
-                            text = errorMessage!!,
-                            color = colorResource(R.color.error),
-                            modifier = Modifier.padding(bottom = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
+                    // Mensajes de estado con animaciones
+                    AnimatedVisibility(
+                        visible = errorMessage != null,
+                        enter = slideInVertically() + fadeIn(),
+                        exit = slideOutVertically() + fadeOut()
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = colorResource(R.color.error).copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = errorMessage ?: "",
+                                color = colorResource(R.color.error),
+                                modifier = Modifier.padding(12.dp),
+                                textAlign = TextAlign.Center,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
 
-                    // Mensaje de registro exitoso
-                    if (showRegistrationSuccessMessage) {
-                        Text(
-                            text = "¡Registro exitoso! Ahora puedes iniciar sesión.",
-                            color = colorResource(R.color.correcto),
-                            modifier = Modifier.padding(bottom = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    // Mensaje de inicio de sesión exitoso
-                    if (showLoginSuccessMessage) {
-                        Text(
-                            text = "Inicio de sesión exitoso",
-                            color = colorResource(R.color.correcto),
-                            modifier = Modifier.padding(bottom = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
+                    AnimatedVisibility(
+                        visible = showRegistrationSuccessMessage,
+                        enter = slideInVertically() + fadeIn(),
+                        exit = slideOutVertically() + fadeOut()
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = colorResource(R.color.correcto).copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "¡Registro exitoso! Ahora puedes iniciar sesión.",
+                                color = colorResource(R.color.correcto),
+                                modifier = Modifier.padding(12.dp),
+                                textAlign = TextAlign.Center,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
 
                     // Botón de inicio de sesión
@@ -302,8 +407,12 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .height(56.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = RoundedCornerShape(16.dp)
+                            ),
+                        shape = RoundedCornerShape(16.dp),
                         enabled = !isLoading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = colorResource(R.color.azulPrimario),
@@ -318,37 +427,40 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Iniciar Sesión", fontSize = 16.sp)
+                            Text(
+                                "INICIAR SESIÓN",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
                         }
                     }
                 }
             }
 
+            Spacer(modifier = Modifier.height(32.dp))
+
             // Enlace a registro
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "¿No tienes una cuenta? ",
-                    color = colorResource(R.color.textoSecundario)
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 16.sp
                 )
 
                 TextButton(
-                    onClick = {
-                        navController.navigate(AppScreen.RegistroUsuarioScreen.route)
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = colorResource(R.color.azulPrimario)
-                    )
+                    onClick = { navController.navigate(AppScreen.RegistroUsuarioScreen.route) },
+                    enabled = !isLoading
                 ) {
                     Text(
                         text = "Regístrate",
-                        color = colorResource(R.color.azulPrimario),
-                        fontWeight = FontWeight.Bold
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
                     )
                 }
             }

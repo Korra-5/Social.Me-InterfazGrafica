@@ -8,9 +8,8 @@ class ComunidadCreateDTO(
     val fotoPerfilBase64: String? = null,
     val fotoPerfilId: String? = null,
     val creador: String,
-    val comunidadGlobal: Boolean,
     val privada: Boolean,
-    val coordenadas: Coordenadas?,  // Coordenadas geográficas
+    val coordenadas: Coordenadas?,
     val codigoUnion:String?
 ) {
 
