@@ -4,6 +4,7 @@ import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
 import com.example.socialme_interfazgrafica.model.BloqueoDTO
+import com.example.socialme_interfazgrafica.model.CambiarContrasenaDTO
 import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
@@ -81,6 +82,12 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Body usuarioUpdateDTO: UsuarioUpdateDTO
     ): Response<Map<String, String>>
+
+    @GET("/usuarioEsAdmin/{username}")
+    suspend fun usuarioEsAdmin(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<Boolean>
 
     @POST("/Usuario/completarModificacionUsuario")
     suspend fun completarModificacionUsuario(
@@ -475,17 +482,30 @@ interface RetrofitService {
         @Path("comunidadUrl") comunidadUrl: String
     ): Response<List<MensajeDTO>>
 
-    @GET("verComunidadPorActividad/{idActividad}")
+    @GET("/Comunidad/verComunidadPorActividad/{idActividad}")
     suspend fun verComunidadPorActividad(
         @Header("Authorization") token: String,
         @Path("idActividad") idActividad: String
     ): Response<ComunidadDTO>
 
+    // Añadir en la interfaz ApiService:
+    @PUT("Usuario/cambiarContrasena")
+    suspend fun cambiarContrasena(
+        @Header("Authorization") token: String,
+        @Body cambiarContrasenaDTO: CambiarContrasenaDTO
+    ): Response<UsuarioDTO>
+
+    @POST("api/payment/verify-premium")
+    suspend fun verifyPaymentAndUpgradePremium(
+        @Header("Authorization") token: String,
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
     // ENDPOINTS DE REGISTRO CON VERIFICACIÓN
-    @POST("Usuario/iniciarRegistro")
+    @POST("/Usuario/iniciarRegistro")
     suspend fun iniciarRegistro(@Body usuarioRegisterDTO: UsuarioRegisterDTO): Response<Map<String, String>>
 
-    @POST("Usuario/completarRegistro")
+    @POST("/Usuario/completarRegistro")
     suspend fun completarRegistro(@Body verificacionDTO: VerificacionDTO): Response<UsuarioDTO>
 
     object RetrofitServiceFactory {

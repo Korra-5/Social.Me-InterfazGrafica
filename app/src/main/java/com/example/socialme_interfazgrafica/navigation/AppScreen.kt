@@ -12,6 +12,7 @@ sealed class AppScreen(val route: String) {
     object OpcionesScreen : AppScreen("opcionesScreen")
     object CrearComunidadScreen : AppScreen("crear_comunidad_screen")
     object ComprarPremiumScreen : AppScreen("comprar_premium_screen")
+    object DenunciasScreen : AppScreen("denuncias_screen")
 
     // Nuevas rutas con argumentos
     object ActividadDetalleScreen : AppScreen("actividadDetalle/{actividadId}") {

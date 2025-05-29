@@ -59,6 +59,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.roundToInt
+import com.example.socialme_interfazgrafica.data.RetrofitService
+import kotlinx.coroutines.launch
 
 private const val SHARED_PREFS_NAME = "UserPrefs"
 
@@ -74,6 +76,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
     var showLoginSuccessMessage by remember { mutableStateOf(false) }
     val userRole = remember { mutableStateOf("") }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Observar el estado de login del ViewModel
     val loginState by viewModel.loginState.observeAsState()
@@ -134,9 +137,34 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
 
                 try {
                     Toast.makeText(context, "Bienvenido, $username", Toast.LENGTH_SHORT).show()
-                    navController.navigate(AppScreen.MenuScreen.route) {
-                        popUpTo(AppScreen.InicioSesionScreen.route) { inclusive = true }
+
+                    // Verificar si el usuario es ADMIN
+                    scope.launch {
+                        try {
+                            val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                            val authToken = "Bearer ${state.token}"
+
+                            val adminResponse = apiService.usuarioEsAdmin(authToken, username)
+                            if (adminResponse.isSuccessful && adminResponse.body() == true) {
+                                // Es ADMIN, ir a DenunciasScreen
+                                navController.navigate(AppScreen.DenunciasScreen.route) {
+                                    popUpTo(AppScreen.InicioSesionScreen.route) { inclusive = true }
+                                }
+                            } else {
+                                // No es ADMIN, ir a MenuScreen normal
+                                navController.navigate(AppScreen.MenuScreen.route) {
+                                    popUpTo(AppScreen.InicioSesionScreen.route) { inclusive = true }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("Login", "Error verificando admin: ${e.message}")
+                            // En caso de error verificando admin, ir a MenuScreen por defecto
+                            navController.navigate(AppScreen.MenuScreen.route) {
+                                popUpTo(AppScreen.InicioSesionScreen.route) { inclusive = true }
+                            }
+                        }
                     }
+
                 } catch (e: Exception) {
                     errorMessage = "Error interno: ${e.message}"
                 }

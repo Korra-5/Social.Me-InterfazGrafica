@@ -23,11 +23,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -40,7 +43,10 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,12 +64,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
+import com.example.socialme_interfazgrafica.model.CambiarContrasenaDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
@@ -193,6 +203,11 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
 
                         // Sección de Privacidad con dropdowns
                         PrivacidadSection()
+
+                        Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                        // NUEVA SECCIÓN: Cambiar contraseña
+                        CambiarContrasenaSection()
 
                         Divider(color = Color.LightGray, thickness = 0.5.dp)
 
@@ -333,6 +348,263 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
             navController = navController,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
+}
+@Composable
+fun CambiarContrasenaSection() {
+    var expandedContrasena by remember { mutableStateOf(false) }
+    var contrasenaActual by remember { mutableStateOf("") }
+    var nuevaContrasena by remember { mutableStateOf("") }
+    var confirmarContrasena by remember { mutableStateOf("") }
+
+    // Estados para mostrar/ocultar contraseñas
+    var mostrarContrasenaActual by remember { mutableStateOf(false) }
+    var mostrarNuevaContrasena by remember { mutableStateOf(false) }
+    var mostrarConfirmarContrasena by remember { mutableStateOf(false) }
+
+    // Estados para manejo de errores y carga
+    var mensajeError by remember { mutableStateOf("") }
+    var cambiandoContrasena by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Obtener datos del usuario
+    val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+    val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
+    val username = sharedPreferences.getString(PreferenciasUsuario.USERNAME_KEY, "") ?: ""
+
+    // Función para validar los campos
+    fun validarCampos(): String? {
+        if (contrasenaActual.isBlank()) {
+            return "La contraseña actual es obligatoria"
+        }
+        if (nuevaContrasena.isBlank()) {
+            return "La nueva contraseña es obligatoria"
+        }
+        if (nuevaContrasena.length < 6) {
+            return "La nueva contraseña debe tener al menos 6 caracteres"
+        }
+        if (confirmarContrasena.isBlank()) {
+            return "Debes confirmar la nueva contraseña"
+        }
+        if (nuevaContrasena != confirmarContrasena) {
+            return "Las contraseñas nuevas no coinciden"
+        }
+        if (contrasenaActual == nuevaContrasena) {
+            return "La nueva contraseña debe ser diferente a la actual"
+        }
+        return null
+    }
+
+    // Función para cambiar contraseña usando el DTO
+    fun cambiarContrasena() {
+        val errorValidacion = validarCampos()
+        if (errorValidacion != null) {
+            mensajeError = errorValidacion
+            return
+        }
+
+        cambiandoContrasena = true
+        mensajeError = ""
+
+        scope.launch {
+            try {
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+
+                // Crear el DTO con todos los datos
+                val cambiarContrasenaDTO = CambiarContrasenaDTO(
+                    username = username,
+                    passwordRepeat = confirmarContrasena,
+                    passwordActual = contrasenaActual,
+                    passwordNueva = nuevaContrasena
+                )
+
+                // Enviar todo el DTO al backend
+                val response = apiService.cambiarContrasena("Bearer $token", cambiarContrasenaDTO)
+
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        // Limpiar campos
+                        contrasenaActual = ""
+                        nuevaContrasena = ""
+                        confirmarContrasena = ""
+                        expandedContrasena = false
+                        Toast.makeText(context, "Contraseña cambiada exitosamente", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val errorBody = response.errorBody()?.string() ?: ""
+                        mensajeError = try {
+                            val jsonObject = JSONObject(errorBody)
+                            jsonObject.optString("error", "Error al cambiar la contraseña")
+                        } catch (e: Exception) {
+                            "Error al cambiar la contraseña"
+                        }
+                    }
+                    cambiandoContrasena = false
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    mensajeError = "Error de conexión: ${e.message}"
+                    cambiandoContrasena = false
+                }
+            }
+        }
+    }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expandedContrasena = !expandedContrasena }
+                .padding(vertical = 16.dp, horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Cambiar contraseña",
+                modifier = Modifier.weight(1f),
+                fontSize = 16.sp,
+                color = Color.Black
+            )
+            Icon(
+                imageVector = if (expandedContrasena) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = Color.Gray
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expandedContrasena,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                // Campo contraseña actual
+                OutlinedTextField(
+                    value = contrasenaActual,
+                    onValueChange = {
+                        contrasenaActual = it
+                        mensajeError = ""
+                    },
+                    label = { Text("Contraseña actual", color = Color.Black) },
+                    visualTransformation = if (mostrarContrasenaActual) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { mostrarContrasenaActual = !mostrarContrasenaActual }) {
+                            Icon(
+                                imageVector = if (mostrarContrasenaActual) Icons.Filled.Close else Icons.Filled.Search,
+                                contentDescription = if (mostrarContrasenaActual) "Ocultar contraseña" else "Mostrar contraseña"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !cambiandoContrasena,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        disabledTextColor = Color.Gray
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo nueva contraseña
+                OutlinedTextField(
+                    value = nuevaContrasena,
+                    onValueChange = {
+                        nuevaContrasena = it
+                        mensajeError = ""
+                    },
+                    label = { Text("Nueva contraseña", color = Color.Black) },
+                    visualTransformation = if (mostrarNuevaContrasena) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { mostrarNuevaContrasena = !mostrarNuevaContrasena }) {
+                            Icon(
+                                imageVector = if (mostrarNuevaContrasena) Icons.Filled.Close else Icons.Filled.Search,
+                                contentDescription = if (mostrarNuevaContrasena) "Ocultar contraseña" else "Mostrar contraseña"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !cambiandoContrasena,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        disabledTextColor = Color.Gray
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo confirmar nueva contraseña
+                OutlinedTextField(
+                    value = confirmarContrasena,
+                    onValueChange = {
+                        confirmarContrasena = it
+                        mensajeError = ""
+                    },
+                    label = { Text("Confirmar nueva contraseña", color = Color.Black) },
+                    visualTransformation = if (mostrarConfirmarContrasena) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { mostrarConfirmarContrasena = !mostrarConfirmarContrasena }) {
+                            Icon(
+                                imageVector = if (mostrarConfirmarContrasena) Icons.Filled.Close else Icons.Filled.Search,
+                                contentDescription = if (mostrarConfirmarContrasena) "Ocultar contraseña" else "Mostrar contraseña"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !cambiandoContrasena,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        disabledTextColor = Color.Gray
+                    )
+                )
+
+                // Mostrar mensaje de error si existe
+                if (mensajeError.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = mensajeError,
+                        color = Color.Red,
+                        fontSize = 14.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Botón para cambiar contraseña
+                Button(
+                    onClick = { cambiarContrasena() },
+                    enabled = !cambiandoContrasena,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (cambiandoContrasena) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Cambiando...")
+                    } else {
+                        Text("Cambiar contraseña")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
     }
 }
 // PrivacidadSection que carga valores directamente del servidor
@@ -851,8 +1123,6 @@ fun RadarDistanciaSection() {
         }
     }
 }
-
-// El resto de composables permanecen iguales...
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

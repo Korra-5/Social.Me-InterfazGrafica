@@ -1,9 +1,7 @@
 package com.example.socialme_interfazgrafica.utils
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
-import com.paypal.android.sdk.payments.PayPalConfiguration
 import java.util.*
 
 object PayPalConfig {
@@ -12,9 +10,6 @@ object PayPalConfig {
     private var isInitialized = false
     private var initError: String? = null
 
-    /**
-     * Inicializa la configuración de PayPal cargando las credenciales desde assets
-     */
     fun init(context: Context) {
         Log.d(TAG, "=== Iniciando configuración de PayPal ===")
 
@@ -26,55 +21,35 @@ object PayPalConfig {
                 properties!!.load(inputStream)
                 inputStream.close()
 
-                // Validar credenciales
                 validateCredentials()
-
                 isInitialized = true
                 Log.d(TAG, "✅ PayPal configurado exitosamente")
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error cargando configuración PayPal", e)
                 initError = "Error cargando configuración: ${e.message}"
-
-                // Configuración por defecto para evitar crashes
                 setDefaultProperties()
                 isInitialized = true
             }
-        } else {
-            Log.d(TAG, "PayPal ya está inicializado")
         }
     }
 
-    /**
-     * Valida que las credenciales sean correctas
-     */
     private fun validateCredentials() {
         val clientId = getClientId()
-        val environment = getEnvironment()
-
         Log.d(TAG, "Validando credenciales...")
         Log.d(TAG, "Client ID: ${clientId.take(20)}... (${clientId.length} chars)")
-        Log.d(TAG, "Environment: $environment")
 
         when {
             clientId.isEmpty() -> {
                 initError = "Client ID está vacío"
                 Log.e(TAG, "❌ $initError")
             }
-            clientId.contains("Your_PayPal_Client_ID_Here") -> {
-                initError = "Client ID es un placeholder"
-                Log.e(TAG, "❌ $initError")
-            }
-            clientId.contains("demo_client_id") -> {
-                initError = "Client ID es de demostración"
-                Log.e(TAG, "❌ $initError")
-            }
             clientId.length < 60 -> {
-                initError = "Client ID muy corto (${clientId.length} chars)"
+                initError = "Client ID muy corto"
                 Log.e(TAG, "❌ $initError")
             }
             !clientId.startsWith("A") -> {
-                initError = "Client ID tiene formato inválido (debe empezar con 'A')"
+                initError = "Client ID tiene formato inválido"
                 Log.e(TAG, "❌ $initError")
             }
             else -> {
@@ -83,98 +58,68 @@ object PayPalConfig {
         }
     }
 
-    /**
-     * Establece propiedades por defecto para evitar crashes
-     */
     private fun setDefaultProperties() {
         properties = Properties().apply {
-            setProperty("PAYPAL_APIKEY_PUBLICA", "INVALID_CLIENT_ID_FOR_DEMO")
+            setProperty("PAYPAL_CLIENT_ID", "AU0J5DKiu9Nn5r6okm5OKKWHs_jg2buprPFXAMA6eaqCECcECr87KZSThKb_Q7utlkrSAHAyQ3np-3rG")
+            setProperty("PAYPAL_CLIENT_SECRET", "EHjO5v8kD8F0J7dG2Rz3QYxU9P6S4A1HfK3LmN8VbC5EwR7T2I9YqU4ZsX6B0N3M")
             setProperty("PAYPAL_MODE", "sandbox")
         }
     }
 
-    /**
-     * Obtiene el Client ID de PayPal
-     */
     fun getClientId(): String {
-        val clientId = properties?.getProperty("PAYPAL_APIKEY_PUBLICA", "")?.trim() ?: ""
-        return clientId.ifEmpty { "INVALID_CLIENT_ID_FOR_DEMO" }
+        return properties?.getProperty("PAYPAL_CLIENT_ID", "")?.trim() ?:
+        "AVmrX7JqXI0-4M4FCKz6pSJkBJEqrzodReAKtusGrrZNauuqeidpzfP8BA88S0vvrM57UZDDh2KgiFaZ"
     }
 
-    /**
-     * Obtiene el ambiente de PayPal (sandbox/live)
-     */
+    fun getClientSecret(): String {
+        return properties?.getProperty("PAYPAL_CLIENT_SECRET", "")?.trim() ?:
+        "EKCRBBT0kWWejTjNL9gF9_PDDWpRcQtT4J1CfHLbt8q1aau0w9rG4w7AwUH1GLr13SbBfqdPjkctsmTl"
+    }
+
     fun getEnvironment(): String {
         return properties?.getProperty("PAYPAL_MODE", "sandbox") ?: "sandbox"
     }
 
-    /**
-     * Verifica si está en modo sandbox
-     */
     fun isSandbox(): Boolean = getEnvironment() == "sandbox"
 
-    /**
-     * Verifica si hay errores de configuración
-     */
     fun hasError(): Boolean = initError != null
 
-    /**
-     * Obtiene el mensaje de error si existe
-     */
     fun getError(): String? = initError
 
-    /**
-     * Verifica si la configuración es válida
-     */
     fun isValidConfig(): Boolean {
         val clientId = getClientId()
-        val isValid = !hasError() &&
-                !clientId.contains("INVALID_CLIENT_ID") &&
-                !clientId.contains("demo_client_id") &&
-                !clientId.contains("Your_PayPal_Client_ID_Here") &&
-                clientId.isNotEmpty() &&
+        return clientId.isNotEmpty() &&
                 clientId.length >= 60 &&
-                clientId.startsWith("A")
-
-        Log.d(TAG, "Config válido: $isValid")
-        return isValid
+                clientId.startsWith("A") &&
+                !hasError()
     }
 
-    /**
-     * Crea una configuración de PayPal optimizada
-     */
-    fun createPayPalConfiguration(): PayPalConfiguration {
-        Log.d(TAG, "Creando configuración de PayPal...")
-
-        val environment = if (isSandbox()) {
-            Log.d(TAG, "Usando ambiente SANDBOX")
-            PayPalConfiguration.ENVIRONMENT_SANDBOX
+    // Configuración para REST API
+    fun getBaseUrl(): String {
+        return if (isSandbox()) {
+            "https://api-m.sandbox.paypal.com"
         } else {
-            Log.d(TAG, "Usando ambiente PRODUCTION")
-            PayPalConfiguration.ENVIRONMENT_PRODUCTION
+            "https://api-m.paypal.com"
         }
-
-        val config = PayPalConfiguration()
-            .environment(environment)
-            .clientId(getClientId())
-            .acceptCreditCards(true)
-            .merchantName("SocialMe")
-            .merchantPrivacyPolicyUri(Uri.parse("https://socialme.app/privacy"))
-            .merchantUserAgreementUri(Uri.parse("https://socialme.app/terms"))
-            .languageOrLocale(Locale.getDefault().toString())
-            .defaultUserEmail("sb-test@example.com") // Email de prueba para sandbox
-            .defaultUserPhoneCountryCode("34") // España
-
-        Log.d(TAG, "✅ Configuración PayPal creada")
-        return config
     }
 
-    /**
-     * Limpia la configuración (para testing)
-     */
-    fun reset() {
-        properties = null
-        isInitialized = false
-        initError = null
+    fun getBasicAuthHeader(): String {
+        val credentials = "${getClientId()}:${getClientSecret()}"
+        return "Basic " + android.util.Base64.encodeToString(
+            credentials.toByteArray(),
+            android.util.Base64.NO_WRAP
+        )
+    }
+
+    fun logConfiguration() {
+        Log.d(TAG, "=== Configuración PayPal ===")
+        Log.d(TAG, "Ambiente: ${getEnvironment()}")
+        Log.d(TAG, "Base URL: ${getBaseUrl()}")
+        Log.d(TAG, "Client ID: ${getClientId().take(20)}...")
+        Log.d(TAG, "Configuración válida: ${isValidConfig()}")
+        if (hasError()) {
+            Log.e(TAG, "Error: ${getError()}")
+        }
+        Log.d(TAG, "========================")
     }
 }

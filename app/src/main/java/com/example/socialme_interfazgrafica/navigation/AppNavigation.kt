@@ -25,6 +25,7 @@ import com.example.socialme_interfazgrafica.screens.ChatComunidadScreen
 import com.example.socialme_interfazgrafica.screens.ComunidadDetalleScreen
 import com.example.socialme_interfazgrafica.screens.ComprarPremiumScreen
 import com.example.socialme_interfazgrafica.screens.CrearComunidadScreen
+import com.example.socialme_interfazgrafica.screens.DenunciasScreen
 import com.example.socialme_interfazgrafica.screens.EmailVerificationScreen
 import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
@@ -55,6 +56,10 @@ fun AppNavigation(viewModel: UserViewModel) {
     NavHost(navController = navController, startDestination = AppScreen.InicioSesionScreen.route) {
         composable(AppScreen.InicioSesionScreen.route) {
             InicioSesionScreen(navController, viewModel)
+        }
+
+        composable(AppScreen.DenunciasScreen.route) {
+            DenunciasScreen(navController = navController)
         }
 
         composable(AppScreen.CrearComunidadScreen.route) {
