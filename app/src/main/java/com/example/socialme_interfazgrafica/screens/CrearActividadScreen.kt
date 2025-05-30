@@ -54,16 +54,20 @@ import coil.compose.AsyncImage
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
+import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import java.text.SimpleDateFormat
 import java.util.*
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
@@ -73,11 +77,15 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
     val username = sharedPreferences.getString("USERNAME", "") ?: ""
+    val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
     var lugar by remember { mutableStateOf("") }
     var privada by remember { mutableStateOf(false) }
+
+    val comunidad = remember { mutableStateOf<ComunidadDTO?>(null) }
+    val isLoadingComunidad = remember { mutableStateOf(true) }
 
     val fechaInicio = remember { mutableStateOf<Date?>(null) }
     val fechaFinalizacion = remember { mutableStateOf<Date?>(null) }
@@ -95,7 +103,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     var imagenesBase64 by remember { mutableStateOf<List<String>>(emptyList()) }
 
     var isLoading by remember { mutableStateOf(false) }
-    val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var ubicacionSeleccionada by remember { mutableStateOf<GeoPoint?>(null) }
@@ -110,6 +117,26 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    LaunchedEffect(comunidadUrl) {
+        isLoadingComunidad.value = true
+        try {
+            val response = withContext(Dispatchers.IO) {
+                retrofitService.verComunidadPorUrl("Bearer $authToken", comunidadUrl)
+            }
+
+            if (response.isSuccessful && response.body() != null) {
+                comunidad.value = response.body()
+                if (response.body()!!.privada) {
+                    privada = true
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CrearActividad", "Error al cargar comunidad: ${e.message}")
+        } finally {
+            isLoadingComunidad.value = false
+        }
     }
 
     val requestPermissionLauncher = rememberLauncherForActivityResult(
@@ -135,13 +162,11 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            // Agregar las nuevas imágenes a las existentes
             imagenes = imagenes + uris
             scope.launch {
                 val base64List = uris.map { uri ->
                     convertToBase64(context, uri)
                 }
-                // Agregar los nuevos base64 a los existentes
                 imagenesBase64 = imagenesBase64 + base64List.filterNotNull()
             }
         }
@@ -184,7 +209,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         currentDateTime.value = calendar.time
     }
 
-    // Función para validar los campos obligatorios
     fun validarCampos(
         nombre: String,
         descripcion: String,
@@ -276,6 +300,57 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (isLoadingComunidad.value) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = colorResource(R.color.azulPrimario))
+                    }// En la sección donde se muestra la información de la comunidad, reemplaza esta parte:
+
+                    comunidad.value?.let { com ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = colorResource(R.color.cyanSecundario).copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "Comunidad:",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colorResource(R.color.textoSecundario)
+                                )
+                                Text(
+                                    text = com.nombre,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorResource(R.color.azulPrimario)
+                                )
+                                if (com.privada) {
+                                    Text(
+                                        text = "🔒 Comunidad privada • Las actividades creadas aquí serán privadas",
+                                        fontSize = 12.sp,
+                                        color = colorResource(R.color.textoSecundario),
+                                        modifier = Modifier.padding(top = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -292,7 +367,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Nombre de la actividad
                         Text(
                             text = "Nombre de la actividad",
                             fontSize = 16.sp,
@@ -315,7 +389,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Descripción
                         Text(
                             text = "Descripción",
                             fontSize = 16.sp,
@@ -341,7 +414,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             minLines = 3
                         )
 
-                        // Sección del mapa
                         Text(
                             text = "Ubicación",
                             fontSize = 16.sp,
@@ -477,7 +549,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             )
                         }
 
-                        // Lugar
                         Text(
                             text = "Lugar",
                             fontSize = 16.sp,
@@ -507,7 +578,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Fecha y hora de inicio
                         Text(
                             text = "Fecha y hora de inicio",
                             fontSize = 16.sp,
@@ -561,7 +631,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             }
                         }
 
-                        // Fecha y hora de finalización
                         Text(
                             text = "Fecha y hora de finalización",
                             fontSize = 16.sp,
@@ -615,44 +684,44 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                             }
                         }
 
-                        // Selección privacidad
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
+                        if (comunidad.value?.privada != true) {
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(vertical = 4.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text(
-                                    text = "Actividad privada",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = colorResource(R.color.textoPrimario)
-                                )
-
-                                Switch(
-                                    checked = privada,
-                                    onCheckedChange = { privada = it },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = colorResource(R.color.azulPrimario),
-                                        uncheckedThumbColor = Color.White,
-                                        uncheckedTrackColor = colorResource(R.color.cyanSecundario)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Actividad privada",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = colorResource(R.color.textoPrimario)
                                     )
-                                )
+
+                                    Switch(
+                                        checked = privada,
+                                        onCheckedChange = { privada = it },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = colorResource(R.color.azulPrimario),
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedTrackColor = colorResource(R.color.cyanSecundario)
+                                        )
+                                    )
+                                }
                             }
                         }
 
-                        // Sección de imágenes
                         Text(
                             text = "Añadir imágenes",
                             fontSize = 16.sp,
@@ -732,8 +801,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                     scope.launch {
                                         isLoading = true
                                         try {
-                                            Log.d("CrearActividad", "Creando actividad con token: ${authToken.take(10)}...")
-
                                             val coordenadas = ubicacionSeleccionada?.let {
                                                 Coordenadas(
                                                     latitud = it.latitude.toString(),
@@ -767,12 +834,10 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                                 val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
                                                 val mensajeError = ErrorUtils.parseErrorMessage(errorMsg)
                                                 Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
-                                                Log.e("CrearActividad", "Error: $errorMsg")
                                             }
                                         } catch (e: Exception) {
                                             val mensajeError = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
                                             Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
-                                            Log.e("CrearActividad", "Excepción: ${e.message}", e)
                                         } finally {
                                             isLoading = false
                                         }
@@ -830,7 +895,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
         }
     }
 
-    // Date Picker para fecha de inicio
     if (showFechaInicioDatePicker.value) {
         DatePickerDialog(
             onDismissRequest = { showFechaInicioDatePicker.value = false },
@@ -855,7 +919,14 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                 }
             }
         ) {
-            val datePickerState = rememberDatePickerState()
+            val today = Calendar.getInstance().timeInMillis
+            val datePickerState = rememberDatePickerState(
+                selectableDates = object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                        return utcTimeMillis >= today - 86400000L
+                    }
+                }
+            )
             DatePicker(
                 state = datePickerState,
                 showModeToggle = false
@@ -903,7 +974,14 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                 }
             }
         ) {
-            val datePickerState = rememberDatePickerState()
+            val today = Calendar.getInstance().timeInMillis
+            val datePickerState = rememberDatePickerState(
+                selectableDates = object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                        return utcTimeMillis >= today - 86400000L
+                    }
+                }
+            )
             DatePicker(
                 state = datePickerState,
                 showModeToggle = false
@@ -1117,12 +1195,10 @@ fun convertToBase64(context: Context, uri: Uri): String? {
 
             val byteArray = outputStream.toByteArray()
             val sizeInKb = byteArray.size / 1024
-            Log.d("ConvertToBase64", "Tamaño de imagen: $sizeInKb KB")
 
             Base64.encodeToString(byteArray, Base64.NO_WRAP)
         }
     } catch (e: Exception) {
-        Log.e("ConvertToBase64", "Error: ${e.message}", e)
         null
     }
 }

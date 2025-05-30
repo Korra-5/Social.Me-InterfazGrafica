@@ -105,6 +105,7 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
     var mostrarDialogoConfirmacion by remember { mutableStateOf(false) }
     var mostrarDialogoError by remember { mutableStateOf(false) }
     var mensajeError by remember { mutableStateOf("") }
+    var confirmarEliminacion by remember { mutableStateOf(false) } // NUEVO ESTADO AÑADIDO
 
     // Estado para verificar si es premium
     var isPremium by remember { mutableStateOf(false) }
@@ -292,29 +293,91 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                     Text("Eliminar cuenta", color = Color.Red)
                 }
 
-                // Diálogo de confirmación para eliminar cuenta
+                // DIÁLOGO MEJORADO DE CONFIRMACIÓN PARA ELIMINAR CUENTA
                 if (mostrarDialogoConfirmacion) {
                     AlertDialog(
-                        onDismissRequest = { mostrarDialogoConfirmacion = false },
-                        title = { Text("Eliminar cuenta") },
-                        text = { Text("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.") },
+                        onDismissRequest = {
+                            mostrarDialogoConfirmacion = false
+                            confirmarEliminacion = false // Resetear checkbox al cerrar
+                        },
+                        title = {
+                            Text(
+                                "Eliminar cuenta",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Red
+                            )
+                        },
+                        text = {
+                            Column {
+                                Text(
+                                    text = "⚠️ Esta acción eliminará permanentemente:",
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                Text(
+                                    text = "• Tu cuenta de usuario\n" +
+                                            "• Todas las comunidades que hayas creado\n" +
+                                            "• Todas tus actividades publicadas\n" +
+                                            "• Tu historial y datos personales",
+                                    modifier = Modifier.padding(bottom = 16.dp),
+                                    lineHeight = 20.sp
+                                )
+
+                                Text(
+                                    text = "Esta acción NO se puede deshacer.",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Red,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+
+                                // Checkbox de confirmación
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { confirmarEliminacion = !confirmarEliminacion }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = confirmarEliminacion,
+                                        onCheckedChange = { confirmarEliminacion = it }
+                                    )
+                                    Text(
+                                        text = "Entiendo que esta acción eliminará mi cuenta y todas mis comunidades de forma permanente",
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(start = 8.dp),
+                                        lineHeight = 18.sp
+                                    )
+                                }
+                            }
+                        },
                         confirmButton = {
                             TextButton(
                                 onClick = {
                                     mostrarDialogoConfirmacion = false
+                                    confirmarEliminacion = false // Resetear checkbox
                                     // Ejecutar la eliminación de la cuenta
                                     eliminarCuenta(context, navController, viewModel) { error ->
                                         mensajeError = error
                                         mostrarDialogoError = error.isNotEmpty()
                                     }
-                                }
+                                },
+                                enabled = confirmarEliminacion // Solo habilitado si el checkbox está marcado
                             ) {
-                                Text("Eliminar", color = Color.Red)
+                                Text(
+                                    "Eliminar definitivamente",
+                                    color = if (confirmarEliminacion) Color.Red else Color.Gray,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         },
                         dismissButton = {
                             TextButton(
-                                onClick = { mostrarDialogoConfirmacion = false }
+                                onClick = {
+                                    mostrarDialogoConfirmacion = false
+                                    confirmarEliminacion = false // Resetear checkbox al cancelar
+                                }
                             ) {
                                 Text("Cancelar")
                             }
@@ -350,6 +413,7 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
         )
     }
 }
+
 @Composable
 fun CambiarContrasenaSection() {
     var expandedContrasena by remember { mutableStateOf(false) }
@@ -607,6 +671,7 @@ fun CambiarContrasenaSection() {
         }
     }
 }
+
 // PrivacidadSection que carga valores directamente del servidor
 @Composable
 fun PrivacidadSection() {
@@ -1219,7 +1284,7 @@ fun ComunidadesSection(navController: NavController) {
             ) {
                 // Texto con información sobre las comunidades
                 Text(
-                    text = " ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+                    text = "Las comunidades siguen unas normas de respeto y convivencia basicas, cualquier incidente donde peligre la libertad de los usuarios en tu comunidad podría ser motivo de eiliminación de esta, creando una comunidad afirmas entender y responsabilizarte de las acciones llevadas a cabo en ella, tanto en actividades como por cualquier otro medio que ofrezca la aplicación.\n Con ello también afirmas encargarte activamente de la gestión de la comunidad así como sus actividades y de ofrecer al público un servicio real, sin datos engañosos sobre tu comunidad (intereses, titulo, ubicaciones...) y actividades reales y que se cumplan.",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     color = Color.Black,

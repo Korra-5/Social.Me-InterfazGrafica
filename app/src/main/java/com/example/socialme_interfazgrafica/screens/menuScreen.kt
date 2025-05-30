@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
@@ -62,23 +61,17 @@ fun MenuScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val username = remember { mutableStateOf("") }
-    val radar = remember { mutableStateOf("") }
     val token = remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
 
-    // Estado para el número de solicitudes pendientes
     var solicitudesPendientes by remember { mutableStateOf(0) }
-
-    // ViewModel para notificaciones
     val notificacionViewModel: NotificacionViewModel = viewModel()
 
-    // Recuperar datos guardados
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
         token.value = sharedPreferences.getString("TOKEN", "") ?: ""
 
-        // Cargar el número de solicitudes pendientes si el usuario está logueado
         if (username.value.isNotEmpty()) {
             scope.launch {
                 try {
@@ -94,7 +87,6 @@ fun MenuScreen(navController: NavController) {
         }
     }
 
-    // Inicializar WebSocket para notificaciones y cargar notificaciones no leídas
     LaunchedEffect(username.value) {
         if (username.value.isNotEmpty()) {
             notificacionViewModel.inicializarWebSocket(username.value)
@@ -113,17 +105,14 @@ fun MenuScreen(navController: NavController) {
                 .verticalScroll(scrollState)
                 .padding(top = 16.dp, bottom = 80.dp)
         ) {
-            // Header con perfil del usuario, notificaciones y botón de solicitudes de amistad
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Perfil de usuario
                 Box(
-                    modifier = Modifier
-                        .weight(1.5f)
+                    modifier = Modifier.weight(1.5f)
                 ) {
                     UserProfileHeader(
                         username = username.value,
@@ -131,10 +120,8 @@ fun MenuScreen(navController: NavController) {
                     )
                 }
 
-                // Espacio entre perfil y botón
                 Spacer(modifier = Modifier.width(1.dp))
 
-                // Botón que ocupa todo el espacio restante
                 Box(
                     modifier = Modifier.weight(0.5f),
                     contentAlignment = Alignment.CenterEnd
@@ -155,7 +142,6 @@ fun MenuScreen(navController: NavController) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // IMPORTANTE: Secciones de Comunidades y Actividades
             if (username.value.isNotEmpty()) {
                 ComunidadCarouselMenu(username = username.value, navController)
             }
@@ -167,7 +153,7 @@ fun MenuScreen(navController: NavController) {
             }
 
             if (username.value.isNotEmpty()){
-                VerTodasComunidadesCarrousel(username=username.value, navController, radar.value)
+                VerTodasComunidadesCarrousel(username=username.value, navController)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -179,13 +165,12 @@ fun MenuScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (username.value.isNotEmpty()){
-                CarrouselActividadesEnZona(username=username.value, navController, radar.value)
+                CarrouselActividadesEnZona(username=username.value, navController)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Bottom Navigation Bar
         BottomNavBar(
             navController = navController,
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -193,7 +178,6 @@ fun MenuScreen(navController: NavController) {
     }
 }
 
-// Componente para mostrar un contador de notificaciones con tamaño reducido
 @Composable
 fun BadgedIconImproved(
     count: Int,
@@ -203,17 +187,15 @@ fun BadgedIconImproved(
     isAmistadButton: Boolean = false
 ) {
     Box {
-        // Colores según si es botón de amistad o no
         val backgroundColor = if (isAmistadButton)
             colorResource(R.color.azulPrimario) else colorResource(R.color.cyanSecundario)
         val iconColor = if (isAmistadButton)
             Color.White else colorResource(R.color.azulPrimario)
 
-        // Botón con tamaño más pequeño pero manteniendo la sombra
         IconButton(
             onClick = onClick,
             modifier = Modifier
-                .size(48.dp) // Tamaño reducido
+                .size(48.dp)
                 .shadow(
                     elevation = 3.dp,
                     shape = CircleShape
@@ -225,11 +207,10 @@ fun BadgedIconImproved(
                 painter = iconPainter,
                 contentDescription = contentDescription,
                 tint = iconColor,
-                modifier = Modifier.size(26.dp) // Icono más pequeño
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        // Badge con contador
         if (count > 0) {
             Badge(
                 containerColor = colorResource(R.color.error),
@@ -237,11 +218,11 @@ fun BadgedIconImproved(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = 2.dp, y = (-2).dp)
-                    .size(18.dp) // Badge más pequeño
+                    .size(18.dp)
             ) {
                 Text(
                     text = if (count > 99) "99+" else count.toString(),
-                    fontSize = 9.sp, // Texto más pequeño
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -249,7 +230,6 @@ fun BadgedIconImproved(
     }
 }
 
-// Componente que podemos agregar al BottomNavBar con IconButton para notificaciones
 @Composable
 fun NotificacionIndicator(
     count: Int,
@@ -279,10 +259,8 @@ fun NotificacionIndicator(
     }
 }
 
-// BottomNavBar actualizado para incluir notificaciones
 @Composable
 fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
-    // Obtener el número de notificaciones no leídas
     val notificacionViewModel: NotificacionViewModel = viewModel()
     val notificacionesNoLeidas = notificacionViewModel.numeroNoLeidas.toInt()
 
@@ -299,11 +277,9 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Botón Home
             IconButton(
                 onClick = {
                     navController.navigate(AppScreen.MenuScreen.route) {
-                        // Pop hasta el inicio de la pila y luego añade la pantalla destino
                         popUpTo(navController.graph.startDestinationId)
                         launchSingleTop = true
                     }
@@ -316,7 +292,6 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
                 )
             }
 
-            // Botón Buscar
             IconButton(
                 onClick = {
                     navController.navigate(AppScreen.BusquedaScreen.route)
@@ -329,13 +304,11 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
                 )
             }
 
-            // Botón Notificaciones
             NotificacionIndicator(
                 count = notificacionesNoLeidas,
                 onClick = { navController.navigate(AppScreen.NotificacionesScreen.route) }
             )
 
-            // Botón Opciones
             IconButton(
                 onClick = {
                     navController.navigate(AppScreen.OpcionesScreen.route)
@@ -357,12 +330,10 @@ fun UserProfileHeader(
     navController: NavController
 ) {
     val context = LocalContext.current
-    // Obtener el token de autenticación
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val authToken = "Bearer $token"
 
-    // Estados para la foto de perfil y nombre completo
     var nombreCompleto by remember { mutableStateOf("") }
     var fotoPerfilId by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
@@ -370,7 +341,6 @@ fun UserProfileHeader(
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-    // Cargar datos de usuario
     LaunchedEffect(username) {
         scope.launch {
             try {
@@ -388,13 +358,11 @@ fun UserProfileHeader(
         }
     }
 
-    // Configurar ImageLoader
     val imageLoader = ImageLoader.Builder(context)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .diskCachePolicy(CachePolicy.ENABLED)
         .build()
 
-    // Tarjeta mejorada con mejor manejo de nombres largos
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -420,7 +388,6 @@ fun UserProfileHeader(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar del usuario
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -450,7 +417,6 @@ fun UserProfileHeader(
                         imageLoader = imageLoader
                     )
                 } else {
-                    // Por defecto mostramos un icono de usuario
                     Icon(
                         painter = painterResource(id = R.drawable.ic_user),
                         contentDescription = "Usuario",
@@ -462,20 +428,17 @@ fun UserProfileHeader(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Información del usuario (ahora con mejor manejo de nombres largos)
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp)
             ) {
-                // Determinar el tamaño de fuente basado en la longitud del nombre
                 val nombreFontSize = when {
                     nombreCompleto.length > 25 -> 14.sp
                     nombreCompleto.length > 20 -> 16.sp
                     else -> 18.sp
                 }
 
-                // Mostrar el nombre completo con líneas múltiples si es necesario
                 Text(
                     text = if (nombreCompleto.isNotEmpty()) nombreCompleto else username,
                     fontSize = nombreFontSize,
@@ -486,7 +449,6 @@ fun UserProfileHeader(
                     lineHeight = 20.sp
                 )
 
-                // Nombre de usuario
                 Text(
                     text = "@$username",
                     fontSize = 14.sp,
@@ -496,7 +458,6 @@ fun UserProfileHeader(
                 )
             }
 
-            // Icono para indicar que es clickable
             Icon(
                 imageVector = Icons.Default.ArrowForward,
                 contentDescription = "Ver perfil",
@@ -517,14 +478,12 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Función para cargar las comunidades
     fun cargarComunidades() {
         scope.launch {
             isLoading = true
             errorMessage = null
 
             try {
-                // Obtener el token desde SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
@@ -534,17 +493,13 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
                     return@launch
                 }
 
-                // CORREGIDO: En MenuScreen, el usuario ve sus propias comunidades
-                // por lo que tanto username como usuarioSolicitante son el mismo
                 val authToken = "Bearer $token"
                 val response = apiService.verComunidadPorUsuario(authToken, username, username)
 
                 if (response.isSuccessful) {
                     comunidades = response.body() ?: emptyList()
                 } else {
-                    // Tratamiento especial para el error 500 cuando no hay comunidades
                     if (response.code() == 500) {
-                        // Asumimos que es porque el usuario no tiene comunidades
                         comunidades = emptyList()
                     } else {
                         errorMessage = when (response.code()) {
@@ -555,16 +510,14 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
                     }
                 }
             } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
                 errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
+                e.printStackTrace()
             } finally {
                 isLoading = false
             }
         }
     }
 
-    // Cargar comunidades cuando se inicializa el componente
     LaunchedEffect(username) {
         cargarComunidades()
     }
@@ -574,16 +527,14 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Título de sección
         Text(
-            text = "Tus Comunidades",
+            text = "Comunidades",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = colorResource(R.color.azulPrimario),
             modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
         )
 
-        // Mostrar estado de carga, error o el carrusel
         when {
             isLoading -> {
                 Box(
@@ -641,7 +592,6 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
                 }
             }
             else -> {
-                // Carrusel de comunidades optimizado
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -658,7 +608,6 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
     }
 }
 
-// CORREGIDO: ActividadCarousel para MenuScreen
 @Composable
 fun ActividadCarouselMenu(username: String, navController: NavController) {
     val context = LocalContext.current
@@ -669,66 +618,48 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Función para cargar las actividades
     fun cargarActividades() {
         scope.launch {
             isLoading = true
             errorMessage = null
-            Log.d("ActividadCarousel", "Iniciando carga de actividades para usuario: $username")
 
             try {
-                // Obtener el token desde SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
                 if (token.isEmpty()) {
-                    Log.e("ActividadCarousel", "Token vacío, no se puede proceder")
                     errorMessage = "No se ha encontrado un token de autenticación"
                     isLoading = false
                     return@launch
                 }
 
-                // CORREGIDO: En MenuScreen, el usuario ve sus propias actividades
-                // por lo que tanto username como usuarioSolicitante son el mismo
                 val authToken = "Bearer $token"
-                Log.d("ActividadCarousel", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadPorUsername(authToken, username, username)
+                val response = apiService.verActividadPorUsernameFechaSuperior(authToken, username, username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
-                    Log.d("ActividadCarousel", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
-                    actividades = actividadesRecibidas
+                    actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
                 } else {
-                    // Tratamiento especial para el error 500 cuando no hay actividades
                     if (response.code() == 500) {
-                        // Asumimos que es porque el usuario no tiene actividades
-                        Log.w("ActividadCarousel", "Código 500 recibido, asumiendo lista vacía")
                         actividades = emptyList()
                     } else {
-                        val errorCode = response.code()
-                        Log.e("ActividadCarousel", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
-                        errorMessage = when (errorCode) {
+                        errorMessage = when (response.code()) {
                             401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            404 -> "No estas apuntado a ninguna actividad."
+                            404 -> "No estas apuntado a ninguna actividad próxima."
                             else -> "Error al cargar actividades: ${response.message()}"
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
-                Log.e("ActividadCarousel", "Excepción al cargar actividades", e)
                 errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
+                e.printStackTrace()
             } finally {
                 isLoading = false
-                Log.d("ActividadCarousel", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
             }
         }
     }
 
-    // Cargar actividades cuando se inicializa el componente
     LaunchedEffect(username) {
-        Log.d("ActividadCarousel", "LaunchedEffect iniciado para usuario: $username")
         cargarActividades()
     }
 
@@ -737,19 +668,16 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Título de sección
         Text(
-            text = "Tus Actividades",
+            text = "Actividades próximas",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = colorResource(R.color.azulPrimario),
             modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
         )
 
-        // Mostrar estado de carga, error o el carrusel
         when {
             isLoading -> {
-                Log.d("ActividadCarousel", "Mostrando indicador de carga")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -762,7 +690,6 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                 }
             }
             errorMessage != null -> {
-                Log.d("ActividadCarousel", "Mostrando mensaje de error: $errorMessage")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -780,10 +707,7 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = {
-                                Log.d("ActividadCarousel", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividades()
-                            },
+                            onClick = { cargarActividades() },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
                             )
@@ -794,7 +718,6 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                 }
             }
             actividades.isEmpty() -> {
-                Log.d("ActividadCarousel", "Mostrando mensaje de lista vacía")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -803,14 +726,13 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No participas en ninguna actividad",
+                        text = "No participas en ninguna actividad próxima",
                         color = colorResource(R.color.textoSecundario),
                         textAlign = TextAlign.Center
                     )
                 }
             }
             else -> {
-                // Carrusel de actividades optimizado
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -819,7 +741,6 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                         items = actividades,
                         key = { it.nombre }
                     ) { actividad ->
-                        Log.d("ActividadCarousel", "Cargando actividad: ${actividad.nombre}")
                         ActividadCard(actividad = actividad, navController = navController)
                     }
                 }
@@ -838,61 +759,46 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Función para cargar las actividades
     fun cargarActividades() {
         scope.launch {
             isLoading = true
             errorMessage = null
             try {
-                // Obtener el token desde SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
                 if (token.isEmpty()) {
-                    Log.e("CarrouselActvidadesPorComunidad", "Token vacío, no se puede proceder")
                     errorMessage = "No se ha encontrado un token de autenticación"
                     isLoading = false
                     return@launch
                 }
 
-                // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
-                Log.d("CarrouselActvidadesPorComunidad", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadNoParticipaUsuario(token = authToken, username = username)
+                val response = apiService.verActividadNoParticipaUsuarioFechaSuperior(token = authToken, username = username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
-                    Log.d("CarrouselActvidadesPorComunidad", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
-                    actividades = actividadesRecibidas
+                    actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
                 } else {
-                    // Tratamiento especial para el error 500 cuando no hay actividades
                     if (response.code() == 500) {
-                        // Asumimos que es porque el usuario no tiene actividades
-                        Log.w("CarrouselActvidadesPorComunidad", "Código 500 recibido, asumiendo lista vacía")
                         actividades = emptyList()
                     } else {
-                        val errorCode = response.code()
-                        Log.e("CarrouselActvidadesPorComunidad", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
-                        errorMessage = when (errorCode) {
+                        errorMessage = when (response.code()) {
                             401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            404 -> "No se encontraron actividades publicas en esta zona."
+                            404 -> "No se encontraron actividades públicas próximas en esta zona."
                             else -> "Error al cargar actividades: ${response.message()}"
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
-                Log.e("CarrouselActvidadesPorComunidad", "Excepción al cargar actividades", e)
                 errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
+                e.printStackTrace()
             } finally {
                 isLoading = false
-                Log.d("CarrouselActvidadesPorComunidad", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
             }
         }
     }
 
-    // Usar LaunchedEffect para llamar a la función de carga cuando el componente se compone
     LaunchedEffect(username) {
         cargarActividades()
     }
@@ -902,19 +808,16 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Título de sección
         Text(
-            text = "¡Unete a actividades de tus comunidades!",
+            text = "¡Únete a actividades de tus comunidades!",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = colorResource(R.color.azulPrimario),
             modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
         )
 
-        // Mostrar estado de carga, error o el carrusel
         when {
             isLoading -> {
-                Log.d("CarrouselActvidadesPorComunidad", "Mostrando indicador de carga")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -927,7 +830,6 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                 }
             }
             errorMessage != null -> {
-                Log.d("CarrouselActvidadesPorComunidad", "Mostrando mensaje de error: $errorMessage")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -945,10 +847,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = {
-                                Log.d("CarrouselActvidadesPorComunidad", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividades()
-                            },
+                            onClick = { cargarActividades() },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
                             )
@@ -959,7 +858,6 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                 }
             }
             actividades.isEmpty() -> {
-                Log.d("CarrouselActvidadesPorComunidad", "Mostrando mensaje de lista vacía")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -968,14 +866,13 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No hay actividades disponibles para unirse",
+                        text = "No hay actividades próximas disponibles para unirse",
                         color = colorResource(R.color.textoSecundario),
                         textAlign = TextAlign.Center
                     )
                 }
             }
             else -> {
-                // Carrusel de actividades optimizado
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -984,7 +881,6 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                         items = actividades,
                         key = { it.nombre }
                     ) { actividad ->
-                        Log.d("CarrouselActvidadesPorComunidad", "Cargando actividad: ${actividad.nombre}")
                         ActividadCard(actividad = actividad, navController)
                     }
                 }
@@ -993,70 +889,53 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
     }
 }
 
-// Modified Activity Card with navigation
 @Composable
 fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
     val context = LocalContext.current
-    // Base URL para las imágenes de MongoDB
     val baseUrl = "https://social-me-tfg.onrender.com"
 
-    Log.d("ActividadCard", "Inicializando card para actividad: ${actividad.nombre}")
-
-    // Obtener el token de autenticación de SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val authToken = "Bearer $token"
 
-    Log.d("ActividadCard", "Token recuperado (primeros 5 caracteres): ${token.take(5)}...")
-
-    // Construir URL para imágenes
     val tieneImagenes = actividad.fotosCarruselIds.isNotEmpty()
     val imagenUrl = if (tieneImagenes)
         "$baseUrl/files/download/${actividad.fotosCarruselIds[0]}"
     else ""
 
-    Log.d("ActividadCard", "Tiene imágenes: $tieneImagenes, URL primera imagen: ${if (tieneImagenes) imagenUrl.take(50) + "..." else "N/A"}")
-
-    // Configurar cliente HTTP con timeouts
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Configurar ImageLoader optimizado con caching
     val imageLoader = ImageLoader.Builder(context)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .diskCachePolicy(CachePolicy.ENABLED)
         .networkCachePolicy(CachePolicy.ENABLED)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizePercent(0.25) // Usa 25% de la memoria para cache
+                .maxSizePercent(0.25)
                 .build()
         }
         .diskCache {
             DiskCache.Builder()
                 .directory(context.cacheDir.resolve("actividad_images"))
-                .maxSizeBytes(50 * 1024 * 1024) // Cache de 50MB
+                .maxSizeBytes(50 * 1024 * 1024)
                 .build()
         }
-        .okHttpClient(okHttpClient) // Usar el cliente HTTP configurado
+        .okHttpClient(okHttpClient)
         .build()
 
-    // Formatear fechas
     val fechaInicio =
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaInicio)
     val fechaFinalizacion =
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaFinalizacion)
-
-    Log.d("ActividadCard", "Fechas formateadas - Inicio: $fechaInicio, Fin: $fechaFinalizacion")
 
     Card(
         modifier = Modifier
             .width(200.dp)
             .height(250.dp)
             .clickable {
-                Log.d("ActividadCard", "Card clickeada, navegando a detalle de actividad: ${actividad.nombre}")
-                // Navegar a la pantalla de detalle de la actividad, pasando el ID como parámetro
                 navController.navigate("actividadDetalle/${actividad._id}")
             },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -1065,14 +944,12 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
             containerColor = colorResource(R.color.white)
         )
     ) {
-        // El resto del código de ActividadCard se mantiene igual
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Imagen de actividad (primera del carrusel si existe)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1082,7 +959,6 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 if (tieneImagenes) {
-                    Log.d("ActividadCard", "Iniciando carga de imagen: ${actividad.fotosCarruselIds[0]}")
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(imagenUrl)
@@ -1096,19 +972,9 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
                         contentDescription = "Foto de ${actividad.nombre}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        imageLoader = imageLoader,
-                        onLoading = {
-                            Log.d("ActividadCard", "Cargando imagen de actividad: ${actividad.nombre}")
-                        },
-                        onSuccess = {
-                            Log.d("ActividadCard", "Imagen cargada exitosamente: ${actividad.nombre}")
-                        },
-                        onError = {
-                            Log.e("ActividadCard", "Error al cargar imagen de actividad: ${actividad.nombre}")
-                        }
+                        imageLoader = imageLoader
                     )
                 } else {
-                    Log.d("ActividadCard", "Usando imagen por defecto para actividad: ${actividad.nombre}")
                     Image(
                         painter = painterResource(id = R.drawable.app_icon),
                         contentDescription = "Imagen por defecto",
@@ -1120,7 +986,6 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nombre de la actividad
             Text(
                 text = actividad.nombre,
                 fontSize = 16.sp,
@@ -1131,7 +996,6 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Creador
             Text(
                 text = "Por: @${actividad.creador}",
                 fontSize = 12.sp,
@@ -1143,7 +1007,6 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Descripción
             Text(
                 text = actividad.descripcion,
                 fontSize = 12.sp,
@@ -1155,7 +1018,6 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Fechas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -1178,46 +1040,40 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
     }
 }
 
-// Modified Community Card with navigation
 @Composable
 fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
     val context = LocalContext.current
-    // Base URL para las imágenes de MongoDB
     val baseUrl = "https://social-me-tfg.onrender.com"
 
-    // Obtener el token de autenticación de SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val authToken = "Bearer $token"
 
-    // Construir URL completa
     val fotoPerfilUrl = if (comunidad.fotoPerfilId.isNotEmpty())
         "$baseUrl/files/download/${comunidad.fotoPerfilId}"
     else ""
 
-    // Configurar cliente HTTP con timeouts
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Configurar ImageLoader optimizado con caching
     val imageLoader = ImageLoader.Builder(context)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .diskCachePolicy(CachePolicy.ENABLED)
         .networkCachePolicy(CachePolicy.ENABLED)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizePercent(0.25) // Usa 25% de la memoria para cache
+                .maxSizePercent(0.25)
                 .build()
         }
         .diskCache {
             DiskCache.Builder()
                 .directory(context.cacheDir.resolve("comunidad_images"))
-                .maxSizeBytes(50 * 1024 * 1024) // Cache de 50MB
+                .maxSizeBytes(50 * 1024 * 1024)
                 .build()
         }
-        .okHttpClient(okHttpClient) // Usar el cliente HTTP configurado
+        .okHttpClient(okHttpClient)
         .build()
 
     Card(
@@ -1225,8 +1081,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
             .width(180.dp)
             .height(220.dp)
             .clickable {
-                Log.d("ComunidadCard", "Card clickeada, navegando a detalle de comunidad: ${comunidad.nombre}")
-                // Navegar a la pantalla de detalle de la comunidad, pasando la URL como parámetro
                 navController.navigate("comunidadDetalle/${comunidad.url}")
             },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -1235,14 +1089,12 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
             containerColor = colorResource(R.color.white)
         )
     ) {
-        // El resto del código de ComunidadCard se mantiene igual
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Foto de perfil con manejo mejorado de errores y caching
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -1255,26 +1107,17 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                         model = ImageRequest.Builder(context)
                             .data(fotoPerfilUrl)
                             .crossfade(true)
-                            .size(128, 128) // Solicitar imagen más pequeña
+                            .size(128, 128)
                             .placeholder(R.drawable.app_icon)
                             .error(R.drawable.app_icon)
                             .setHeader("Authorization", authToken)
-                            .memoryCacheKey(fotoPerfilUrl) // Clave para cache
+                            .memoryCacheKey(fotoPerfilUrl)
                             .diskCacheKey(fotoPerfilUrl)
                             .build(),
                         contentDescription = "Foto de ${comunidad.nombre}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        imageLoader = imageLoader,
-                        onLoading = {
-                            Log.d("ComunidadCard", "Cargando imagen: $fotoPerfilUrl")
-                        },
-                        onSuccess = {
-                            Log.d("ComunidadCard", "Imagen cargada exitosamente: $fotoPerfilUrl")
-                        },
-                        onError = {
-                            Log.e("ComunidadCard", "Error al cargar imagen: $fotoPerfilUrl")
-                        }
+                        imageLoader = imageLoader
                     )
                 } else {
                     Image(
@@ -1286,10 +1129,8 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                 }
             }
 
-            // Nombre de la comunidad y demás contenido...
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nombre de la comunidad
             Text(
                 text = comunidad.nombre,
                 fontSize = 16.sp,
@@ -1299,7 +1140,7 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            // URL
+
             Text(
                 text = "@${comunidad.url}",
                 fontSize = 12.sp,
@@ -1311,7 +1152,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Descripción
             Text(
                 text = comunidad.descripcion,
                 fontSize = 12.sp,
@@ -1323,7 +1163,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tags/Intereses
             if (comunidad.intereses.isNotEmpty()) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 4.dp),
@@ -1344,7 +1183,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
                         }
                     }
 
-                    // Indicador de más tags
                     if (comunidad.intereses.size > 2) {
                         item {
                             Badge(
@@ -1364,7 +1202,6 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Etiquetas privada/global
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -1389,9 +1226,8 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
     }
 }
 
-// Componente actualizado para corregir el error de conversión del radar
 @Composable
-fun VerTodasComunidadesCarrousel(username: String, navController: NavController, radar: String) {
+fun VerTodasComunidadesCarrousel(username: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -1400,22 +1236,12 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Extraer el valor numérico del radar de forma segura
-    val radarValue = try {
-        radar.toFloatOrNull() ?: 50f
-    } catch (e: Exception) {
-        Log.e("VerTodasComunidadesCarrousel", "Error al convertir radar: $radar", e)
-        50f // Valor predeterminado en caso de error
-    }
-
-    // Función para cargar las comunidades
     fun cargarTodasComunidades() {
         scope.launch {
             isLoading = true
             errorMessage = null
 
             try {
-                // Obtener el token desde SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
@@ -1425,16 +1251,13 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
                     return@launch
                 }
 
-                // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 val response = apiService.verComunidadesPublicas(authToken, username)
 
                 if (response.isSuccessful) {
                     comunidades = response.body() ?: emptyList()
                 } else {
-                    // Tratamiento especial para el error 500 cuando no hay comunidades
                     if (response.code() == 500) {
-                        // Asumimos que es porque el usuario no tiene comunidades
                         comunidades = emptyList()
                     } else {
                         errorMessage = when (response.code()) {
@@ -1445,16 +1268,14 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
                     }
                 }
             } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
                 errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
+                e.printStackTrace()
             } finally {
                 isLoading = false
             }
         }
     }
 
-    // Cargar comunidades cuando se inicializa el componente
     LaunchedEffect(username) {
         cargarTodasComunidades()
     }
@@ -1464,7 +1285,6 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Título de sección
         Text(
             text = "Comunidades públicas en tu zona",
             fontSize = 20.sp,
@@ -1473,7 +1293,6 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
             modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
         )
 
-        // Mostrar estado de carga, error o el carrusel
         when {
             isLoading -> {
                 Box(
@@ -1531,7 +1350,6 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
                 }
             }
             else -> {
-                // Carrusel de comunidades optimizado
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1548,9 +1366,8 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController,
     }
 }
 
-// También actualizamos este componente para mejorar el manejo del radar
 @Composable
-fun CarrouselActividadesEnZona(username: String, navController: NavController, radar: String) {
+fun CarrouselActividadesEnZona(username: String, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
@@ -1559,71 +1376,47 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Extraer el valor numérico del radar de forma segura
-    val radarValue = try {
-        radar.toFloatOrNull() ?: 50f
-    } catch (e: Exception) {
-        Log.e("CarrouselActividadesEnZona", "Error al convertir radar: $radar", e)
-        50f // Valor predeterminado en caso de error
-    }
-
-    // Función para cargar las actividades
     fun cargarActividadesPublicasEnTuZona() {
         scope.launch {
             isLoading = true
             errorMessage = null
             try {
-                // Obtener el token desde SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
                 if (token.isEmpty()) {
-                    Log.e("CarrouselActividadesEnZona", "Token vacío, no se puede proceder")
                     errorMessage = "No se ha encontrado un token de autenticación"
                     isLoading = false
                     return@launch
                 }
 
-                // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
-                Log.d("CarrouselActividadesEnZona", "Realizando petición API con token: ${token.take(5)}...")
-                val response = apiService.verActividadesPublicas(authToken, username)
+                val response = apiService.verActividadesPublicasFechaSuperior(authToken, username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
-                    Log.d("CarrouselActividadesEnZona", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
-                    actividades = actividadesRecibidas
+                    actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
                 } else {
-                    // Tratamiento especial para el error 500 cuando no hay actividades
                     if (response.code() == 500) {
-                        // Asumimos que es porque el usuario no tiene actividades
-                        Log.w("CarrouselActividadesEnZona", "Código 500 recibido, asumiendo lista vacía")
                         actividades = emptyList()
                     } else {
-                        val errorCode = response.code()
-                        Log.e("CarrouselActividadesEnZona", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
-                        errorMessage = when (errorCode) {
+                        errorMessage = when (response.code()) {
                             401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            404 -> "No se encontraron actividades públicas en esta zona."
+                            404 -> "No se encontraron actividades públicas y próximas en esta zona."
                             else -> "Error al cargar actividades: ${response.message()}"
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
-                Log.e("CarrouselActividadesEnZona", "Excepción al cargar actividades", e)
                 errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
+                e.printStackTrace()
             } finally {
                 isLoading = false
-                Log.d("CarrouselActividadesEnZona", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
             }
         }
     }
 
-    // Cargar actividades cuando se inicializa el componente
     LaunchedEffect(username) {
-        Log.d("CarrouselActividadesEnZona", "LaunchedEffect iniciado para usuario: $username")
         cargarActividadesPublicasEnTuZona()
     }
 
@@ -1632,7 +1425,6 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Título de sección
         Text(
             text = "Actividades públicas en tu zona",
             fontSize = 20.sp,
@@ -1641,10 +1433,8 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
             modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
         )
 
-        // Mostrar estado de carga, error o el carrusel
         when {
             isLoading -> {
-                Log.d("CarrouselActividadesEnZona", "Mostrando indicador de carga")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1657,7 +1447,6 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                 }
             }
             errorMessage != null -> {
-                Log.d("CarrouselActividadesEnZona", "Mostrando mensaje de error: $errorMessage")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1675,10 +1464,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = {
-                                Log.d("ActividadCarousel", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividadesPublicasEnTuZona()
-                            },
+                            onClick = { cargarActividadesPublicasEnTuZona() },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
                             )
@@ -1689,7 +1475,6 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                 }
             }
             actividades.isEmpty() -> {
-                Log.d("CarrouselActividadesEnZona", "Mostrando mensaje de lista vacía")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1705,7 +1490,6 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                 }
             }
             else -> {
-                // Carrusel de actividades optimizado
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1714,7 +1498,6 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController, r
                         items = actividades,
                         key = { it.nombre }
                     ) { actividad ->
-                        Log.d("CarrouselActividadesEnZona", "Cargando actividad: ${actividad.nombre}")
                         ActividadCard(actividad = actividad, navController=navController)
                     }
                 }

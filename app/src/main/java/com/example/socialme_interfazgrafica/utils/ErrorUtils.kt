@@ -1,13 +1,15 @@
 package com.example.socialme_interfazgrafica.utils
-
 //Objeto que traduce los errores de la API
 object ErrorUtils {
     fun parseErrorMessage(errorMsg: String): String {
         return when {
-            // Error de credenciales incorrectas
-            errorMsg.contains("Tiempo de espera agotado")->
+            // Error de tiempo de espera agotado
+            errorMsg.contains("Tiempo de espera agotado") ->
                 "Conexión fallida, inténtelo de nuevo"
 
+            // Error de código de verificación incorrecto
+            errorMsg.contains("400") && errorMsg.contains("Código de verificación incorrecto") ->
+                "El código ingresado es incorrecto"
 
             // Error de credenciales incorrectas
             errorMsg.contains("401") ||

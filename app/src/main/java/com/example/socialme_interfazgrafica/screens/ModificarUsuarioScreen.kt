@@ -82,6 +82,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
+private fun normalizarUrl(url: String): String {
+    return url
+        .replace("á", "a").replace("Á", "A")
+        .replace("é", "e").replace("É", "E")
+        .replace("í", "i").replace("Í", "I")
+        .replace("ó", "o").replace("Ó", "O")
+        .replace("ú", "u").replace("Ú", "U")
+        .replace("ü", "u").replace("Ü", "U")
+        .replace("ñ", "n").replace("Ñ", "N")
+        .replace("ç", "c").replace("Ç", "C")
+}
+
+private fun normalizarUsername(username: String): String {
+    return normalizarUrl(username)
+        .lowercase()
+        .filter { char -> char.isLetterOrDigit() || char == '_' }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModificarUsuarioScreen(username: String, navController: NavController) {
@@ -92,9 +110,8 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
     val baseUrl = "https://social-me-tfg.onrender.com"
 
-    // Estados para los datos del usuario
     val usuarioOriginal = remember { mutableStateOf<UsuarioDTO?>(null) }
-    val newUsername = remember { mutableStateOf("") } // Nuevo campo para el username editable
+    val newUsername = remember { mutableStateOf("") }
     val nombre = remember { mutableStateOf("") }
     val apellido = remember { mutableStateOf("") }
     val email = remember { mutableStateOf("") }
@@ -102,20 +119,16 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
     val intereses = remember { mutableStateOf<List<String>>(emptyList()) }
     val interesInput = remember { mutableStateOf("") }
 
-    // Dirección (con valores por defecto)
     val municipio = remember { mutableStateOf("") }
     val provincia = remember { mutableStateOf("") }
 
-    // Estados para la carga y errores
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
 
-    // Estados para manejo de imágenes
     val fotoPerfilBase64 = remember { mutableStateOf<String?>(null) }
     val fotoPerfilUri = remember { mutableStateOf<Uri?>(null) }
 
-    // Función de validación actualizada
     fun validarCampos(
         newUsername: String,
         nombre: String,
@@ -127,24 +140,24 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
         intereses: List<String>
     ): Pair<Boolean, String?> {
 
+        val usernameNormalizado = normalizarUsername(newUsername)
         if (newUsername.isEmpty()) {
             return Pair(false, "El nombre de usuario no puede estar vacío")
         }
 
-        if (newUsername.length < 3) {
+        if (usernameNormalizado.isEmpty()) {
+            return Pair(false, "El nombre de usuario no es válido después de la normalización")
+        }
+
+        if (usernameNormalizado.length < 3) {
             return Pair(false, "El nombre de usuario debe tener al menos 3 caracteres")
         }
 
-        if (newUsername.length > 20) {
+        if (usernameNormalizado.length > 20) {
             return Pair(false, "El nombre de usuario no puede tener más de 20 caracteres")
         }
 
-        // Verificar que solo contenga letras, números y guiones bajos
-        if (!newUsername.matches(Regex("^[a-zA-Z0-9_]+$"))) {
-            return Pair(false, "El nombre de usuario solo puede contener letras, números y guiones bajos")
-        }
-
-        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(newUsername)) {
+        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(usernameNormalizado)) {
             return Pair(false, "El nombre de usuario contiene palabras no permitidas")
         }
 
@@ -168,7 +181,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
             return Pair(false, "El email no puede estar vacío")
         }
 
-        // Validar formato de email
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             return Pair(false, "El formato del email no es válido")
         }
@@ -192,7 +204,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
         return Pair(true, null)
     }
 
-    // Carga inicial de datos del usuario
     LaunchedEffect(username) {
         isLoading.value = true
         try {
@@ -213,14 +224,13 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                 )
 
                 usuarioOriginal.value = usuario
-                newUsername.value = usuario.username // Inicializar con el username actual
+                newUsername.value = usuario.username
                 nombre.value = usuario.nombre
                 apellido.value = usuario.apellido
                 email.value = usuario.email
                 descripcion.value = usuario.descripcion
                 intereses.value = usuario.intereses
 
-                // Manejar dirección que puede ser null
                 usuario.direccion?.let { dir ->
                     municipio.value = dir.municipio ?: ""
                     provincia.value = dir.provincia ?: ""
@@ -246,7 +256,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
         }
     }
 
-    // Launcher para seleccionar imagen de perfil
     val fotoPerfilLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -290,7 +299,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Barra superior con botón de retroceso y título
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -332,7 +340,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                     CircularProgressIndicator(color = colorResource(R.color.azulPrimario))
                 }
             } else {
-                // Formulario para editar los datos del usuario
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -349,7 +356,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        // Foto de perfil
                         Text(
                             text = "Foto de perfil",
                             fontSize = 16.sp,
@@ -418,7 +424,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             }
                         }
 
-                        // Username (ahora editable)
                         Text(
                             text = "Nombre de usuario",
                             fontSize = 16.sp,
@@ -427,21 +432,23 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
-                        OutlinedTextField(
-                            value = newUsername.value,
-                            onValueChange = { newUsername.value = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Nombre de usuario", color = colorResource(R.color.textoSecundario)) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
-                                focusedTextColor = colorResource(R.color.textoPrimario),
-                                unfocusedTextColor = colorResource(R.color.textoPrimario)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                        Column {
+                            OutlinedTextField(
+                                value = newUsername.value,
+                                onValueChange = { newUsername.value = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Nombre de usuario", color = colorResource(R.color.textoSecundario)) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = colorResource(R.color.azulPrimario),
+                                    unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                    focusedTextColor = colorResource(R.color.textoPrimario),
+                                    unfocusedTextColor = colorResource(R.color.textoPrimario)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            VistaPreviewUsername(newUsername.value)
+                        }
 
-                        // Email
                         Text(
                             text = "Correo electrónico",
                             fontSize = 16.sp,
@@ -464,7 +471,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Nombre
                         Text(
                             text = "Nombre",
                             fontSize = 16.sp,
@@ -487,7 +493,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Apellido
                         Text(
                             text = "Apellido",
                             fontSize = 16.sp,
@@ -509,8 +514,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
-
-                        // Descripción
                         Text(
                             text = "Descripción",
                             fontSize = 16.sp,
@@ -536,7 +539,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             minLines = 3
                         )
 
-                        // Intereses/Tags
                         Text(
                             text = "Intereses",
                             fontSize = 16.sp,
@@ -633,7 +635,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             }
                         }
 
-                        // Sección de dirección
                         Text(
                             text = "Dirección",
                             fontSize = 18.sp,
@@ -642,7 +643,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
-                        // Tarjeta de dirección
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth(),
@@ -658,7 +658,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     .padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                // Municipio
                                 Text(
                                     text = "Municipio",
                                     fontSize = 16.sp,
@@ -680,7 +679,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     shape = RoundedCornerShape(12.dp)
                                 )
 
-                                // Provincia
                                 Text(
                                     text = "Provincia",
                                     fontSize = 16.sp,
@@ -704,7 +702,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             }
                         }
 
-                        // Botones de acción
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
@@ -725,38 +722,35 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     return@Button
                                 }
 
-                                // Crear objeto direccion con los valores actuales
                                 val direccionObj = Direccion(
                                     municipio = municipio.value,
                                     provincia = provincia.value
                                 )
 
-                                // Verificar si el username cambió
-                                val usernameCambiado = newUsername.value != username
+                                val usernameCambiado = normalizarUsername(newUsername.value) != username
 
-                                // Crear UsuarioUpdateDTO - SIEMPRE enviar valores actuales (no null)
                                 val usuarioUpdate = UsuarioUpdateDTO(
                                     currentUsername = username,
-                                    newUsername = if (usernameCambiado) newUsername.value else null,
-                                    email = email.value,                    // Siempre enviar valor actual
-                                    nombre = nombre.value,                  // Siempre enviar valor actual
-                                    apellido = apellido.value,              // Siempre enviar valor actual
-                                    descripcion = descripcion.value,        // Siempre enviar valor actual
-                                    intereses = intereses.value,            // Siempre enviar lista actual
+                                    newUsername = if (usernameCambiado) normalizarUsername(newUsername.value) else null,
+                                    email = email.value,
+                                    nombre = nombre.value,
+                                    apellido = apellido.value,
+                                    descripcion = descripcion.value,
+                                    intereses = intereses.value,
                                     fotoPerfilBase64 = if (!fotoPerfilBase64.value.isNullOrEmpty()) {
                                         fotoPerfilBase64.value
                                     } else {
                                         null
                                     },
                                     fotoPerfilId = usuarioOriginal.value?.fotoPerfilId,
-                                    direccion = direccionObj                // Siempre enviar dirección actual
+                                    direccion = direccionObj
                                 )
 
                                 isSaving.value = true
                                 scope.launch {
                                     try {
                                         Log.d("ModificarUsuario", "Iniciando petición de modificación")
-                                        Log.d("ModificarUsuario", "Username actual: $username, Nuevo username: ${newUsername.value}")
+                                        Log.d("ModificarUsuario", "Username actual: $username, Nuevo username: ${normalizarUsername(newUsername.value)}")
 
                                         val response = withContext(Dispatchers.IO) {
                                             retrofitService.iniciarModificacionUsuario(
@@ -771,25 +765,22 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                             val requiresVerification = responseBody["requiresVerification"] == "true"
 
                                             if (requiresVerification) {
-                                                // Si requiere verificación, navegar a la pantalla de verificación
                                                 val emailToVerify = responseBody["email"] ?: email.value
                                                 withContext(Dispatchers.Main) {
                                                     navController.navigate(
                                                         AppScreen.EmailVerificationScreen.createRoute(
                                                             email = emailToVerify,
-                                                            username = if (usernameCambiado) newUsername.value else username,
+                                                            username = if (usernameCambiado) normalizarUsername(newUsername.value) else username,
                                                             isRegistration = false
                                                         )
                                                     )
                                                 }
                                             } else {
-                                                // Si no requiere verificación, modificación completada
-                                                // Si cambió el username, actualizar SharedPreferences
                                                 if (usernameCambiado) {
                                                     val editor = sharedPreferences.edit()
-                                                    editor.putString("USERNAME", newUsername.value)
+                                                    editor.putString("USERNAME", normalizarUsername(newUsername.value))
                                                     editor.apply()
-                                                    Log.d("ModificarUsuario", "Username actualizado en SharedPreferences: ${newUsername.value}")
+                                                    Log.d("ModificarUsuario", "Username actualizado en SharedPreferences: ${normalizarUsername(newUsername.value)}")
                                                 }
 
                                                 withContext(Dispatchers.Main) {
@@ -843,7 +834,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                             }
                         }
 
-                        // Botón para cancelar
                         OutlinedButton(
                             onClick = {
                                 navController.popBackStack()
@@ -867,7 +857,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                 }
             }
 
-            // Mensaje de error si existe
             if (errorMessage.value != null) {
                 Card(
                     modifier = Modifier
@@ -898,7 +887,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                     }
                 }
 
-                // Auto-limpiar mensaje de error después de 5 segundos
                 LaunchedEffect(errorMessage.value) {
                     if (errorMessage.value != null) {
                         kotlinx.coroutines.delay(5000)
@@ -908,7 +896,6 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
             }
         }
 
-        // Overlay de carga mientras se está guardando
         if (isSaving.value) {
             Box(
                 modifier = Modifier

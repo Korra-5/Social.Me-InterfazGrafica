@@ -25,6 +25,7 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import com.example.socialme_interfazgrafica.viewModel.VerificacionState
+import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -38,20 +39,18 @@ fun EmailVerificationScreen(
     viewModel: UserViewModel
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current // Obtener el context
+    val context = LocalContext.current
 
-    // Estados para manejar la entrada del código y los mensajes
     var verificationCode by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
-    var remainingTime by remember { mutableStateOf(300) } // 5 minutos en segundos
+    var remainingTime by remember { mutableStateOf(300) }
     var codeResent by remember { mutableStateOf(false) }
+    var isVerificationSuccess by remember { mutableStateOf(false) }
 
-    // Observar el estado de verificación
     val verificacionState by viewModel.verificacionState.observeAsState()
 
-    // Temporizador para el tiempo restante
     LaunchedEffect(codeResent) {
         remainingTime = 300
         while (remainingTime > 0) {
@@ -60,7 +59,6 @@ fun EmailVerificationScreen(
         }
     }
 
-    // Manejar cambios en el estado de verificación
     LaunchedEffect(verificacionState) {
         val currentState = verificacionState
         when (currentState) {
@@ -71,25 +69,23 @@ fun EmailVerificationScreen(
             }
             is VerificacionState.Success -> {
                 isSubmitting = false
+                isVerificationSuccess = true
                 successMessage = currentState.message
-                // Esperar un momento y navegar
                 delay(1500)
                 if (isRegistration) {
-                    // Resetear estados antes de navegar
                     viewModel.resetRegistroState()
                     navController.navigate(AppScreen.InicioSesionScreen.route) {
                         popUpTo(AppScreen.RegistroUsuarioScreen.route) { inclusive = true }
                         popUpTo(AppScreen.EmailVerificationScreen.route) { inclusive = true }
                     }
                 } else {
-                    // Para modificación, volver al perfil
                     viewModel.resetRegistroState()
                     navController.popBackStack()
                 }
             }
             is VerificacionState.Error -> {
                 isSubmitting = false
-                errorMessage = currentState.message
+                errorMessage = ErrorUtils.parseErrorMessage(currentState.message)
             }
             else -> {
                 isSubmitting = false
@@ -97,19 +93,16 @@ fun EmailVerificationScreen(
         }
     }
 
-    // Formatear el tiempo restante
     val minutes = remainingTime / 60
     val seconds = remainingTime % 60
     val timeDisplay = String.format("%02d:%02d", minutes, seconds)
 
-    // UI principal
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colorResource(R.color.background))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Barra superior
             TopAppBar(
                 title = {
                     Text(
@@ -118,7 +111,6 @@ fun EmailVerificationScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        // Resetear estados al ir hacia atrás
                         viewModel.resetRegistroState()
                         navController.popBackStack()
                     }) {
@@ -135,7 +127,6 @@ fun EmailVerificationScreen(
                 )
             )
 
-            // Contenido principal
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -143,7 +134,6 @@ fun EmailVerificationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Icono de email
                 Icon(
                     painter = painterResource(id = R.drawable.ic_email),
                     contentDescription = "Email",
@@ -153,7 +143,6 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Título y descripción
                 Text(
                     text = if (isRegistration) "Verifica tu correo electrónico" else "Verifica tu nuevo correo",
                     fontSize = 24.sp,
@@ -171,7 +160,6 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Tiempo restante
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -203,11 +191,9 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo para ingresar el código
                 OutlinedTextField(
                     value = verificationCode,
                     onValueChange = {
-                        // Solo permitir dígitos y limitar a 6 caracteres
                         if (it.length <= 6 && it.all { char -> char.isDigit() }) {
                             verificationCode = it
                         }
@@ -222,23 +208,25 @@ fun EmailVerificationScreen(
                         focusedBorderColor = colorResource(R.color.azulPrimario),
                         unfocusedBorderColor = colorResource(R.color.textoSecundario),
                         focusedLabelColor = colorResource(R.color.azulPrimario),
+                        unfocusedLabelColor = Color.Black,
                         focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black
+                        unfocusedTextColor = Color.Black,
+                        errorTextColor = Color.Black,
+                        errorLabelColor = Color.Black,
+                        errorBorderColor = Color(0xFFD32F2F)
                     ),
                     isError = errorMessage != null
                 )
 
-                // Mensaje de error si existe
                 errorMessage?.let {
                     Text(
                         text = it,
-                        color = MaterialTheme.colorScheme.error,
+                        color = Color(0xFFD32F2F),
                         fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )
                 }
 
-                // Mensaje de éxito si existe
                 successMessage?.let {
                     Text(
                         text = it,
@@ -250,7 +238,6 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botón para verificar el código - AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
                 Button(
                     onClick = {
                         if (verificationCode.length != 6) {
@@ -261,22 +248,18 @@ fun EmailVerificationScreen(
                         errorMessage = null
 
                         if (isRegistration) {
-                            // Para registro de nuevo usuario
                             viewModel.verificarCodigo(email, verificationCode) { success ->
-                                // El callback se mantiene por compatibilidad
                             }
                         } else {
-                            // Para modificación de usuario existente - AHORA PASA EL CONTEXT
                             viewModel.verificarCodigoModificacion(
-                                context = context, // Pasar el context aquí
+                                context = context,
                                 email = email,
                                 codigo = verificationCode
                             ) { success ->
-                                // El callback se mantiene por compatibilidad
                             }
                         }
                     },
-                    enabled = !isSubmitting && verificationCode.isNotEmpty() && remainingTime > 0,
+                    enabled = !isSubmitting && verificationCode.isNotEmpty() && remainingTime > 0 && !isVerificationSuccess,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp)
@@ -299,15 +282,13 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Botón para reenviar el código
                 TextButton(
                     onClick = {
                         scope.launch {
                             viewModel.reenviarCodigo(email) { success ->
                                 if (success) {
-                                    codeResent = !codeResent // Cambiar el estado para reiniciar el temporizador
+                                    codeResent = !codeResent
                                     successMessage = "Se ha enviado un nuevo código a tu correo"
-                                    // Limpiar el mensaje después de un tiempo
                                     scope.launch {
                                         delay(3000)
                                         successMessage = null
@@ -318,7 +299,7 @@ fun EmailVerificationScreen(
                             }
                         }
                     },
-                    enabled = remainingTime <= 0,
+                    enabled = remainingTime <= 0 && !isVerificationSuccess,
                     modifier = Modifier.padding(8.dp)
                 ) {
                     Text(
@@ -329,7 +310,6 @@ fun EmailVerificationScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Texto de ayuda
                 Text(
                     text = "¿No has recibido el código? Revisa tu carpeta de spam o solicita un nuevo código cuando el temporizador termine.",
                     fontSize = 14.sp,
@@ -340,7 +320,6 @@ fun EmailVerificationScreen(
             }
         }
 
-        // Mostrar un indicador de carga si estamos enviando la verificación
         if (isSubmitting) {
             Box(
                 modifier = Modifier

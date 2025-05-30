@@ -23,17 +23,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -96,52 +98,43 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-    // Estados para manejar los datos del usuario
     var usuario by remember { mutableStateOf<UsuarioDTO?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Estado para el menú desplegable
     val showMenu = remember { mutableStateOf(false) }
 
-    // Estados para la relación de amistad
     var esAmigo by remember { mutableStateOf(false) }
-    var hayPendiente by remember { mutableStateOf(false) }
+    var hayPendienteEnviada by remember { mutableStateOf(false) }
+    var hayPendienteRecibida by remember { mutableStateOf(false) }
+    var solicitudRecibidaId by remember { mutableStateOf<String?>(null) }
+    var solicitudEnviadaId by remember { mutableStateOf<String?>(null) }
     var seSolicitoAmistad by remember { mutableStateOf(false) }
     var amigosDelUsuario by remember { mutableStateOf<List<UsuarioDTO>>(emptyList()) }
     var cargandoAmigos by remember { mutableStateOf(false) }
 
-    // Estados para las preferencias de privacidad del usuario del perfil - CORREGIDO
     var privacidadComunidades by remember { mutableStateOf("AMIGOS") }
     var privacidadActividades by remember { mutableStateOf("TODOS") }
 
-    // Estados para los diálogos de denuncia
     val showReportDialog = remember { mutableStateOf(false) }
     val reportReason = remember { mutableStateOf("") }
     val reportBody = remember { mutableStateOf("") }
     val isReportLoading = remember { mutableStateOf(false) }
 
-    // Obtener el username del usuario actual desde SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val authToken = "Bearer $token"
 
-    // Verificar si el perfil que se está viendo pertenece al usuario logueado
     val isOwnProfile = username == currentUsername
-
     val utils = FunctionUtils
-
-    // Base URL para las imágenes
     val baseUrl = "https://social-me-tfg.onrender.com"
 
-    // Configurar cliente HTTP con timeouts
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Configurar ImageLoader
     val imageLoader = ImageLoader.Builder(context)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .diskCachePolicy(CachePolicy.ENABLED)
@@ -160,7 +153,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         .okHttpClient(okHttpClient)
         .build()
 
-    // Función para obtener mensaje de privacidad apropiado
     fun obtenerMensajePrivacidad(privacidad: String, seccion: String): String {
         return when (privacidad.uppercase()) {
             "AMIGOS" -> if (esAmigo) {
@@ -173,58 +165,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         }
     }
 
-    // Función para enviar solicitud de amistad
-    fun enviarSolicitudAmistad() {
-        scope.launch {
-            try {
-                val solicitudDTO = SolicitudAmistadDTO(
-                    _id = "", // se generará en el servidor
-                    remitente = currentUsername,
-                    destinatario = username
-                )
-
-                val response = apiService.enviarSolicitudAmistad(authToken, solicitudDTO)
-
-                if (response.isSuccessful) {
-                    Toast.makeText(context, "Solicitud de amistad enviada", Toast.LENGTH_SHORT).show()
-                    seSolicitoAmistad = true
-                    hayPendiente = true
-                } else {
-                    Toast.makeText(context, "Error al enviar solicitud de amistad", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                Log.e("UsuarioDetalles", "Error al enviar solicitud: ${e.message}")
-            }
-        }
-    }
-
-    // Función para bloquear usuario
-    fun bloquearUsuario() {
-        scope.launch {
-            try {
-                val bloqueoDTO = BloqueoDTO(
-                    bloqueador = currentUsername,
-                    bloqueado = username
-                )
-
-                val response = apiService.bloquearUsuario(authToken, bloqueoDTO)
-
-                if (response.isSuccessful) {
-                    Toast.makeText(context, "Usuario bloqueado", Toast.LENGTH_SHORT).show()
-                    // Volver atrás después de bloquear
-                    navController.popBackStack()
-                } else {
-                    Toast.makeText(context, "Error al bloquear usuario", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                Log.e("UsuarioDetalles", "Error al bloquear: ${e.message}")
-            }
-        }
-    }
-
-    // Función para cargar los amigos del usuario
     fun cargarAmigos() {
         cargandoAmigos = true
         scope.launch {
@@ -233,7 +173,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
                 if (response.isSuccessful) {
                     amigosDelUsuario = response.body() ?: emptyList()
-                    // Verificar si el usuario actual está entre los amigos
                     if (!isOwnProfile) {
                         esAmigo = amigosDelUsuario.any { it.username == currentUsername }
                     }
@@ -248,7 +187,170 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         }
     }
 
-    // Cargar los datos del usuario y relaciones - CORREGIDO
+    fun verificarSolicitudesPendientes() {
+        scope.launch {
+            try {
+                val responseEnviada = apiService.verificarSolicitudPendiente(authToken, currentUsername, username)
+                if (responseEnviada.isSuccessful) {
+                    hayPendienteEnviada = responseEnviada.body() ?: false
+                }
+
+                val responseRecibida = apiService.verificarSolicitudPendiente(authToken, username, currentUsername)
+                if (responseRecibida.isSuccessful) {
+                    hayPendienteRecibida = responseRecibida.body() ?: false
+                }
+
+                if (hayPendienteRecibida) {
+                    val solicitudesResponse = apiService.verSolicitudesAmistad(authToken, currentUsername)
+                    if (solicitudesResponse.isSuccessful) {
+                        val solicitudes = solicitudesResponse.body() ?: emptyList()
+                        val solicitudDeEsteUsuario = solicitudes.find { it.remitente == username }
+                        solicitudRecibidaId = solicitudDeEsteUsuario?._id
+                    }
+                }
+
+                if (hayPendienteEnviada) {
+                    val todasSolicitudesResponse = apiService.verSolicitudesAmistad(authToken, username)
+                    if (todasSolicitudesResponse.isSuccessful) {
+                        val todasSolicitudes = todasSolicitudesResponse.body() ?: emptyList()
+                        val solicitudEnviada = todasSolicitudes.find {
+                            it.remitente == currentUsername && it.destinatario == username && !it.aceptada
+                        }
+                        if (solicitudEnviada == null) {
+
+                        } else {
+                            solicitudEnviadaId = solicitudEnviada._id
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("UsuarioDetalles", "Error al verificar solicitudes: ${e.message}")
+            }
+        }
+    }
+
+    fun enviarSolicitudAmistad() {
+        scope.launch {
+            try {
+                val solicitudDTO = SolicitudAmistadDTO(
+                    _id = "",
+                    remitente = currentUsername,
+                    destinatario = username
+                )
+
+                val response = apiService.enviarSolicitudAmistad(authToken, solicitudDTO)
+
+                if (response.isSuccessful) {
+                    val solicitudCreada = response.body()
+                    Toast.makeText(context, "Solicitud de amistad enviada", Toast.LENGTH_SHORT).show()
+                    seSolicitoAmistad = true
+                    hayPendienteEnviada = true
+                    solicitudEnviadaId = solicitudCreada?._id
+                } else {
+                    Toast.makeText(context, "Error al enviar solicitud de amistad", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("UsuarioDetalles", "Error al enviar solicitud: ${e.message}")
+            }
+        }
+    }
+
+    fun cancelarSolicitudAmistad() {
+        if (solicitudEnviadaId == null) {
+            Toast.makeText(context, "Error: No se encontro la solicitud enviada", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        scope.launch {
+            try {
+                val response = apiService.cancelarSolicitudAmistad(authToken, solicitudEnviadaId!!)
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "Solicitud de amistad cancelada", Toast.LENGTH_SHORT).show()
+                    hayPendienteEnviada = false
+                    seSolicitoAmistad = false
+                    solicitudEnviadaId = null
+                } else {
+                    Toast.makeText(context, "Error al cancelar solicitud", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("UsuarioDetalles", "Error al cancelar solicitud: ${e.message}")
+            }
+        }
+    }
+
+    fun aceptarSolicitudAmistad() {
+        if (solicitudRecibidaId == null) {
+            Toast.makeText(context, "Error: No se encontro la solicitud", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        scope.launch {
+            try {
+                val response = apiService.aceptarSolicitud(authToken, solicitudRecibidaId!!)
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "Solicitud de amistad aceptada", Toast.LENGTH_SHORT).show()
+                    esAmigo = true
+                    hayPendienteRecibida = false
+                    solicitudRecibidaId = null
+                    cargarAmigos()
+                } else {
+                    Toast.makeText(context, "Error al aceptar solicitud", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("UsuarioDetalles", "Error al aceptar solicitud: ${e.message}")
+            }
+        }
+    }
+
+    fun rechazarSolicitudAmistad() {
+        if (solicitudRecibidaId == null) {
+            Toast.makeText(context, "Error: No se encontro la solicitud", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        scope.launch {
+            try {
+                val response = apiService.rechazarSolicitud(authToken, solicitudRecibidaId!!)
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "Solicitud de amistad rechazada", Toast.LENGTH_SHORT).show()
+                    hayPendienteRecibida = false
+                    solicitudRecibidaId = null
+                } else {
+                    Toast.makeText(context, "Error al rechazar solicitud", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("UsuarioDetalles", "Error al rechazar solicitud: ${e.message}")
+            }
+        }
+    }
+
+    fun bloquearUsuario() {
+        scope.launch {
+            try {
+                val bloqueoDTO = BloqueoDTO(
+                    bloqueador = currentUsername,
+                    bloqueado = username
+                )
+
+                val response = apiService.bloquearUsuario(authToken, bloqueoDTO)
+
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "Usuario bloqueado", Toast.LENGTH_SHORT).show()
+                    navController.popBackStack()
+                } else {
+                    Toast.makeText(context, "Error al bloquear usuario", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("UsuarioDetalles", "Error al bloquear: ${e.message}")
+            }
+        }
+    }
+
     LaunchedEffect(username) {
         scope.launch {
             try {
@@ -257,7 +359,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                     val usuarioData = response.body()
                     usuario = usuarioData
 
-                    // IMPORTANTE: Obtener las preferencias de privacidad del usuario real
                     if (usuarioData != null) {
                         privacidadComunidades = usuarioData.privacidadComunidades
                         privacidadActividades = usuarioData.privacidadActividades
@@ -265,26 +366,87 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
                     isLoading = false
 
-                    // Cargar información adicional
                     cargarAmigos()
+                    if (!isOwnProfile) {
+                        verificarSolicitudesPendientes()
+                    }
                 } else {
                     errorMessage = "Error al cargar el usuario: ${response.code()}"
                     isLoading = false
                 }
             } catch (e: Exception) {
-                errorMessage = "Error de conexión: ${e.message}"
+                errorMessage = "Error de conexion: ${e.message}"
                 isLoading = false
             }
         }
     }
 
-    // Diálogo de denuncia
     if (showReportDialog.value) {
         utils.ReportDialog(
             onDismiss = { showReportDialog.value = false },
             onConfirm = { motivo, cuerpo ->
-                // Crear denuncia
-                // ... código existente para denuncias ...
+                scope.launch {
+                    isReportLoading.value = true
+                    try {
+                        val denunciaDTO = DenunciaCreateDTO(
+                            motivo = motivo,
+                            cuerpo = cuerpo,
+                            nombreItemDenunciado = username,
+                            tipoItemDenunciado = "Usuario",
+                            usuarioDenunciante = currentUsername
+                        )
+
+                        val response = withContext(Dispatchers.IO) {
+                            RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                                .crearDenuncia(authToken, denunciaDTO)
+                        }
+
+                        if (response.isSuccessful) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    "Denuncia enviada correctamente",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                showReportDialog.value = false
+                            }
+                        } else {
+                            val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                            withContext(Dispatchers.Main) {
+                                try {
+                                    val jsonObject = JSONObject(errorBody)
+                                    val errorMsg = jsonObject.optString("error", "")
+                                    if (errorMsg.isNotEmpty()) {
+                                        Toast.makeText(context, errorMsg, Toast.LENGTH_LONG)
+                                            .show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            ErrorUtils.parseErrorMessage(errorBody),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        ErrorUtils.parseErrorMessage(errorBody),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                context,
+                                ErrorUtils.parseErrorMessage(e.message ?: "Error de conexion"),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    } finally {
+                        isReportLoading.value = false
+                    }
+                }
             },
             isLoading = isReportLoading.value,
             reportReason = reportReason,
@@ -292,26 +454,23 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         )
     }
 
-    // UI para mostrar los datos del usuario
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(colorResource(R.color.background))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Barra superior con botón de retroceso y botón de opciones
             TopAppBar(
                 title = { Text(text = "Perfil de Usuario") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver"
                         )
                     }
                 },
                 actions = {
-                    // Botón de tres puntos (menú) - siempre visible
                     IconButton(onClick = { showMenu.value = true }) {
                         Icon(
                             Icons.Default.MoreVert,
@@ -336,7 +495,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                         )
                     ) {
 
-                        // Solo mostrar opción de bloquear si no es el perfil propio
                         if (!isOwnProfile) {
                             DropdownMenuItem(
                                 text = {
@@ -385,9 +543,8 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             )
                         }
 
-                        // Si es el perfil propio, añadir opción para modificar
                         if (isOwnProfile) {
-                            Divider(color = Color.LightGray, thickness = 0.5.dp)
+                            HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -454,11 +611,9 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                     }
                 }
                 usuario != null -> {
-                    // Utilizamos un LazyColumn para permitir scroll
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Sección de datos del usuario
                         item {
                             Column(
                                 modifier = Modifier
@@ -466,7 +621,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     .padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                // Foto de perfil
                                 Box(
                                     modifier = Modifier
                                         .size(120.dp)
@@ -503,7 +657,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Nombre completo
                                 Text(
                                     text = "${usuario!!.nombre} ${usuario!!.apellido}",
                                     fontSize = 24.sp,
@@ -512,7 +665,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     textAlign = TextAlign.Center
                                 )
 
-                                // Nombre de usuario
                                 Text(
                                     text = "@${usuario!!.username}",
                                     fontSize = 16.sp,
@@ -520,49 +672,149 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     textAlign = TextAlign.Center
                                 )
 
-                                // Botón de solicitud de amistad (solo si no es el propio usuario y no son amigos)
                                 if (!isOwnProfile && !esAmigo) {
                                     Spacer(modifier = Modifier.height(16.dp))
 
-                                    Button(
-                                        onClick = { enviarSolicitudAmistad() },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = colorResource(R.color.azulPrimario),
-                                            disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
-                                        ),
-                                        enabled = !hayPendiente && !seSolicitoAmistad,
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.7f)
-                                            .height(40.dp),
-                                        shape = RoundedCornerShape(20.dp),
-                                        elevation = ButtonDefaults.buttonElevation(
-                                            defaultElevation = 2.dp,
-                                            pressedElevation = 4.dp
-                                        )
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_add),
-                                                contentDescription = "Enviar solicitud",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
+                                    when {
+                                        hayPendienteRecibida -> {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(0.8f),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Button(
+                                                    onClick = { aceptarSolicitudAmistad() },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = colorResource(R.color.azulPrimario)
+                                                    ),
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(40.dp),
+                                                    shape = RoundedCornerShape(20.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Filled.Check,
+                                                        contentDescription = "Aceptar",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Aceptar", fontSize = 12.sp)
+                                                }
+
+                                                Button(
+                                                    onClick = { rechazarSolicitudAmistad() },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = colorResource(R.color.error)
+                                                    ),
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(40.dp),
+                                                    shape = RoundedCornerShape(20.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Filled.Close,
+                                                        contentDescription = "Rechazar",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Rechazar", fontSize = 12.sp)
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
                                             Text(
-                                                text = if (hayPendiente || seSolicitoAmistad) "Solicitud pendiente" else "Añadir amigo",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium
+                                                text = "Te ha enviado una solicitud de amistad",
+                                                fontSize = 12.sp,
+                                                color = colorResource(R.color.textoSecundario),
+                                                textAlign = TextAlign.Center
                                             )
+                                        }
+
+                                        hayPendienteEnviada || seSolicitoAmistad -> {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                modifier = Modifier.fillMaxWidth(0.7f)
+                                            ) {
+                                                Button(
+                                                    onClick = { },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color.Gray.copy(alpha = 0.5f)
+                                                    ),
+                                                    enabled = false,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(40.dp),
+                                                    shape = RoundedCornerShape(20.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Solicitud pendiente",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+
+                                                Button(
+                                                    onClick = { cancelarSolicitudAmistad() },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = colorResource(R.color.error).copy(alpha = 0.8f)
+                                                    ),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(35.dp),
+                                                    shape = RoundedCornerShape(17.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Cancelar solicitud",
+                                                        fontSize = 12.sp,
+                                                        color = Color.White
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        else -> {
+                                            Button(
+                                                onClick = { enviarSolicitudAmistad() },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = colorResource(R.color.azulPrimario)
+                                                ),
+                                                modifier = Modifier
+                                                    .fillMaxWidth(0.7f)
+                                                    .height(40.dp),
+                                                shape = RoundedCornerShape(20.dp),
+                                                elevation = ButtonDefaults.buttonElevation(
+                                                    defaultElevation = 2.dp,
+                                                    pressedElevation = 4.dp
+                                                )
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = R.drawable.ic_add),
+                                                        contentDescription = "Enviar solicitud",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        text = "Anadir amigo",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
 
                                 Spacer(modifier = Modifier.height(24.dp))
 
-                                // Descripción
                                 if (usuario!!.descripcion.isNotEmpty()) {
                                     Text(
                                         text = usuario!!.descripcion,
@@ -575,7 +827,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     Spacer(modifier = Modifier.height(24.dp))
                                 }
 
-                                // Dirección si está disponible
                                 if (usuario!!.direccion?.municipio?.isNotEmpty() == true || usuario!!.direccion?.provincia?.isNotEmpty() == true) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -583,7 +834,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     ) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_location),
-                                            contentDescription = "Ubicación",
+                                            contentDescription = "Ubicacion",
                                             tint = colorResource(R.color.textoSecundario),
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -602,7 +853,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     }
                                 }
 
-                                // Email
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(vertical = 4.dp)
@@ -623,7 +873,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
                                 Spacer(modifier = Modifier.height(24.dp))
 
-                                // Intereses si están disponibles
                                 if (usuario!!.intereses.isNotEmpty()) {
                                     Text(
                                         text = "Intereses",
@@ -635,7 +884,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    // Mostrar intereses en filas
                                     FlowRow(
                                         mainAxisSpacing = 8.dp,
                                         crossAxisSpacing = 8.dp,
@@ -662,7 +910,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             }
                         }
 
-                        // Nueva sección: Amigos
                         item {
                             Column(
                                 modifier = Modifier
@@ -694,13 +941,12 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "Sin amigos todavía",
+                                            text = "Sin amigos todavia",
                                             color = colorResource(R.color.textoSecundario),
                                             fontSize = 14.sp
                                         )
                                     }
                                 } else {
-                                    // Mostrar lista de amigos horizontal
                                     LazyRow(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         contentPadding = PaddingValues(vertical = 8.dp)
@@ -721,7 +967,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             }
                         }
 
-                        // Sección de Comunidades con privacidad - CORREGIDO
                         item {
                             SeccionPrivacidad(
                                 titulo = "Comunidades",
@@ -735,10 +980,9 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             )
                         }
 
-                        // Sección de Actividades con privacidad - CORREGIDO
                         item {
                             SeccionPrivacidad(
-                                titulo = "Actividades",
+                                titulo = "Actividades Próximas",
                                 privacidad = privacidadActividades,
                                 esAmigo = esAmigo,
                                 isOwnProfile = isOwnProfile,
@@ -749,7 +993,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                             )
                         }
 
-                        // Espacio adicional al final para evitar que el contenido quede oculto
                         item {
                             Spacer(modifier = Modifier.height(80.dp))
                         }
@@ -760,7 +1003,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     }
 }
 
-// Composable para manejar secciones de privacidad
 @Composable
 fun SeccionPrivacidad(
     titulo: String,
@@ -772,7 +1014,7 @@ fun SeccionPrivacidad(
     obtenerMensajePrivacidad: (String, String) -> String,
     tipoContenido: String
 ) {
-    val deberíaMostrar = when (privacidad.uppercase()) {
+    val shouldShow = when (privacidad.uppercase()) {
         "TODOS" -> true
         "AMIGOS" -> isOwnProfile || esAmigo
         "NADIE" -> isOwnProfile
@@ -792,14 +1034,12 @@ fun SeccionPrivacidad(
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        if (deberíaMostrar) {
-            // Mostrar el contenido correspondiente
+        if (shouldShow) {
             when (tipoContenido) {
                 "comunidades" -> ComunidadCarouselUsuario(username = username, navController = navController)
                 "actividades" -> ActividadCarouselUsuario(username = username, navController = navController)
             }
         } else {
-            // Mostrar mensaje de privacidad
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -826,7 +1066,6 @@ fun SeccionPrivacidad(
     }
 }
 
-// ComunidadCarousel CORREGIDO para UsuarioDetalleScreen
 @Composable
 fun ComunidadCarouselUsuario(username: String, navController: NavController) {
     val context = LocalContext.current
@@ -835,29 +1074,25 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
 
     var comunidades by remember { mutableStateOf<List<ComunidadDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    // Obtener el username del usuario actual desde SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    // Función para cargar las comunidades
     fun cargarComunidades() {
         scope.launch {
             isLoading = true
-            errorMessage = null
+            errorMsg = null
 
             try {
-                // Obtener el token desde SharedPreferences
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
                 if (token.isEmpty()) {
-                    errorMessage = "No se ha encontrado un token de autenticación"
+                    errorMsg = "No se ha encontrado un token de autenticacion"
                     isLoading = false
                     return@launch
                 }
 
-                // CORREGIDO: Pasar correctamente el usuario solicitante
                 val authToken = "Bearer $token"
                 val response = apiService.verComunidadPorUsuario(authToken, username, currentUsername)
 
@@ -867,8 +1102,8 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
                     if (response.code() == 500) {
                         comunidades = emptyList()
                     } else {
-                        errorMessage = when (response.code()) {
-                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        errorMsg = when (response.code()) {
+                            401 -> "No autorizado. Por favor, inicie sesion nuevamente."
                             403 -> "No tienes permisos para ver las comunidades de este usuario."
                             404 -> "No se encontraron comunidades para este usuario."
                             else -> "Error al cargar comunidades: ${response.message()}"
@@ -876,7 +1111,7 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
                     }
                 }
             } catch (e: Exception) {
-                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                errorMsg = "Error de conexion: ${e.message ?: "No se pudo conectar al servidor"}"
                 e.printStackTrace()
             } finally {
                 isLoading = false
@@ -884,12 +1119,10 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
         }
     }
 
-    // Cargar comunidades cuando se inicializa el componente
     LaunchedEffect(username) {
         cargarComunidades()
     }
 
-    // Mostrar estado de carga, error o el carrusel
     when {
         isLoading -> {
             Box(
@@ -903,7 +1136,7 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
                 )
             }
         }
-        errorMessage != null -> {
+        errorMsg != null -> {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -915,7 +1148,7 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = errorMessage!!,
+                        text = errorMsg!!,
                         color = colorResource(R.color.error),
                         textAlign = TextAlign.Center
                     )
@@ -947,7 +1180,6 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
             }
         }
         else -> {
-            // Carrusel de comunidades optimizado
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -963,7 +1195,6 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
     }
 }
 
-// ActividadCarousel CORREGIDO para UsuarioDetalleScreen
 @Composable
 fun ActividadCarouselUsuario(username: String, navController: NavController) {
     val context = LocalContext.current
@@ -972,48 +1203,50 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
 
     var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    // Obtener el username del usuario actual desde SharedPreferences
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    // Función para cargar las actividades
     fun cargarActividades() {
         scope.launch {
             isLoading = true
-            errorMessage = null
+            errorMsg = null
 
             try {
-                // Obtener el token desde SharedPreferences
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
                 if (token.isEmpty()) {
-                    errorMessage = "No se ha encontrado un token de autenticación"
+                    errorMsg = "No se ha encontrado un token de autenticación"
                     isLoading = false
                     return@launch
                 }
 
-                // CORREGIDO: Pasar correctamente el usuario solicitante
                 val authToken = "Bearer $token"
-                val response = apiService.verActividadPorUsername(authToken, username, currentUsername)
+                val response = apiService.verActividadPorUsernameFechaSuperior(authToken, username, currentUsername)
 
                 if (response.isSuccessful) {
                     actividades = response.body() ?: emptyList()
                 } else {
+                    errorMsg = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        403 -> "No tienes permisos para ver las actividades de este usuario."
+                        404 -> "No se encontraron actividades para este usuario."
+                        500 -> {
+                            actividades = emptyList()
+                            null // No mostrar error para 500, solo lista vacía
+                        }
+                        else -> "Error al cargar actividades: ${response.message()}"
+                    }
+
+                    // Si es error 500, limpiar error para mostrar lista vacía
                     if (response.code() == 500) {
                         actividades = emptyList()
-                    } else {
-                        errorMessage = when (response.code()) {
-                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            403 -> "No tienes permisos para ver las actividades de este usuario."
-                            404 -> "No se encontraron actividades para este usuario."
-                            else -> "Error al cargar actividades: ${response.message()}"
-                        }
+                        errorMsg = null
                     }
                 }
             } catch (e: Exception) {
-                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+                errorMsg = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
                 e.printStackTrace()
             } finally {
                 isLoading = false
@@ -1021,12 +1254,10 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
         }
     }
 
-    // Cargar actividades cuando se inicializa el componente
     LaunchedEffect(username) {
         cargarActividades()
     }
 
-    // Mostrar estado de carga, error o el carrusel
     when {
         isLoading -> {
             Box(
@@ -1040,7 +1271,7 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
                 )
             }
         }
-        errorMessage != null -> {
+        errorMsg != null -> {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1052,7 +1283,7 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = errorMessage!!,
+                        text = errorMsg!!,
                         color = colorResource(R.color.error),
                         textAlign = TextAlign.Center
                     )
@@ -1077,20 +1308,19 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No participa en ninguna actividad",
+                    text = "No participa en ninguna actividad próxima",
                     color = colorResource(R.color.textoSecundario),
                     textAlign = TextAlign.Center
                 )
             }
         }
         else -> {
-            // Carrusel de actividades optimizado
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(
-                    items = actividades,
+                    items = actividades.sortedBy { it.fechaInicio },
                     key = { it.nombre }
                 ) { actividad ->
                     ActividadCardDetalle(actividad = actividad, navController = navController)
@@ -1099,7 +1329,6 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
         }
     }
 }
-
 @Composable
 fun AmigoItem(
     amigo: UsuarioDTO,
@@ -1116,7 +1345,6 @@ fun AmigoItem(
             .width(80.dp)
             .clickable(onClick = onClick)
     ) {
-        // Foto de perfil
         Box(
             modifier = Modifier
                 .size(60.dp)
@@ -1153,7 +1381,6 @@ fun AmigoItem(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Nombre de usuario
         Text(
             text = amigo.nombre,
             fontSize = 12.sp,
@@ -1177,7 +1404,6 @@ fun AmigoItem(
     }
 }
 
-// Cards específicas para el detalle de usuario
 @Composable
 fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) {
     val context = LocalContext.current
@@ -1233,7 +1459,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Foto de perfil
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -1270,7 +1495,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nombre de la comunidad
             Text(
                 text = comunidad.nombre,
                 fontSize = 16.sp,
@@ -1281,7 +1505,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
                 overflow = TextOverflow.Ellipsis
             )
 
-            // URL
             Text(
                 text = "@${comunidad.url}",
                 fontSize = 12.sp,
@@ -1293,7 +1516,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Descripción
             Text(
                 text = comunidad.descripcion,
                 fontSize = 12.sp,
@@ -1305,7 +1527,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tags/Intereses
             if (comunidad.intereses.isNotEmpty()) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 4.dp),
@@ -1345,7 +1566,6 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Etiquetas privada/global
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -1429,7 +1649,6 @@ fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) 
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Imagen de actividad
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1466,7 +1685,6 @@ fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nombre de la actividad
             Text(
                 text = actividad.nombre,
                 fontSize = 16.sp,
@@ -1477,7 +1695,6 @@ fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) 
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Creador
             Text(
                 text = "Por: @${actividad.creador}",
                 fontSize = 12.sp,
@@ -1489,7 +1706,6 @@ fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Descripción
             Text(
                 text = actividad.descripcion,
                 fontSize = 12.sp,
@@ -1501,7 +1717,6 @@ fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) 
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Fechas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,

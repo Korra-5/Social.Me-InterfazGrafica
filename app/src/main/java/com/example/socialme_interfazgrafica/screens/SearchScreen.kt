@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -65,6 +66,7 @@ fun BusquedaScreen(
     var urlcomunidad by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showError by remember { mutableStateOf(false) }
+    var mostrarSoloProximas by remember { mutableStateOf(true) }
 
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
@@ -78,16 +80,19 @@ fun BusquedaScreen(
         SearchType.USERS
     )
 
-    // Función para cargar datos según el tipo seleccionado
     fun loadData(searchType: SearchType) {
         coroutineScope.launch {
             isLoading = true
             try {
                 when (searchType) {
                     SearchType.ACTIVITIES -> {
-                        val response = retrofitService.verTodasActividadesPublicas(token)
+                        val response = if (mostrarSoloProximas) {
+                            retrofitService.verTodasActividadesPublicasFechaSuperior(token)
+                        } else {
+                            retrofitService.verTodasActividadesPublicasCualquierFecha(token)
+                        }
                         if (response.isSuccessful) {
-                            actividades = response.body() ?: emptyList()
+                            actividades = (response.body() ?: emptyList()).sortedBy { it.fechaInicio }
                         }
                     }
 
@@ -106,7 +111,6 @@ fun BusquedaScreen(
                     }
                 }
             } catch (e: Exception) {
-                // Manejar errores
                 errorMessage = "Error al cargar datos: ${e.message}"
                 showError = true
             } finally {
@@ -115,7 +119,6 @@ fun BusquedaScreen(
         }
     }
 
-    // Diálogo para introducir código de unión
     if (showJoinDialog) {
         AlertDialog(
             onDismissRequest = { showJoinDialog = false },
@@ -140,7 +143,6 @@ fun BusquedaScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Primer campo - URL de la comunidad
                         Column {
                             Text(
                                 "Inserte url de la comunidad",
@@ -159,7 +161,6 @@ fun BusquedaScreen(
                             )
                         }
 
-                        // Segundo campo - Código de unión
                         Column {
                             Text(
                                 "Inserte código de unión a la comunidad",
@@ -183,16 +184,11 @@ fun BusquedaScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // CORREGIDO: Lógica para unirse con el código
                         coroutineScope.launch {
                             try {
-                                // Cerrar el diálogo de unión
                                 showJoinDialog = false
-
-                                // Mostrar un indicador de carga mientras se procesa la solicitud
                                 isLoading = true
 
-                                // Creamos el objeto ParticipantesComunidadDTO
                                 val participante = ParticipantesComunidadDTO(
                                     username = username,
                                     comunidad = urlcomunidad
@@ -204,29 +200,23 @@ fun BusquedaScreen(
                                     token = token
                                 )
 
-                                // Ocultar indicador de carga
                                 isLoading = false
 
                                 if (response.isSuccessful) {
-                                    // CORREGIDO: Si la unión fue exitosa, la respuesta es ParticipantesComunidadDTO
                                     val responseBody = response.body()
                                     if (responseBody != null) {
-                                        // La unión fue exitosa, navegar a la comunidad
                                         val comunidadResponse = retrofitService.verComunidadPorUrl(token, urlcomunidad)
                                         if (comunidadResponse.isSuccessful) {
                                             val comunidad = comunidadResponse.body()
                                             if (comunidad != null) {
                                                 joinCode = ""
                                                 urlcomunidad = ""
-                                                // Navegamos a la pantalla de detalle de la comunidad
                                                 navController.navigate("comunidadDetalle/${comunidad.url}")
                                             } else {
-                                                // Error al obtener detalles de la comunidad
                                                 errorMessage = "No se pudo obtener la información de la comunidad"
                                                 showError = true
                                             }
                                         } else {
-                                            // Error en la respuesta del endpoint
                                             errorMessage = when (comunidadResponse.code()) {
                                                 404 -> "Comunidad no encontrada"
                                                 403 -> "No tienes permisos para acceder a esta comunidad"
@@ -235,12 +225,10 @@ fun BusquedaScreen(
                                             showError = true
                                         }
                                     } else {
-                                        // El cuerpo de la respuesta es nulo
                                         errorMessage = "Error inesperado al unirse a la comunidad"
                                         showError = true
                                     }
                                 } else {
-                                    // CORREGIDO: Manejo de errores de la API
                                     errorMessage = when (response.code()) {
                                         400 -> "Datos incorrectos. Verifica la URL y el código"
                                         404 -> "Comunidad no encontrada o código incorrecto"
@@ -251,12 +239,10 @@ fun BusquedaScreen(
                                     showError = true
                                 }
                             } catch (e: Exception) {
-                                // Error de conexión o excepción
                                 isLoading = false
                                 errorMessage = "Error de conexión: ${e.message}"
                                 showError = true
                             } finally {
-                                // Limpiar campos
                                 joinCode = ""
                                 urlcomunidad = ""
                             }
@@ -283,7 +269,6 @@ fun BusquedaScreen(
         )
     }
 
-    // Mostrar mensaje de error si es necesario
     if (showError && errorMessage != null) {
         AlertDialog(
             onDismissRequest = { showError = false },
@@ -314,8 +299,7 @@ fun BusquedaScreen(
         )
     }
 
-    // Cargar datos iniciales
-    LaunchedEffect(selectedTabIndex) {
+    LaunchedEffect(selectedTabIndex, mostrarSoloProximas) {
         loadData(tabs[selectedTabIndex])
     }
 
@@ -338,7 +322,6 @@ fun BusquedaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Campo de búsqueda
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -359,10 +342,9 @@ fun BusquedaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botones de filtro
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 tabs.forEachIndexed { index, tab ->
                     Button(
@@ -373,7 +355,10 @@ fun BusquedaScreen(
                             else
                                 colorResource(R.color.cyanSecundario).copy(alpha = 0.5f)
                         ),
-                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                     ) {
                         Text(
                             text = when (tab) {
@@ -381,15 +366,37 @@ fun BusquedaScreen(
                                 SearchType.COMMUNITIES -> "Comunidades"
                                 SearchType.USERS -> "Usuarios"
                             },
-                            color = Color.White
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
                         )
                     }
                 }
             }
 
+            if (tabs[selectedTabIndex] == SearchType.ACTIVITIES) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (mostrarSoloProximas) "Próximas" else "Todas",
+                        fontSize = 14.sp,
+                        color = colorResource(R.color.azulPrimario)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = !mostrarSoloProximas,
+                        onCheckedChange = { mostrarSoloProximas = !it }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Área de resultados
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -460,14 +467,12 @@ fun BusquedaScreen(
                     }
                 }
 
-                // Bottom Navigation Bar
                 BottomNavBar(
                     navController = navController,
                 )
             }
         }
 
-        // Botón flotante para introducir código de unión
         FloatingActionButton(
             onClick = { showJoinDialog = true },
             modifier = Modifier
@@ -516,7 +521,6 @@ fun ComunidadItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Foto de la comunidad
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -549,7 +553,6 @@ fun ComunidadItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Información de la comunidad
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -580,7 +583,6 @@ fun ComunidadItem(
                 }
             }
 
-            // Indicador de privacidad
             if (comunidad.privada) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lock),
@@ -621,7 +623,6 @@ fun ActividadItem(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Imagen principal si existe
             if (actividad.fotosCarruselIds.isNotEmpty()) {
                 Box(
                     modifier = Modifier
@@ -645,7 +646,6 @@ fun ActividadItem(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Información de la actividad
             Text(
                 text = actividad.nombre,
                 fontSize = 18.sp,
@@ -711,7 +711,6 @@ fun UsuarioSearchItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Foto de perfil del usuario
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -744,7 +743,6 @@ fun UsuarioSearchItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Información del usuario
             Column(
                 modifier = Modifier.weight(1f)
             ) {

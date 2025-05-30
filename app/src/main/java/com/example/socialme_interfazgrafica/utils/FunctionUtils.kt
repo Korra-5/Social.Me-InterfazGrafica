@@ -31,8 +31,6 @@ import com.example.socialme_interfazgrafica.R
 
 object FunctionUtils {
 
-
-
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun ReportDialog(
@@ -86,7 +84,10 @@ object FunctionUtils {
                             modifier = Modifier.fillMaxWidth(),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = Color.Black,
+                                unfocusedTextColor = Color.Black,
+                                cursorColor = Color.Black
                             ),
                             singleLine = true,
                             placeholder = { Text("Ej: Contenido inapropiado") },
@@ -112,7 +113,10 @@ object FunctionUtils {
                                 .height(120.dp),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
                                 focusedBorderColor = colorResource(R.color.azulPrimario),
-                                unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = Color.Black,
+                                unfocusedTextColor = Color.Black,
+                                cursorColor = Color.Black
                             ),
                             singleLine = false,
                             placeholder = { Text("Describa el problema con más detalle") },

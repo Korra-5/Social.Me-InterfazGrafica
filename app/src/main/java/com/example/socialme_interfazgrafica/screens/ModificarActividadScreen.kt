@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -101,6 +102,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
 @Composable
 fun ModificarActividadScreen(actividadId: String, navController: NavController) {
     val context = LocalContext.current
@@ -131,6 +133,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
 
     val fotosCarruselBase64 = remember { mutableStateOf<List<String>>(emptyList()) }
     val fotosCarruselUri = remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val fotosCarruselExistentesIds = remember { mutableStateOf<List<String>>(emptyList()) }
 
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var ubicacionSeleccionada by remember { mutableStateOf<GeoPoint?>(null) }
@@ -206,7 +209,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         }
     }
 
-    // Función de validación
     fun validarCampos(): Pair<Boolean, String?> {
         if (nombre.value.trim().isEmpty()) {
             return Pair(false, "El nombre de la actividad no puede estar vacío")
@@ -250,18 +252,14 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
     LaunchedEffect(actividadId) {
         isLoading.value = true
         try {
-            Log.d("ModificarActividad", "Intentando cargar datos para actividad con ID: $actividadId")
-            Log.d("ModificarActividad", "Token de autenticación: ${authToken.take(10)}...")
+            Log.d("ModificarActividad", "Cargando actividad: $actividadId")
 
             val response = withContext(Dispatchers.IO) {
                 retrofitService.verActividadPorId("Bearer $authToken", actividadId)
             }
 
-            Log.d("ModificarActividad", "Respuesta del servidor: ${response.code()}")
-
             if (response.isSuccessful && response.body() != null) {
                 val actividad = response.body()!!
-                Log.d("ModificarActividad", "Datos recibidos: nombre=${actividad.nombre}, descripción=${actividad.descripcion}")
 
                 actividadOriginal.value = actividad
                 nombre.value = actividad.nombre
@@ -269,8 +267,8 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                 fechaInicio.value = actividad.fechaInicio
                 fechaFinalizacion.value = actividad.fechaFinalizacion
                 lugar.value = actividad.lugar
+                fotosCarruselExistentesIds.value = actividad.fotosCarruselIds ?: emptyList()
 
-                // Configurar ubicación si existe
                 actividad.coordenadas?.let { coords ->
                     val lat = coords.latitud.toDoubleOrNull()
                     val lng = coords.longitud.toDoubleOrNull()
@@ -278,17 +276,11 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         ubicacionSeleccionada = GeoPoint(lat, lng)
                     }
                 }
-
-                Log.d("ModificarActividad", "Valores asignados: nombre=${nombre.value}, desc=${descripcion.value}")
             } else {
                 val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
-                Log.e("ModificarActividad", "Error al cargar datos: ${response.code()} - $errorBody")
-                errorMessage.value = "Error al cargar los datos de la actividad: ${response.code()} - ${response.message()}"
+                errorMessage.value = "Error al cargar los datos: ${response.code()}"
             }
         } catch (e: Exception) {
-            Log.e("API", "Exception class: ${e.javaClass.name}")
-            Log.e("API", "Message: ${e.message}")
-            Log.e("API", "Stack trace: ${e.stackTraceToString()}")
             errorMessage.value = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
         } finally {
             isLoading.value = false
@@ -299,44 +291,66 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            // Agregar las nuevas URIs a las existentes
-            fotosCarruselUri.value = fotosCarruselUri.value + uris
             scope.launch {
-                val newFotosBase64 = mutableListOf<String>()
-                var errorOcurred = false
+                val newUris = mutableListOf<Uri>()
+                val newBase64List = mutableListOf<String>()
+                var hasErrors = false
 
-                uris.forEachIndexed { index, uri ->
+                uris.forEach { uri ->
                     try {
                         val base64 = compressAndConvertToBase64(uri, context)
                         if (base64 != null) {
-                            newFotosBase64.add(base64)
-                            Log.d("ModificarActividad", "Base64 generado para carrusel $index (longitud): ${base64.length}")
+                            newUris.add(uri)
+                            newBase64List.add(base64)
                         } else {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Error al procesar la imagen $index", Toast.LENGTH_SHORT).show()
-                            }
-                            errorOcurred = true
+                            hasErrors = true
                         }
                     } catch (e: Exception) {
-                        Log.e("ModificarActividad", "Error al procesar imagen de carrusel $index", e)
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Error al procesar la imagen $index: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                        errorOcurred = true
+                        Log.e("ModificarActividad", "Error procesando imagen", e)
+                        hasErrors = true
                     }
                 }
 
-                if (!errorOcurred || newFotosBase64.isNotEmpty()) {
-                    // Agregar las nuevas imágenes base64 a las existentes
-                    fotosCarruselBase64.value = fotosCarruselBase64.value + newFotosBase64
-                    Log.d("ModificarActividad", "Se procesaron ${newFotosBase64.size} imágenes de carrusel correctamente")
+                if (newBase64List.isNotEmpty()) {
+                    fotosCarruselUri.value = fotosCarruselUri.value + newUris
+                    fotosCarruselBase64.value = fotosCarruselBase64.value + newBase64List
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            "Se añadieron ${newBase64List.size} imágenes${if (hasErrors) " (algunas fallaron)" else ""}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                if (hasErrors && newBase64List.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error procesando todas las imágenes", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
     }
 
-    LaunchedEffect(nombre.value, descripcion.value) {
-        Log.d("ModificarActividad", "Valores actuales: nombre=${nombre.value}, desc=${descripcion.value}")
+    fun eliminarFotoCarruselExistente(index: Int) {
+        val nuevaLista = fotosCarruselExistentesIds.value.toMutableList()
+        if (index < nuevaLista.size) {
+            nuevaLista.removeAt(index)
+            fotosCarruselExistentesIds.value = nuevaLista
+        }
+    }
+
+    fun eliminarFotoCarruselNueva(index: Int) {
+        val nuevasUris = fotosCarruselUri.value.toMutableList()
+        val nuevosBase64 = fotosCarruselBase64.value.toMutableList()
+
+        if (index < nuevasUris.size && index < nuevosBase64.size) {
+            nuevasUris.removeAt(index)
+            nuevosBase64.removeAt(index)
+            fotosCarruselUri.value = nuevasUris
+            fotosCarruselBase64.value = nuevosBase64
+        }
     }
 
     Box(
@@ -754,7 +768,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             }
                         }
 
-                        // Fotos de carrusel
                         Text(
                             text = "Fotos de carrusel",
                             fontSize = 16.sp,
@@ -785,10 +798,9 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             )
                         }
 
-                        // Mostrar imágenes actuales
-                        if (actividadOriginal.value?.fotosCarruselIds?.isNotEmpty() == true) {
+                        if (fotosCarruselExistentesIds.value.isNotEmpty()) {
                             Text(
-                                text = "Imágenes actuales: ${actividadOriginal.value?.fotosCarruselIds?.size ?: 0}",
+                                text = "Imágenes actuales: ${fotosCarruselExistentesIds.value.size}",
                                 fontSize = 14.sp,
                                 color = Color(0xFF64748B),
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -801,9 +813,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     .padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(
-                                    actividadOriginal.value?.fotosCarruselIds ?: emptyList()
-                                ) { imagenId ->
+                                itemsIndexed(fotosCarruselExistentesIds.value) { index, imagenId ->
                                     val imagenUrl = "${baseUrl}/files/download/$imagenId"
                                     Box(
                                         modifier = Modifier
@@ -821,15 +831,32 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
                                         )
+
+                                        IconButton(
+                                            onClick = {
+                                                eliminarFotoCarruselExistente(index)
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(28.dp)
+                                                .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Eliminar",
+                                                tint = Color(0xFFEF4444),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // Mostrar nuevas imágenes seleccionadas
                         if (fotosCarruselUri.value.isNotEmpty()) {
                             Text(
-                                text = "Nuevas imágenes seleccionadas: ${fotosCarruselUri.value.size}",
+                                text = "Nuevas imágenes: ${fotosCarruselUri.value.size}",
                                 fontSize = 14.sp,
                                 color = Color(0xFF64748B),
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -842,7 +869,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     .padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(fotosCarruselUri.value) { uri ->
+                                itemsIndexed(fotosCarruselUri.value) { index, uri ->
                                     Box(
                                         modifier = Modifier
                                             .size(120.dp)
@@ -858,16 +885,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
 
                                         IconButton(
                                             onClick = {
-                                                val index = fotosCarruselUri.value.indexOf(uri)
-                                                val newUris = fotosCarruselUri.value.toMutableList()
-                                                newUris.removeAt(index)
-                                                fotosCarruselUri.value = newUris
-
-                                                if (index < fotosCarruselBase64.value.size) {
-                                                    val newBase64List = fotosCarruselBase64.value.toMutableList()
-                                                    newBase64List.removeAt(index)
-                                                    fotosCarruselBase64.value = newBase64List
-                                                }
+                                                eliminarFotoCarruselNueva(index)
                                             },
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
@@ -904,7 +922,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     )
                                 }
 
-
                                 val actividadUpdate = ActividadUpdateDTO(
                                     _id = actividadId,
                                     nombre = nombre.value.trim(),
@@ -912,15 +929,18 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                     lugar = lugar.value.trim(),
                                     fechaInicio = fechaInicio.value!!,
                                     fechaFinalizacion = fechaFinalizacion.value!!,
-                                    fotosCarruselBase64 = if (fotosCarruselBase64.value.isNotEmpty()) fotosCarruselBase64.value else null,
-                                    fotosCarruselIds = actividadOriginal.value?.fotosCarruselIds ?: emptyList(),  // CAMBIO AQUÍ
+                                    fotosCarruselBase64 = fotosCarruselBase64.value.takeIf { it.isNotEmpty() },
+                                    fotosCarruselIds = fotosCarruselExistentesIds.value,
                                     coordenadas = coordenadas
                                 )
+
+                                Log.d("ModificarActividad", "Enviando datos:")
+                                Log.d("ModificarActividad", "Fotos nuevas: ${fotosCarruselBase64.value.size}")
+                                Log.d("ModificarActividad", "Fotos existentes: ${fotosCarruselExistentesIds.value.size}")
 
                                 isSaving.value = true
                                 scope.launch {
                                     try {
-                                        Log.d("ModificarActividad", "Iniciando petición de actualización")
                                         val response = withContext(Dispatchers.IO) {
                                             retrofitService.modificarActividad(
                                                 "Bearer $authToken",
@@ -928,7 +948,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                             )
                                         }
 
-                                        Log.d("ModificarActividad", "Respuesta recibida: ${response.code()}")
                                         if (response.isSuccessful) {
                                             withContext(Dispatchers.Main) {
                                                 Toast.makeText(
@@ -943,13 +962,13 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                                 response.errorBody()?.string() ?: "Sin cuerpo de error"
                                             Log.e(
                                                 "ModificarActividad",
-                                                "Error al actualizar: ${response.code()} - $errorBody"
+                                                "Error: ${response.code()} - $errorBody"
                                             )
                                             errorMessage.value =
-                                                "Error al actualizar: ${response.code()} - ${response.message()}\n$errorBody"
+                                                "Error al actualizar: ${response.code()}\n$errorBody"
                                         }
                                     } catch (e: Exception) {
-                                        Log.e("ModificarActividad", "Excepción al actualizar", e)
+                                        Log.e("ModificarActividad", "Excepción", e)
                                         errorMessage.value = ErrorUtils.parseErrorMessage(
                                             e.message ?: "Error desconocido"
                                         )
@@ -1074,7 +1093,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
         }
     }
 
-    // Date Picker para fecha de inicio
     if (showFechaInicioDatePicker.value) {
         DatePickerDialog(
             context,
@@ -1250,13 +1268,13 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                         response.errorBody()?.string() ?: "Sin cuerpo de error"
                                     Log.e(
                                         "ModificarActividad",
-                                        "Error al eliminar: ${response.code()} - $errorBody"
+                                        "Error: ${response.code()} - $errorBody"
                                     )
                                     errorMessage.value =
                                         "Error al eliminar: ${response.code()} - ${response.message()}"
                                 }
                             } catch (e: Exception) {
-                                Log.e("ModificarActividad", "Excepción al eliminar", e)
+                                Log.e("ModificarActividad", "Excepción", e)
                                 errorMessage.value =
                                     ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
                             } finally {
@@ -1325,33 +1343,53 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
 private suspend fun compressAndConvertToBase64(uri: Uri, context: Context): String? {
     return withContext(Dispatchers.IO) {
         try {
-            val contentResolver = context.contentResolver
-            val inputStream = contentResolver.openInputStream(uri)
-
-            val bitmap = BitmapFactory.decodeStream(inputStream)
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
             inputStream?.close()
 
-            val compressedBitmap = Bitmap.createScaledBitmap(
-                bitmap,
-                (bitmap.width * 0.7).toInt(),
-                (bitmap.height * 0.7).toInt(),
-                true
-            )
+            if (originalBitmap == null) {
+                Log.e("CompressImage", "No se pudo decodificar la imagen")
+                return@withContext null
+            }
+
+            val maxSize = 800
+            val width = originalBitmap.width
+            val height = originalBitmap.height
+
+            val newWidth: Int
+            val newHeight: Int
+
+            if (width > height && width > maxSize) {
+                val ratio = width.toFloat() / height.toFloat()
+                newWidth = maxSize
+                newHeight = (maxSize / ratio).toInt()
+            } else if (height > maxSize) {
+                val ratio = height.toFloat() / width.toFloat()
+                newHeight = maxSize
+                newWidth = (maxSize / ratio).toInt()
+            } else {
+                newWidth = width
+                newHeight = height
+            }
+
+            val resizedBitmap = if (width != newWidth || height != newHeight) {
+                Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+            } else {
+                originalBitmap
+            }
 
             val outputStream = ByteArrayOutputStream()
-            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 75, outputStream)
             val byteArray = outputStream.toByteArray()
 
-            val base64String = Base64.encodeToString(byteArray, Base64.DEFAULT)
+            val sizeInKb = byteArray.size / 1024
+            Log.d("CompressImage", "Imagen comprimida: $sizeInKb KB")
 
-            bitmap.recycle()
-            compressedBitmap.recycle()
-            outputStream.close()
-
-            base64String
+            return@withContext Base64.encodeToString(byteArray, Base64.NO_WRAP)
         } catch (e: Exception) {
-            Log.e("ModificarActividad", "Error al procesar imagen", e)
-            null
+            Log.e("CompressImage", "Error comprimiendo imagen", e)
+            e.printStackTrace()
+            return@withContext null
         }
     }
 }

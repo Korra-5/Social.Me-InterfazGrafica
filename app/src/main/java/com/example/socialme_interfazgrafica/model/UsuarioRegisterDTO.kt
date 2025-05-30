@@ -12,5 +12,6 @@ data class UsuarioRegisterDTO(
     val apellidos: String,
     val descripcion: String,
     val intereses: List<String>,
-    val fotoPerfil: String
+    val fotoPerfil: String,
+    val fotoPerfilBase64:String?
 )

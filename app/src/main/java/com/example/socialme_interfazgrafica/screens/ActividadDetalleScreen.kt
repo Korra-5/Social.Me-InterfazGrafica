@@ -97,6 +97,7 @@ import okhttp3.OkHttpClient
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.Date
 
 @Composable
 fun ActividadDetalleScreen(
@@ -112,10 +113,8 @@ fun ActividadDetalleScreen(
     val isParticipating = remember { mutableStateOf(false) }
     val username = remember { mutableStateOf("") }
 
-    // Estados para el menú desplegable
     val showMenu = remember { mutableStateOf(false) }
 
-    // Estados para el diálogo de denuncia
     val showReportDialog = remember { mutableStateOf(false) }
     val reportReason = remember { mutableStateOf("") }
     val reportBody = remember { mutableStateOf("") }
@@ -126,13 +125,11 @@ fun ActividadDetalleScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
     }
 
-    // Cargar datos de la actividad
     LaunchedEffect(actividadId, username.value) {
         if (username.value.isEmpty()) return@LaunchedEffect
 
@@ -170,7 +167,6 @@ fun ActividadDetalleScreen(
                             )
                         }
 
-                        // Cargar la comunidad de la actividad
                         val comunidadResponseDeferred = async(Dispatchers.IO) {
                             retrofitService.verComunidadPorActividad(
                                 token = authToken,
@@ -204,12 +200,10 @@ fun ActividadDetalleScreen(
         }
     }
 
-    // Diálogo de denuncia
     if (showReportDialog.value) {
         utils.ReportDialog(
             onDismiss = { showReportDialog.value = false },
             onConfirm = { motivo, cuerpo ->
-                // Crear denuncia
                 scope.launch {
                     isReportLoading.value = true
                     try {
@@ -336,23 +330,24 @@ fun ActividadDetalleContent(
     val baseUrl = "https://social-me-tfg.onrender.com"
     val context = LocalContext.current
 
-    // Estado para controlar si el usuario está participando
     val isUserParticipating = remember { mutableStateOf(isParticipating) }
 
-    // ViewModel para operaciones API
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val scope = rememberCoroutineScope()
 
-    // Estado de carga para el botón
     val isLoading = remember { mutableStateOf(false) }
 
-    // Estado para almacenar el número de participantes
     val cantidadParticipantes = remember { mutableStateOf(0) }
 
-    // Estado para controlar si está cargando el contador de participantes
     val isLoadingParticipantes = remember { mutableStateOf(true) }
 
-    // Cargar el número de participantes
+    val actividadExpirada = remember { mutableStateOf(false) }
+
+    LaunchedEffect(actividad) {
+        val fechaActual = Date()
+        actividadExpirada.value = actividad.fechaFinalizacion.before(fechaActual)
+    }
+
     LaunchedEffect(actividad._id) {
         isLoadingParticipantes.value = true
         scope.launch {
@@ -457,7 +452,6 @@ fun ActividadDetalleContent(
                 )
             }
 
-            // Box para el botón de menú con posicionamiento correcto
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -514,7 +508,6 @@ fun ActividadDetalleContent(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
 
-                    // CORREGIDO: Comparación correcta del creador sin .toString()
                     if (actividad.creador == username) {
                         Divider(color = Color.LightGray, thickness = 0.5.dp)
                         DropdownMenuItem(
@@ -551,7 +544,6 @@ fun ActividadDetalleContent(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Título de la actividad
             Text(
                 text = actividad.nombre,
                 fontSize = 26.sp,
@@ -560,7 +552,6 @@ fun ActividadDetalleContent(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Fecha y hora con icono
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -579,7 +570,6 @@ fun ActividadDetalleContent(
                 )
             }
 
-            // Ubicación con menor importancia visual
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 4.dp)
@@ -600,7 +590,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mapa con coordenadas
             if (actividad.coordenadas.latitud.isNotEmpty() && actividad.coordenadas.longitud.isNotEmpty()) {
                 Text(
                     text = "Ubicación en el mapa",
@@ -653,7 +642,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Sección de organizadores
             Text(
                 text = "Organizadores",
                 fontSize = 18.sp,
@@ -662,7 +650,6 @@ fun ActividadDetalleContent(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Información de la comunidad - AHORA CLICABLE
             if (comunidad != null) {
                 Card(
                     modifier = Modifier
@@ -746,7 +733,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Información del creador - AHORA CLICABLE
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -812,7 +798,6 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Número de usuarios unidos
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -820,7 +805,6 @@ fun ActividadDetalleContent(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
                     .clickable {
-                        // Navegar a la pantalla de usuarios por actividad
                         val nombreActividadEncoded = URLEncoder.encode(actividad.nombre, StandardCharsets.UTF_8.toString())
                         navController.navigate(
                             AppScreen.VerUsuariosPorActividadScreen.createRoute(
@@ -864,102 +848,118 @@ fun ActividadDetalleContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botón de unirse/abandonar con estado actualizado
-            Button(
-                onClick = {
-                    if (!isLoading.value) {
-                        isLoading.value = true
-                        scope.launch {
-                            try {
-                                val participantesDTO = ParticipantesActividadDTO(
-                                    username = username,
-                                    actividadId = actividad._id,
-                                    nombreActividad = actividad.nombre
-                                )
+            if (actividadExpirada.value) {
+                Button(
+                    onClick = { },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Gray
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = false
+                ) {
+                    Text(
+                        text = "ACTIVIDAD EXPIRADA",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            } else {
+                Button(
+                    onClick = {
+                        if (!isLoading.value) {
+                            isLoading.value = true
+                            scope.launch {
+                                try {
+                                    val participantesDTO = ParticipantesActividadDTO(
+                                        username = username,
+                                        actividadId = actividad._id,
+                                        nombreActividad = actividad.nombre
+                                    )
 
-                                withContext(Dispatchers.IO) {
-                                    if (!isUserParticipating.value) {
-                                        // Unirse a la actividad
-                                        val response = withTimeout(5000) {
-                                            retrofitService.unirseActividad(
-                                                participantesActividadDTO = participantesDTO,
-                                                token = authToken
-                                            )
-                                        }
-
-                                        withContext(Dispatchers.Main) {
-                                            if (response.isSuccessful) {
-                                                isUserParticipating.value = true
-                                                Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
-
-                                                // Actualizar el contador de participantes
-                                                cantidadParticipantes.value += 1
-                                            } else {
-                                                Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                    withContext(Dispatchers.IO) {
+                                        if (!isUserParticipating.value) {
+                                            val response = withTimeout(5000) {
+                                                retrofitService.unirseActividad(
+                                                    participantesActividadDTO = participantesDTO,
+                                                    token = authToken
+                                                )
                                             }
-                                        }
-                                    } else {
-                                        // Salir de la actividad
-                                        val response = withTimeout(5000) {
-                                            retrofitService.salirActividad(
-                                                participantesActividadDTO = participantesDTO,
-                                                token = authToken
-                                            )
-                                        }
 
-                                        withContext(Dispatchers.Main) {
-                                            if (response.isSuccessful) {
-                                                isUserParticipating.value = false
-                                                Toast.makeText(context, "Has abandonado la actividad", Toast.LENGTH_SHORT).show()
+                                            withContext(Dispatchers.Main) {
+                                                if (response.isSuccessful) {
+                                                    isUserParticipating.value = true
+                                                    Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
 
-                                                // Actualizar el contador de participantes
-                                                if (cantidadParticipantes.value > 0) {
-                                                    cantidadParticipantes.value -= 1
+                                                    cantidadParticipantes.value += 1
+                                                } else {
+                                                    Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
                                                 }
-                                            } else {
-                                                Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            val response = withTimeout(5000) {
+                                                retrofitService.salirActividad(
+                                                    participantesActividadDTO = participantesDTO,
+                                                    token = authToken
+                                                )
+                                            }
+
+                                            withContext(Dispatchers.Main) {
+                                                if (response.isSuccessful) {
+                                                    isUserParticipating.value = false
+                                                    Toast.makeText(context, "Has abandonado la actividad", Toast.LENGTH_SHORT).show()
+
+                                                    if (cantidadParticipantes.value > 0) {
+                                                        cantidadParticipantes.value -= 1
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         }
                                     }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        Log.d("ActividadCarousel", "Error:"+e)
+                                    }
+                                } finally {
+                                    isLoading.value = false
                                 }
-                            } catch (e: Exception) {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    Log.d("ActividadCarousel", "Error:"+e)
-                                }
-                            } finally {
-                                isLoading.value = false
                             }
                         }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isUserParticipating.value)
+                            Color.Gray
+                        else
+                            colorResource(R.color.azulPrimario)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 2.dp
+                    )
+                ) {
+                    if (isLoading.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = if (isUserParticipating.value) "ABANDONAR" else "UNIRSE",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUserParticipating.value) Color.DarkGray else Color.White
+                        )
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isUserParticipating.value)
-                        Color.Gray
-                    else
-                        colorResource(R.color.azulPrimario)
-                ),
-                shape = RoundedCornerShape(8.dp),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 2.dp
-                )
-            ) {
-                if (isLoading.value) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = if (isUserParticipating.value) "ABANDONAR" else "UNIRSE",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isUserParticipating.value) Color.DarkGray else Color.White
-                    )
                 }
             }
 
@@ -978,19 +978,16 @@ fun MapaActividad(
 
     AndroidView(
         factory = { ctx ->
-            // Configurar osmdroid
             Configuration.getInstance().load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
 
             val mapView = MapView(ctx).apply {
                 setTileSource(TileSourceFactory.MAPNIK)
                 setMultiTouchControls(true)
 
-                // Configurar zoom y centro
                 val geoPoint = GeoPoint(latitud, longitud)
                 controller.setZoom(15.0)
                 controller.setCenter(geoPoint)
 
-                // Añadir marcador
                 val marker = Marker(this).apply {
                     position = geoPoint
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -999,19 +996,16 @@ fun MapaActividad(
                 }
                 overlays.add(marker)
 
-                // Deshabilitar interacción (solo visualización)
                 setOnTouchListener { _, _ -> true }
             }
             mapView
         },
         modifier = Modifier.fillMaxSize()
     ) { mapView ->
-        // Actualizar mapa si las coordenadas cambian
         if (latitud != 0.0 && longitud != 0.0) {
             val geoPoint = GeoPoint(latitud, longitud)
             mapView.controller.setCenter(geoPoint)
 
-            // Limpiar marcadores existentes y añadir nuevo
             mapView.overlays.clear()
             val marker = Marker(mapView).apply {
                 position = geoPoint
@@ -1068,7 +1062,6 @@ fun CarruselImagenesActividad(
             }
         }
 
-        // Indicadores de páginas en la parte inferior
         if (imagenIds.size > 1) {
             Row(
                 Modifier

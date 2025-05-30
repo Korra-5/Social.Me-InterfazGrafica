@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.socialme_interfazgrafica.R
@@ -50,14 +51,48 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.material.icons.filled.Search
 
+private fun normalizarUrl(url: String): String {
+    return url
+        .replace("á", "a").replace("Á", "A")
+        .replace("é", "e").replace("É", "E")
+        .replace("í", "i").replace("Í", "I")
+        .replace("ó", "o").replace("Ó", "O")
+        .replace("ú", "u").replace("Ú", "U")
+        .replace("ü", "u").replace("Ü", "U")
+        .replace("ñ", "n").replace("Ñ", "N")
+        .replace("ç", "c").replace("Ç", "C")
+}
+
+private fun normalizarUsername(username: String): String {
+    return normalizarUrl(username)
+        .lowercase()
+        .filter { char -> char.isLetterOrDigit() || char == '_' }
+}
+
+@Composable
+fun VistaPreviewUsername(username: String) {
+    if (username.isNotBlank()) {
+        val usernameNormalizado = normalizarUsername(username)
+        if (usernameNormalizado.isNotEmpty()) {
+            Text(
+                text = "Username resultante: $usernameNormalizado",
+                fontSize = 12.sp,
+                color = Color(0xFF6B7280),
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+            )
+        }
+    }
+}
+
 @Composable
 fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel) {
-    // Resetear estado al entrar a la pantalla
+    val context = LocalContext.current
+
     LaunchedEffect(Unit) {
         viewModel.resetRegistroState()
     }
 
-    // Estados para los campos del formulario
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -68,21 +103,17 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
     var municipio by remember { mutableStateOf("") }
     var provincia by remember { mutableStateOf("") }
 
-    // Estados para intereses e imagen de perfil
     var intereses = remember { mutableStateListOf<String>() }
     var nuevoInteres by remember { mutableStateOf("") }
     var imagenPerfil by remember { mutableStateOf<Uri?>(null) }
 
-    // Estados para validación
     val errorFields = remember { mutableStateMapOf<String, String>() }
     var isLoading by remember { mutableStateOf(false) }
     var generalError by remember { mutableStateOf<String?>(null) }
 
-    // Estados para visibilidad de contraseñas
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    // ✨ ANIMACIÓN DEL FONDO (igual que en login)
     val infiniteTransition = rememberInfiniteTransition(label = "background")
     val animatedOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -94,17 +125,14 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
         label = "offset"
     )
 
-    // Launcher para selección de imagen
     val imagenLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imagenPerfil = uri
     }
 
-    // Observar estado de registro
     val registroState by viewModel.registroState.observeAsState()
 
-    // Efecto para manejar cambios en el estado de registro
     LaunchedEffect(registroState) {
         when (registroState) {
             is RegistroState.Loading -> {
@@ -116,7 +144,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                 navController.navigate(
                     AppScreen.EmailVerificationScreen.createRoute(
                         email = email.trim(),
-                        username = username.trim(),
+                        username = normalizarUsername(username.trim()),
                         isRegistration = true
                     )
                 )
@@ -131,13 +159,15 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
         }
     }
 
-    // Función para validar campos (mantenemos la misma lógica)
     fun validateFields(): Boolean {
         errorFields.clear()
 
+        val usernameNormalizado = normalizarUsername(username.trim())
         if (username.trim().isEmpty()) {
             errorFields["username"] = "El nombre de usuario es requerido"
-        } else if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(username.trim())) {
+        } else if (usernameNormalizado.isEmpty()) {
+            errorFields["username"] = "El nombre de usuario no es válido después de la normalización"
+        } else if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(usernameNormalizado)) {
             errorFields["username"] = "El nombre de usuario contiene palabras no permitidas"
         }
 
@@ -211,7 +241,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                 )
             )
     ) {
-        // Círculos decorativos
         Box(
             modifier = Modifier
                 .size(180.dp)
@@ -242,7 +271,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
         ) {
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Título
             Text(
                 text = "¡ÚNETE AHORA!",
                 fontSize = 32.sp,
@@ -258,7 +286,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                 modifier = Modifier.padding(bottom = 32.dp)
             )
 
-            // Card principal con mejor diseño
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -276,7 +303,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         .padding(28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Selector de imagen de perfil mejorado
                     Card(
                         modifier = Modifier
                             .size(100.dp)
@@ -323,14 +349,16 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         modifier = Modifier.padding(bottom = 24.dp, top = 8.dp)
                     )
 
-                    // Campos mejorados
-                    ModernTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = "Nombre de usuario",
-                        icon = R.drawable.ic_user,
-                        errorMessage = errorFields["username"]
-                    )
+                    Column {
+                        ModernTextField(
+                            value = username,
+                            onValueChange = { username = it },
+                            label = "Nombre de usuario",
+                            icon = R.drawable.ic_user,
+                            errorMessage = errorFields["username"]
+                        )
+                        VistaPreviewUsername(username)
+                    }
 
                     ModernTextField(
                         value = email,
@@ -404,7 +432,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["descripcion"]
                     )
 
-                    // Sección de intereses mejorada
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -426,7 +453,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
 
-                            // Campo para añadir intereses
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -471,7 +497,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                                 )
                             }
 
-                            // Mostrar intereses añadidos con mejor diseño
                             if (intereses.isNotEmpty()) {
                                 FlowRow(
                                     modifier = Modifier
@@ -512,7 +537,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                                 }
                             }
 
-                            // Error de intereses
                             if (errorFields["intereses"] != null) {
                                 Text(
                                     text = errorFields["intereses"]!!,
@@ -524,7 +548,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         }
                     }
 
-                    // Mensaje de error general con animación
                     AnimatedVisibility(
                         visible = generalError != null,
                         enter = slideInVertically() + fadeIn(),
@@ -551,12 +574,12 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         }
                     }
 
-                    // Botón de registro mejorado
                     Button(
                         onClick = {
                             if (validateFields()) {
                                 viewModel.registrarUsuario(
-                                    username = username.trim(),
+                                    context = context,
+                                    username = normalizarUsername(username.trim()),
                                     password = password,
                                     passwordRepeat = confirmPassword,
                                     email = email.trim(),
@@ -609,7 +632,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Enlace a login mejorado
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
@@ -638,7 +660,6 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
     }
 }
 
-// Componente de TextField moderno para el registro
 @Composable
 fun ModernTextField(
     value: String,
@@ -720,7 +741,6 @@ fun ModernTextField(
     }
 }
 
-// Componente FlowRow (mantenemos el mismo)
 @Composable
 fun FlowRow(
     modifier: Modifier = Modifier,

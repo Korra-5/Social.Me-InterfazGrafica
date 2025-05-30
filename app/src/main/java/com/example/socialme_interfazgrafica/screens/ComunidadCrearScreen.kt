@@ -56,16 +56,26 @@ import org.osmdroid.views.overlay.Overlay
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
-// Función para filtrar caracteres válidos (solo letras, números y espacios)
+private fun normalizarUrl(url: String): String {
+    return url
+        .replace("á", "a").replace("Á", "A")
+        .replace("é", "e").replace("É", "E")
+        .replace("í", "i").replace("Í", "I")
+        .replace("ó", "o").replace("Ó", "O")
+        .replace("ú", "u").replace("Ú", "U")
+        .replace("ü", "u").replace("Ü", "U")
+        .replace("ñ", "n").replace("Ñ", "N")
+        .replace("ç", "c").replace("Ç", "C")
+}
+
 fun filtrarCaracteresUrl(texto: String): String {
     return texto.filter { char ->
         char.isLetterOrDigit() || char.isWhitespace()
     }
 }
 
-// Función para formatear el texto a URL válida
 fun formatearTextoAUrl(texto: String): String {
-    return texto
+    return normalizarUrl(texto)
         .trim()
         .lowercase()
         .replace(Regex("\\s+"), "-")
@@ -158,7 +168,6 @@ fun CrearComunidadScreen(navController: NavController) {
         }
     }
 
-    // Función para validar los campos obligatorios
     fun validarCampos(
         url: String,
         nombre: String,
@@ -261,7 +270,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        // Imagen de perfil
                         Text(
                             text = "Imagen de perfil",
                             fontSize = 16.sp,
@@ -311,7 +319,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             }
                         }
 
-                        // URL de la comunidad
                         Text(
                             text = "URL de la comunidad",
                             fontSize = 16.sp,
@@ -342,10 +349,8 @@ fun CrearComunidadScreen(navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Vista previa de la URL
                         VistaPreviewUrl(url)
 
-                        // Nombre de la comunidad
                         Text(
                             text = "Nombre de la comunidad",
                             fontSize = 16.sp,
@@ -373,7 +378,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        // Descripción
                         Text(
                             text = "Descripción",
                             fontSize = 16.sp,
@@ -404,7 +408,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             minLines = 3
                         )
 
-                        // Sección del mapa
                         Text(
                             text = "Ubicación",
                             fontSize = 16.sp,
@@ -543,7 +546,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             )
                         }
 
-                        // Intereses
                         Text(
                             text = "Intereses",
                             fontSize = 16.sp,
@@ -644,7 +646,6 @@ fun CrearComunidadScreen(navController: NavController) {
                             }
                         }
 
-                        // Opciones de comunidad
                         Text(
                             text = "Opciones de comunidad",
                             fontSize = 16.sp,
@@ -799,6 +800,7 @@ fun CrearComunidadScreen(navController: NavController) {
         }
     }
 }
+
 fun obtenerUbicacionActual(context: Context, onLocationReceived: (Location) -> Unit) {
     try {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)

@@ -48,6 +48,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -106,6 +109,7 @@ import org.json.JSONObject
 import retrofit2.Response
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.Date
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -116,29 +120,20 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
     val utils = FunctionUtils
 
-    // Estado para controlar si el usuario está participando en la comunidad
     val isUserParticipating = remember { mutableStateOf(false) }
-    // Estado de carga para el botón
     val isLoading = remember { mutableStateOf(false) }
-    // Para almacenar el nombre de usuario actual
     val username = remember { mutableStateOf("") }
 
-    // Estado para almacenar el número de usuarios en la comunidad
     val cantidadUsuarios = remember { mutableStateOf(0) }
-    // Estado para controlar si está cargando el contador de usuarios
     val isLoadingUsuarios = remember { mutableStateOf(true) }
 
-    // Estado para controlar si el usuario es creador o administrador
     val isCreadorOAdmin = remember { mutableStateOf(false) }
     val isLoadingVerificacion = remember { mutableStateOf(true) }
 
-    // Estado para el diálogo del código de unión
     val showCodigoUnionDialog = remember { mutableStateOf(false) }
 
-    // Estado para el menú desplegable
     val showMenu = remember { mutableStateOf(false) }
 
-    // Estados para el diálogo de denuncia
     val showReportDialog = remember { mutableStateOf(false) }
     val reportReason = remember { mutableStateOf("") }
     val reportBody = remember { mutableStateOf("") }
@@ -146,16 +141,13 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
     val scope = rememberCoroutineScope()
 
-    // Obtener el nombre de usuario actual desde SharedPreferences
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
     }
 
-    // Verificar si el usuario ya participa en la comunidad
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-    // Verificar participación cuando se cargue la pantalla
     LaunchedEffect(username.value) {
         if (username.value.isEmpty()) return@LaunchedEffect
 
@@ -186,7 +178,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         }
     }
 
-    // Cargar el número de usuarios en la comunidad
     LaunchedEffect(comunidad.url) {
         isLoadingUsuarios.value = true
         scope.launch {
@@ -216,7 +207,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         }
     }
 
-    // Verificar si el usuario es creador o administrador
     LaunchedEffect(username.value, comunidad.url) {
         if (username.value.isEmpty()) return@LaunchedEffect
 
@@ -241,13 +231,11 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         }
     }
 
-    // Configurar cliente HTTP con timeouts para imágenes
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Configurar ImageLoader optimizado con caching
     val imageLoader = ImageLoader.Builder(context)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .diskCachePolicy(CachePolicy.ENABLED)
@@ -255,16 +243,13 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         .okHttpClient(okHttpClient)
         .build()
 
-    // Construir URL para foto de perfil
     val fotoPerfilUrl = if (comunidad.fotoPerfilId.isNotEmpty())
         "$baseUrl/files/download/${comunidad.fotoPerfilId}"
     else ""
 
-    // Formatear fecha de creación
     val fechaCreacion =
         SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(comunidad.fechaCreacion)
 
-    // Mostrar diálogo de código de unión si está activo
     if (showCodigoUnionDialog.value && comunidad.codigoUnion != null) {
         AlertDialog(
             onDismissRequest = { showCodigoUnionDialog.value = false },
@@ -309,7 +294,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             confirmButton = {
                 Button(
                     onClick = {
-                        // Copiar al portapapeles
                         clipboardManager.setText(AnnotatedString(comunidad.codigoUnion))
                         Toast.makeText(
                             context,
@@ -335,12 +319,10 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         )
     }
 
-    // Diálogo de denuncia
     if (showReportDialog.value) {
         utils.ReportDialog(
             onDismiss = { showReportDialog.value = false },
             onConfirm = { motivo, cuerpo ->
-                // Crear denuncia
                 scope.launch {
                     isReportLoading.value = true
                     try {
@@ -410,17 +392,14 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         )
     }
 
-    // Box principal que contiene toda la pantalla
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Columna principal con scroll
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header con foto de perfil (SOLO la parte de la imagen)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -441,7 +420,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         imageLoader = imageLoader
                     )
                 } else {
-                    // Fondo por defecto
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -450,15 +428,12 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                 }
             }
 
-            // Ahora el contenido principal está FUERA del Box del header
-            // Contenido principal con fondo blanco
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
                     .padding(16.dp)
             ) {
-                // Nombre y URL
                 Text(
                     text = comunidad.nombre,
                     fontSize = 24.sp,
@@ -472,7 +447,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     color = colorResource(R.color.textoSecundario)
                 )
 
-                // Etiqueta privada (eliminada la referencia a global)
                 if (comunidad.privada) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -495,7 +469,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // En algún lugar de tu ComunidadDetalleScreen
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -503,7 +476,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                         .clickable {
-                            // Navegar a la pantalla de usuarios por comunidad
                             val nombreComunidadEncoded = URLEncoder.encode(
                                 comunidad.nombre,
                                 StandardCharsets.UTF_8.toString()
@@ -540,10 +512,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                 }
 
-                // Divider
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
-                // Descripción
                 Text(
                     text = "Descripción",
                     fontSize = 18.sp,
@@ -559,10 +529,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Divider
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
-                // Intereses/Tags
                 Text(
                     text = "Intereses",
                     fontSize = 18.sp,
@@ -592,14 +560,12 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     }
                 }
 
-                // Divider
                 Divider(
                     color = Color.LightGray,
                     thickness = 1.dp,
                     modifier = Modifier.padding(top = 16.dp)
                 )
 
-                // Información de creación
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 16.dp)
@@ -635,7 +601,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                 }
 
-                // Mostrar administradores si hay
                 if (!comunidad.administradores.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -686,7 +651,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     }
                 }
 
-                // Añadir carrusel de imágenes si hay
                 if (!comunidad.fotoCarruselIds.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Color.LightGray, thickness = 1.dp)
@@ -847,7 +811,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                         )
                     }
                 }
-                // After the "UNIRSE/ABANDONAR" button in ComunidadDetalleScreen.kt
+
                 if (isUserParticipating.value) {
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
@@ -873,7 +837,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_email), // Asegúrate de tener este icono
+                                painter = painterResource(id = R.drawable.ic_email),
                                 contentDescription = "Chat",
                                 modifier = Modifier.size(20.dp)
                             )
@@ -887,25 +851,20 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     }
                 }
 
-                // Carrusel de actividades de la comunidad
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(color = Color.LightGray, thickness = 1.dp)
 
-                // Añadir el carrusel de actividades de la comunidad
                 CarruselActividadesComunidad(
                     comunidadUrl = comunidad.url,
                     navController = navController
                 )
 
-                // Espacio adicional al final
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Solo si es admin o creador
                 if (isCreadorOAdmin.value) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
-                            // Navegar a la pantalla de creación de actividad
                             navController.navigate(
                                 AppScreen.CrearActividadScreen.createRoute(
                                     comunidadUrl = comunidad.url
@@ -934,8 +893,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             }
         }
 
-        // Botones de navegación superpuestos encima de todo
-        // Deben estar en el Box externo para posicionarse correctamente
         IconButton(
             onClick = { navController.popBackStack() },
             modifier = Modifier
@@ -951,7 +908,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
             )
         }
 
-        // Box para el botón de menú con posicionamiento correcto
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -1009,7 +965,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
 
-                // Si es el perfil propio, añadir opción para modificar
                 if (comunidad.creador == username.value) {
                     Divider(color = Color.LightGray, thickness = 0.5.dp)
                     DropdownMenuItem(
@@ -1040,7 +995,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     )
                 }
 
-                // NUEVO: Añadir opción para mostrar código de unión si es comunidad privada y es creador/admin
                 if (comunidad.privada && isCreadorOAdmin.value && comunidad.codigoUnion != null) {
                     Divider(color = Color.LightGray, thickness = 0.5.dp)
                     DropdownMenuItem(
@@ -1070,7 +1024,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         }
     }
 }
-// Función auxiliar para mostrar carrusel de imágenes
+
 @Composable
 fun CarruselImagenes(
     imagenIds: List<String>,
@@ -1081,29 +1035,27 @@ fun CarruselImagenes(
     val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { imagenIds.size })
 
-    // Configurar cliente HTTP con timeouts para imágenes
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    // Configurar ImageLoader optimizado con caching
     val imageLoader = ImageLoader.Builder(context)
         .memoryCachePolicy(CachePolicy.ENABLED)
         .diskCachePolicy(CachePolicy.ENABLED)
         .networkCachePolicy(CachePolicy.ENABLED)
         .memoryCache {
             MemoryCache.Builder(context)
-                .maxSizePercent(0.25) // Usa 25% de la memoria para cache
+                .maxSizePercent(0.25)
                 .build()
         }
         .diskCache {
             DiskCache.Builder()
                 .directory(context.cacheDir.resolve("carrusel_images"))
-                .maxSizeBytes(50 * 1024 * 1024) // Cache de 50MB
+                .maxSizeBytes(50 * 1024 * 1024)
                 .build()
         }
-        .okHttpClient(okHttpClient) // Usar el cliente HTTP configurado
+        .okHttpClient(okHttpClient)
         .build()
 
     Column(
@@ -1139,7 +1091,6 @@ fun CarruselImagenes(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Indicadores de páginas
         Row(
             Modifier
                 .wrapContentHeight()
@@ -1160,7 +1111,6 @@ fun CarruselImagenes(
         }
     }
 }
-
 @Composable
 fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavController) {
     val context = LocalContext.current
@@ -1170,14 +1120,13 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
     var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var mostrarSoloProximas by remember { mutableStateOf(true) }
 
-    // Función para cargar las actividades de la comunidad
     fun cargarActividadesComunidad() {
         scope.launch {
             isLoading = true
             errorMessage = null
             try {
-                // Obtener el token desde SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("TOKEN", "") ?: ""
 
@@ -1188,19 +1137,21 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
                     return@launch
                 }
 
-                // Realizar la petición con el token formateado correctamente
                 val authToken = "Bearer $token"
                 Log.d("CarruselActividadesComunidad", "Realizando petición API con token: ${token.take(5)}... para comunidad: $comunidadUrl")
-                val response = apiService.verActividadesPorComunidad(authToken, comunidadUrl)
+
+                val response = if (mostrarSoloProximas) {
+                    apiService.verActividadesPorComunidadFechaSuperior(authToken, comunidadUrl)
+                } else {
+                    apiService.verActividadesPorComunidadCualquierFecha(authToken, comunidadUrl)
+                }
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
                     Log.d("CarruselActividadesComunidad", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
-                    actividades = actividadesRecibidas
+                    actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
                 } else {
-                    // Tratamiento especial para el error 500 cuando no hay actividades
                     if (response.code() == 500) {
-                        // Asumimos que es porque la comunidad no tiene actividades
                         Log.w("CarruselActividadesComunidad", "Código 500 recibido, asumiendo lista vacía")
                         actividades = emptyList()
                     } else {
@@ -1214,10 +1165,9 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
                     }
                 }
             } catch (e: Exception) {
-                // Mostrar un mensaje más específico en caso de error de conexión
                 Log.e("CarruselActividadesComunidad", "Excepción al cargar actividades", e)
                 errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace() // Imprime la traza completa para depuración
+                e.printStackTrace()
             } finally {
                 isLoading = false
                 Log.d("CarruselActividadesComunidad", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
@@ -1225,8 +1175,7 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
         }
     }
 
-    // Cargar actividades cuando se inicializa el componente
-    LaunchedEffect(comunidadUrl) {
+    LaunchedEffect(comunidadUrl, mostrarSoloProximas) {
         Log.d("CarruselActividadesComunidad", "LaunchedEffect iniciado para comunidad: $comunidadUrl")
         cargarActividadesComunidad()
     }
@@ -1236,16 +1185,73 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Título de sección
-        Text(
-            text = "Actividades de esta comunidad",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = colorResource(R.color.azulPrimario),
-            modifier = Modifier.padding(start = 16.dp, bottom = 12.dp)
-        )
+        // Header section with title and toggle
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "Actividades de esta comunidad",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorResource(R.color.azulPrimario),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
-        // Mostrar estado de carga, error o el carrusel
+            // Toggle section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Filtrar actividades:",
+                    fontSize = 14.sp,
+                    color = colorResource(R.color.textoSecundario)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Próximas",
+                        fontSize = 12.sp,
+                        color = if (mostrarSoloProximas)
+                            colorResource(R.color.azulPrimario)
+                        else
+                            colorResource(R.color.textoSecundario),
+                        fontWeight = if (mostrarSoloProximas) FontWeight.Bold else FontWeight.Normal
+                    )
+
+                    Switch(
+                        checked = !mostrarSoloProximas,
+                        onCheckedChange = { mostrarSoloProximas = !it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colorResource(R.color.azulPrimario),
+                            checkedTrackColor = colorResource(R.color.cyanSecundario),
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.LightGray
+                        ),
+                        modifier = Modifier.scale(0.8f)
+                    )
+
+                    Text(
+                        text = "Todas",
+                        fontSize = 12.sp,
+                        color = if (!mostrarSoloProximas)
+                            colorResource(R.color.azulPrimario)
+                        else
+                            colorResource(R.color.textoSecundario),
+                        fontWeight = if (!mostrarSoloProximas) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         when {
             isLoading -> {
                 Log.d("CarruselActividadesComunidad", "Mostrando indicador de carga")
@@ -1302,14 +1308,13 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No hay actividades en esta comunidad",
+                        text = if (mostrarSoloProximas) "No hay actividades próximas en esta comunidad" else "No hay actividades en esta comunidad",
                         color = colorResource(R.color.textoSecundario),
                         textAlign = TextAlign.Center
                     )
                 }
             }
             else -> {
-                // Carrusel de actividades optimizado
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)

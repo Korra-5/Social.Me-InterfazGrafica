@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit
 
 interface RetrofitService {
 
-    // ==================== USUARIO ====================
     @POST("/Usuario/login")
     suspend fun loginUser(
         @Body usuario: UsuarioLoginDTO
@@ -76,14 +75,13 @@ interface RetrofitService {
         @Query("usuarioActual") usuarioActual: String
     ): Response<List<UsuarioDTO>>
 
-    // NUEVOS ENDPOINTS PARA MODIFICACIÓN CON VERIFICACIÓN
     @PUT("/Usuario/iniciarModificacionUsuario")
     suspend fun iniciarModificacionUsuario(
         @Header("Authorization") token: String,
         @Body usuarioUpdateDTO: UsuarioUpdateDTO
     ): Response<Map<String, String>>
 
-    @GET("/usuarioEsAdmin/{username}")
+    @GET("/Usuario/usuarioEsAdmin/{username}")
     suspend fun usuarioEsAdmin(
         @Header("Authorization") token: String,
         @Path("username") username: String
@@ -95,12 +93,17 @@ interface RetrofitService {
         @Body verificacionDTO: VerificacionDTO
     ): Response<UsuarioDTO>
 
-    // MANTENER PARA COMPATIBILIDAD
     @PUT("/Usuario/modificarUsuario")
     suspend fun modificarUsuario(
         @Header("Authorization") token: String,
         @Body usuarioUpdateDTO: UsuarioUpdateDTO
     ): Response<UsuarioDTO>
+
+    @DELETE("/Usuario/cancelarSolicitudAmistad/{id}")
+    suspend fun cancelarSolicitudAmistad(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<Boolean>
 
     @DELETE("/Usuario/eliminarUsuario/{username}")
     suspend fun eliminarUsuario(
@@ -130,7 +133,6 @@ interface RetrofitService {
         @Path("email") email: String
     ): Response<Boolean>
 
-    // CONFIGURACIÓN DE PRIVACIDAD Y RADAR
     @PUT("/Usuario/cambiarPrivacidadComunidad/{username}/{privacidad}")
     suspend fun cambiarPrivacidadComunidad(
         @Header("Authorization") token: String,
@@ -159,14 +161,12 @@ interface RetrofitService {
         @Path("usuarioSolicitante") usuarioSolicitante: String
     ): Response<List<ComunidadDTO>>
 
-    @GET("/Actividad/verActividadPorUsername/{username}/{usuarioSolicitante}")
-    suspend fun verActividadPorUsername(
+    @GET("/Actividad/verActividadPorUsernameFechaSuperior/{username}/{usuarioSolicitante}")
+    suspend fun verActividadPorUsernameFechaSuperior(
         @Header("Authorization") token: String,
         @Path("username") username: String,
         @Path("usuarioSolicitante") usuarioSolicitante: String
     ): Response<List<ActividadDTO>>
-
-    // ENDPOINTS PARA OBTENER CONFIGURACIONES DEL USUARIO
 
     @GET("/Usuario/verPrivacidadActividad/{username}")
     suspend fun verPrivacidadActividad(
@@ -186,7 +186,6 @@ interface RetrofitService {
         @Path("username") username: String
     ): Response<ResponseBody>
 
-    // AMISTADES
     @GET("/Usuario/verSolicitudesAmistad/{username}")
     suspend fun verSolicitudesAmistad(
         @Header("Authorization") token: String,
@@ -218,7 +217,6 @@ interface RetrofitService {
         @Path("id") id: String
     ): Response<Boolean>
 
-    // BLOQUEOS
     @POST("/Usuario/bloquearUsuario")
     suspend fun bloquearUsuario(
         @Header("Authorization") token: String,
@@ -237,7 +235,6 @@ interface RetrofitService {
         @Path("username") username: String
     ): Response<List<UsuarioDTO>>
 
-    // ==================== COMUNIDAD ====================
     @POST("/Comunidad/crearComunidad")
     suspend fun crearComunidad(
         @Header("Authorization") token: String,
@@ -333,7 +330,6 @@ interface RetrofitService {
         @Path("nuevoCreador") nuevoCreador: String
     ): Response<ComunidadDTO>
 
-    // ==================== ACTIVIDAD ====================
     @POST("/Actividad/crearActividad")
     suspend fun crearActividad(
         @Header("Authorization") token: String,
@@ -347,25 +343,48 @@ interface RetrofitService {
     ): Response<ActividadDTO>
 
 
-    @GET("/Actividad/verActividadNoParticipaUsuario/{username}")
-    suspend fun verActividadNoParticipaUsuario(
+    @GET("/Actividad/verActividadNoParticipaUsuarioFechaSuperior/{username}")
+    suspend fun verActividadNoParticipaUsuarioFechaSuperior(
         @Header("Authorization") token: String,
         @Path("username") username: String
     ): Response<List<ActividadDTO>>
 
-    @GET("/Actividad/verTodasActividadesPublicas")
-    suspend fun verTodasActividadesPublicas(
+    @GET("/Actividad/verActividadNoParticipaUsuarioCualquierFecha/{username}")
+    suspend fun verActividadNoParticipaUsuarioCualquierFecha(
+        @Header("Authorization") token: String,
+        @Path("username") username: String
+    ): Response<List<ActividadDTO>>
+
+    @GET("/Actividad/verTodasActividadesPublicasFechaSuperior")
+    suspend fun verTodasActividadesPublicasFechaSuperior(
         @Header("Authorization") token: String
     ): Response<List<ActividadDTO>>
 
-    @GET("/Actividad/verActividadesPublicasEnZona/{username}")
-    suspend fun verActividadesPublicas(
+    @GET("/Actividad/verTodasActividadesPublicasCualquierFecha")
+    suspend fun verTodasActividadesPublicasCualquierFecha(
+        @Header("Authorization") token: String
+    ): Response<List<ActividadDTO>>
+
+    @GET("/Actividad/verActividadesPublicasEnZonaFechaSuperior/{username}")
+    suspend fun verActividadesPublicasFechaSuperior(
         @Header("Authorization") token: String,
         @Path("username") username: String,
     ): Response<List<ActividadDTO>>
 
-    @GET("/Actividad/verActividadesPorComunidad/{comunidad}")
-    suspend fun verActividadesPorComunidad(
+    @GET("/Actividad/verActividadesPublicasEnZonaCualquierFecha/{username}")
+    suspend fun verActividadesPublicasCualquierFecha(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+    ): Response<List<ActividadDTO>>
+
+    @GET("/Actividad/verActividadesPorComunidadFechaSuperior/{comunidad}")
+    suspend fun verActividadesPorComunidadFechaSuperior(
+        @Header("Authorization") token: String,
+        @Path("comunidad") comunidad: String
+    ): Response<List<ActividadDTO>>
+
+    @GET("/Actividad/verActividadesPorComunidadCualquierFecha/{comunidad}")
+    suspend fun verActividadesPorComunidadCualquierFecha(
         @Header("Authorization") token: String,
         @Path("comunidad") comunidad: String
     ): Response<List<ActividadDTO>>
@@ -420,7 +439,6 @@ interface RetrofitService {
         @Path("idActividad") idActividad: String
     ): Response<Boolean>
 
-    // ==================== DENUNCIA ====================
     @POST("/Denuncia/crearDenuncia")
     suspend fun crearDenuncia(
         @Header("Authorization") token: String,
@@ -450,7 +468,6 @@ interface RetrofitService {
         @Path("completado") completado: Boolean
     ): Response<DenunciaDTO>
 
-    // ==================== NOTIFICACIONES ====================
     @GET("/Notificacion/obtenerNotificaciones/{username}")
     suspend fun obtenerNotificaciones(
         @Header("Authorization") token: String,
@@ -469,7 +486,6 @@ interface RetrofitService {
         @Path("notificacionId") notificacionId: String
     ): Response<NotificacionDTO>
 
-    // ==================== CHAT ====================
     @POST("/Chat/enviarMensaje")
     suspend fun enviarMensaje(
         @Header("Authorization") token: String,
@@ -488,8 +504,7 @@ interface RetrofitService {
         @Path("idActividad") idActividad: String
     ): Response<ComunidadDTO>
 
-    // Añadir en la interfaz ApiService:
-    @PUT("Usuario/cambiarContrasena")
+   @PUT("Usuario/cambiarContrasena")
     suspend fun cambiarContrasena(
         @Header("Authorization") token: String,
         @Body cambiarContrasenaDTO: CambiarContrasenaDTO
@@ -501,7 +516,6 @@ interface RetrofitService {
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>
 
-    // ENDPOINTS DE REGISTRO CON VERIFICACIÓN
     @POST("/Usuario/iniciarRegistro")
     suspend fun iniciarRegistro(@Body usuarioRegisterDTO: UsuarioRegisterDTO): Response<Map<String, String>>
 
@@ -510,9 +524,8 @@ interface RetrofitService {
 
     object RetrofitServiceFactory {
         fun makeRetrofitService(): RetrofitService {
-            // Configurar Gson para formatear correctamente las fechas
             val gson = GsonBuilder()
-                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS")  // Formato ISO 8601 compatible con Java
+                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS")
                 .create()
 
             val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -521,7 +534,7 @@ interface RetrofitService {
 
             val client = OkHttpClient.Builder()
                 .addInterceptor(loggingInterceptor)
-                .connectTimeout(30, TimeUnit.SECONDS)  // Añadido para evitar timeouts
+                .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build()
@@ -529,7 +542,7 @@ interface RetrofitService {
             return Retrofit.Builder()
                 .baseUrl("https://social-me-tfg.onrender.com")
                 .client(client)
-                .addConverterFactory(GsonConverterFactory.create(gson))  // Usar el Gson personalizado
+                .addConverterFactory(GsonConverterFactory.create(gson))
                 .build()
                 .create(RetrofitService::class.java)
         }

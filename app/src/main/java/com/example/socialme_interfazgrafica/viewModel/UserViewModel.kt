@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import android.widget.Toast
@@ -51,7 +52,6 @@ sealed class VerificacionState {
 class UserViewModel : ViewModel() {
     private val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-    // Estados LiveData que la UI puede observar
     private val _registroState = MutableLiveData<RegistroState>(RegistroState.Initial)
     val registroState: LiveData<RegistroState> = _registroState
 
@@ -73,11 +73,9 @@ class UserViewModel : ViewModel() {
     private val _userRole = MutableLiveData<String>()
     val userRole: LiveData<String> = _userRole
 
-    // Para almacenar la ubicación actual
     private val _ubicacionActual = MutableLiveData<Coordenadas?>()
     val ubicacionActual: LiveData<Coordenadas?> = _ubicacionActual
 
-    // Método para decodificar el JWT y extraer el username y el rol
     private fun decodeJwt(token: String): Pair<String, String?> {
         try {
             val parts = token.split(".")
@@ -109,7 +107,6 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    // Función para obtener la ubicación actual
     fun obtenerUbicacionActual(context: Context, onComplete: (Boolean) -> Unit) {
         try {
             val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -149,7 +146,22 @@ class UserViewModel : ViewModel() {
         }
     }
 
+    private suspend fun convertirUriABase64(context: Context, uri: Uri): String? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bytes = inputStream?.readBytes()
+            inputStream?.close()
+            if (bytes != null) {
+                Base64.encodeToString(bytes, Base64.NO_WRAP)
+            } else null
+        } catch (e: Exception) {
+            Log.e("UserViewModel", "Error convirtiendo URI a Base64: ${e.message}")
+            null
+        }
+    }
+
     fun registrarUsuario(
+        context: Context,
         username: String,
         email: String,
         password: String,
@@ -170,23 +182,34 @@ class UserViewModel : ViewModel() {
             provincia = provincia
         )
 
-        val usuario = UsuarioRegisterDTO(
-            username = username,
-            email = email,
-            password = password,
-            passwordRepeat = passwordRepeat,
-            rol = rol,
-            direccion = direccion,
-            nombre = nombre,
-            apellidos = apellidos,
-            descripcion = descripcion,
-            intereses = intereses,
-            fotoPerfil = fotoPerfil
-        )
-
-        Log.d("RegistroVM", "Intentando iniciar registro para usuario: $usuario")
-
         viewModelScope.launch {
+            val fotoPerfilBase64 = if (fotoPerfil.isNotEmpty()) {
+                try {
+                    val uri = Uri.parse(fotoPerfil)
+                    convertirUriABase64(context, uri)
+                } catch (e: Exception) {
+                    Log.e("RegistroVM", "Error procesando imagen: ${e.message}")
+                    null
+                }
+            } else null
+
+            val usuario = UsuarioRegisterDTO(
+                username = username,
+                email = email,
+                password = password,
+                passwordRepeat = passwordRepeat,
+                rol = rol,
+                direccion = direccion,
+                nombre = nombre,
+                apellidos = apellidos,
+                descripcion = descripcion,
+                intereses = intereses,
+                fotoPerfil = "",
+                fotoPerfilBase64 = fotoPerfilBase64
+            )
+
+            Log.d("RegistroVM", "Intentando iniciar registro para usuario: $usuario")
+
             try {
                 val response = apiService.iniciarRegistro(usuario)
 
@@ -215,12 +238,11 @@ class UserViewModel : ViewModel() {
     fun login(context: Context, username: String, password: String) {
         _loginState.value = LoginState.Loading
 
-        // Obtener la ubicación actual antes de hacer login
         obtenerUbicacionActual(context) { success ->
             val coordenadas = if (success) {
                 _ubicacionActual.value
             } else {
-                Coordenadas(0.0.toString(), 0.0.toString()) // Coordenadas por defecto
+                Coordenadas(0.0.toString(), 0.0.toString())
             }
 
             realizarLogin(username, password, coordenadas)
@@ -283,7 +305,6 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    // Método para verificar código de REGISTRO
     fun verificarCodigo(email: String, codigo: String, onComplete: (Boolean) -> Unit) {
         _verificacionState.value = VerificacionState.Loading
 
@@ -316,7 +337,6 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    // MÉTODO CORREGIDO para verificar código de MODIFICACIÓN - AHORA RECIBE CONTEXT
     fun verificarCodigoModificacion(context: Context, email: String, codigo: String, onComplete: (Boolean) -> Unit) {
         _verificacionState.value = VerificacionState.Loading
 
@@ -324,7 +344,6 @@ class UserViewModel : ViewModel() {
             try {
                 val verificacionDTO = VerificacionDTO(email = email, codigo = codigo)
 
-                // Obtener token real de SharedPreferences
                 val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
                 val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
 
@@ -343,7 +362,6 @@ class UserViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     response.body()?.let { usuario ->
-                        // Actualizar SharedPreferences si cambió el username
                         val currentUsername = sharedPreferences.getString("USERNAME", "")
                         if (usuario.username != currentUsername) {
                             val editor = sharedPreferences.edit()
@@ -383,7 +401,6 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    // Método para reenviar el código
     fun reenviarCodigo(email: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
@@ -396,25 +413,15 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Resetea el estado de login para evitar inicios de sesión automáticos indeseados
-     * cuando el usuario cierra sesión
-     */
     fun resetLoginState() {
         _loginState.value = LoginState.Initial
         _tokenLogin.value = ""
         _userRole.value = ""
         _ubicacionActual.value = null
-
-        // También podemos limpiar los mensajes de error si hay alguno
         _mensajeError.value = ""
-
         Log.d("UserViewModel", "Estado de login reseteado correctamente")
     }
 
-    /**
-     * Resetea el estado de registro para evitar navegaciones automáticas indeseadas
-     */
     fun resetRegistroState() {
         _registroState.value = RegistroState.Initial
         _verificacionState.value = VerificacionState.Initial
