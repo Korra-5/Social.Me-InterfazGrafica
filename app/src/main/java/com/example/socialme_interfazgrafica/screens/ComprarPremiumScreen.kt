@@ -25,8 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
-import com.example.socialme_interfazgrafica.services.PayPalSimulationService
-import com.example.socialme_interfazgrafica.services.PurchaseResult
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 const val PREMIUM_PRICE_EUR = "1.99"
@@ -39,8 +38,8 @@ fun ComprarPremiumScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var isPremium by remember { mutableStateOf(false) }
-    var connectionTested by remember { mutableStateOf(false) }
     var connectionOk by remember { mutableStateOf(false) }
+    var isConnecting by remember { mutableStateOf(true) }
     val TAG = "ComprarPremiumScreen"
 
     // Obtener información del usuario
@@ -48,38 +47,86 @@ fun ComprarPremiumScreen(navController: NavController) {
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val username = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    val simulationService = remember { PayPalSimulationService() }
+    // Función para verificar conexión (silenciosa)
+    fun testConnection() {
+        scope.launch {
+            try {
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                val healthResponse = apiService.healthCheck()
+                connectionOk = healthResponse.isSuccessful
+                Log.d(TAG, "Conexión: ${if (connectionOk) "OK" else "Error ${healthResponse.code()}"}")
+            } catch (e: Exception) {
+                connectionOk = false
+                Log.e(TAG, "Error de conexión", e)
+            } finally {
+                isConnecting = false
+            }
+        }
+    }
 
-    // Verificar si el usuario ya es premium
+    // Verificar si el usuario ya es premium y probar conexión
     LaunchedEffect(Unit) {
         if (token.isNotEmpty() && username.isNotEmpty()) {
             scope.launch {
                 try {
-                    Log.d(TAG, "Verificando estado premium del usuario...")
                     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
                     val response = apiService.verUsuarioPorUsername("Bearer $token", username)
                     if (response.isSuccessful) {
                         isPremium = response.body()?.premium ?: false
-                        Log.d(TAG, "Usuario es premium: $isPremium")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error verificando usuario", e)
                 }
             }
         }
+
+        delay(1000)
+        testConnection()
     }
 
-    // Probar conexión con el backend
-    LaunchedEffect(Unit) {
+    // Función para simular el pago
+    fun processPremiumPurchase() {
         scope.launch {
+            isLoading = true
             try {
-                connectionOk = simulationService.testConnection()
-                connectionTested = true
-                Log.d(TAG, "Conexión con backend: $connectionOk")
+                val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                val purchaseResponse = apiService.simulatePremiumPurchase(
+                    token = "Bearer $token",
+                    username = username
+                )
+
+                if (purchaseResponse.isSuccessful) {
+                    val result = purchaseResponse.body()
+                    if (result?.success == true) {
+                        isPremium = true
+                        Toast.makeText(
+                            context,
+                            "¡Pago exitoso! Ya eres Premium 🌟",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Error en el procesamiento del pago",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Error del servidor. Inténtalo más tarde",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error probando conexión", e)
-                connectionTested = true
-                connectionOk = false
+                Toast.makeText(
+                    context,
+                    "Error de conexión. Verifica tu internet",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                isLoading = false
+                showConfirmDialog = false
             }
         }
     }
@@ -163,6 +210,7 @@ fun ComprarPremiumScreen(navController: NavController) {
                     BenefitItem(text = "Crea hasta 10 comunidades (en lugar de 3)", icon = "✨")
                     BenefitItem(text = "Prioridad en las búsquedas", icon = "🔍")
                     BenefitItem(text = "Soporte prioritario", icon = "🛟")
+                    BenefitItem(text = "Insignia Premium visible", icon = "⭐")
                 }
             }
 
@@ -196,7 +244,7 @@ fun ComprarPremiumScreen(navController: NavController) {
                     )
 
                     Text(
-                        text = "Simulación de pago",
+                        text = "Procesado con PayPal",
                         fontSize = 14.sp,
                         color = colorResource(R.color.textoSecundario)
                     )
@@ -205,37 +253,7 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Estado de conexión
-            if (!connectionTested) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD))
-                ) {
-                    Text(
-                        text = "Probando conexión...",
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            } else if (!connectionOk) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8D7DA))
-                ) {
-                    Text(
-                        text = "Error de conexión con el servidor",
-                        fontSize = 14.sp,
-                        color = Color(0xFF721C24),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón de compra
+            // Botón de compra o estado
             if (isPremium) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -244,26 +262,78 @@ fun ComprarPremiumScreen(navController: NavController) {
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(
-                        text = "¡Ya eres Premium!",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFD700),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⭐",
+                            fontSize = 24.sp,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            text = "¡Ya eres Premium!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFFD700)
+                        )
+                    }
                 }
-            } else {
+            } else if (isConnecting) {
                 Button(
-                    onClick = {
-                        showConfirmDialog = true
-                    },
-                    enabled = !isLoading && connectionOk,
+                    onClick = { },
+                    enabled = false,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(R.color.azulPrimario)
+                        disabledContainerColor = Color.Gray
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Conectando...",
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
+                }
+            } else if (!connectionOk) {
+                Button(
+                    onClick = { testConnection() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Gray
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "Error de conexión - Reintentar",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            } else {
+                Button(
+                    onClick = { showConfirmDialog = true },
+                    enabled = !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario),
+                        disabledContainerColor = Color.Gray
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -273,9 +343,15 @@ fun ComprarPremiumScreen(navController: NavController) {
                             color = Color.White,
                             strokeWidth = 2.dp
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Procesando...",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     } else {
                         Text(
-                            text = "Simular Compra Premium",
+                            text = "💳 Comprar Premium €$PREMIUM_PRICE_EUR",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -289,54 +365,50 @@ fun ComprarPremiumScreen(navController: NavController) {
                 text = "Simulación de pago - No se cobra dinero real",
                 fontSize = 12.sp,
                 color = colorResource(R.color.textoSecundario),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                style = androidx.compose.ui.text.TextStyle(
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
             )
         }
     }
 
-    // Diálogo de confirmación
+    // Diálogo de confirmación (simplificado)
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Confirmar compra simulada") },
+            title = {
+                Text(
+                    "Confirmar compra",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Text("¿Deseas simular la compra de Premium por €$PREMIUM_PRICE_EUR?\n\nEsto es solo una simulación - no se cobrará dinero real.")
+                Text(
+                    "¿Confirmas la compra de Premium por €$PREMIUM_PRICE_EUR?\n\n" +
+                            "Es una simulación - no se cobrará dinero real."
+                )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showConfirmDialog = false
-                        scope.launch {
-                            isLoading = true
-                            when (val result = simulationService.simulatePremiumPurchase(
-                                username = username,
-                                amount = PREMIUM_PRICE_EUR,
-                                token = token
-                            )) {
-                                is PurchaseResult.Success -> {
-                                    Log.d(TAG, "✅ Compra simulada exitosa: ${result.orderId}")
-                                    Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
-                                    isPremium = true
-                                    // Actualizar SharedPreferences
-                                    with(sharedPreferences.edit()) {
-                                        putBoolean("PREMIUM", true)
-                                        apply()
-                                    }
-                                }
-                                is PurchaseResult.Error -> {
-                                    Log.e(TAG, "❌ Error en compra: ${result.message}")
-                                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                            isLoading = false
-                        }
-                    }
+                Button(
+                    onClick = { processPremiumPurchase() },
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(R.color.azulPrimario)
+                    )
                 ) {
-                    Text("Simular", color = colorResource(R.color.azulPrimario))
+                    Text(
+                        text = if (isLoading) "Procesando..." else "Confirmar",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) {
+                TextButton(
+                    onClick = { showConfirmDialog = false },
+                    enabled = !isLoading
+                ) {
                     Text("Cancelar")
                 }
             }

@@ -317,7 +317,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                             focusedTextColor = colorResource(R.color.black),
                             unfocusedTextColor = colorResource(R.color.black),
                             cursorColor = colorResource(R.color.azulPrimario),
-                            // ✨ COLORES PARA ESTADO DESHABILITADO
+
                             disabledTextColor = Color(0xFF424242),        // Gris oscuro para texto
                             disabledLabelColor = Color(0xFF757575),       // Gris medio para label
                             disabledBorderColor = colorResource(R.color.cyanSecundario),
@@ -428,6 +428,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                     Button(
                         onClick = {
                             if (username.isNotEmpty() && password.isNotEmpty()) {
+                                username=username.toLowerCase().trim()
                                 viewModel.login(context, username, password)
                             } else {
                                 errorMessage = "Por favor, completa todos los campos"

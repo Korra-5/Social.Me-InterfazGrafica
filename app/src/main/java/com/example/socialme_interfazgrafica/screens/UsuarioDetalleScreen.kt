@@ -165,67 +165,79 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
         }
     }
 
-    fun cargarAmigos() {
-        cargandoAmigos = true
-        scope.launch {
-            try {
-                val response = apiService.verAmigos(authToken, username)
+    LaunchedEffect(username) {
+        try {
+            val response = apiService.verUsuarioPorUsername(authToken, username)
+            if (response.isSuccessful) {
+                val usuarioData = response.body()
+                usuario = usuarioData
 
-                if (response.isSuccessful) {
-                    amigosDelUsuario = response.body() ?: emptyList()
-                    if (!isOwnProfile) {
-                        esAmigo = amigosDelUsuario.any { it.username == currentUsername }
-                    }
-                } else {
-                    Log.e("UsuarioDetalles", "Error al cargar amigos: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e("UsuarioDetalles", "Error: ${e.message}")
-            } finally {
-                cargandoAmigos = false
-            }
-        }
-    }
-
-    fun verificarSolicitudesPendientes() {
-        scope.launch {
-            try {
-                val responseEnviada = apiService.verificarSolicitudPendiente(authToken, currentUsername, username)
-                if (responseEnviada.isSuccessful) {
-                    hayPendienteEnviada = responseEnviada.body() ?: false
+                if (usuarioData != null) {
+                    privacidadComunidades = usuarioData.privacidadComunidades
+                    privacidadActividades = usuarioData.privacidadActividades
                 }
 
-                val responseRecibida = apiService.verificarSolicitudPendiente(authToken, username, currentUsername)
-                if (responseRecibida.isSuccessful) {
-                    hayPendienteRecibida = responseRecibida.body() ?: false
-                }
+                isLoading = false
 
-                if (hayPendienteRecibida) {
-                    val solicitudesResponse = apiService.verSolicitudesAmistad(authToken, currentUsername)
-                    if (solicitudesResponse.isSuccessful) {
-                        val solicitudes = solicitudesResponse.body() ?: emptyList()
-                        val solicitudDeEsteUsuario = solicitudes.find { it.remitente == username }
-                        solicitudRecibidaId = solicitudDeEsteUsuario?._id
-                    }
-                }
-
-                if (hayPendienteEnviada) {
-                    val todasSolicitudesResponse = apiService.verSolicitudesAmistad(authToken, username)
-                    if (todasSolicitudesResponse.isSuccessful) {
-                        val todasSolicitudes = todasSolicitudesResponse.body() ?: emptyList()
-                        val solicitudEnviada = todasSolicitudes.find {
-                            it.remitente == currentUsername && it.destinatario == username && !it.aceptada
+                cargandoAmigos = true
+                try {
+                    val amigosResponse = apiService.verAmigos(authToken, username)
+                    if (amigosResponse.isSuccessful) {
+                        amigosDelUsuario = amigosResponse.body() ?: emptyList()
+                        if (!isOwnProfile) {
+                            esAmigo = amigosDelUsuario.any { it.username == currentUsername }
                         }
-                        if (solicitudEnviada == null) {
+                    } else {
+                        Log.e("UsuarioDetalles", "Error al cargar amigos: ${amigosResponse.code()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("UsuarioDetalles", "Error: ${e.message}")
+                } finally {
+                    cargandoAmigos = false
+                }
 
-                        } else {
-                            solicitudEnviadaId = solicitudEnviada._id
+                if (!isOwnProfile) {
+                    try {
+                        val responseEnviada = apiService.verificarSolicitudPendiente(authToken, currentUsername, username)
+                        if (responseEnviada.isSuccessful) {
+                            hayPendienteEnviada = responseEnviada.body() ?: false
                         }
+
+                        val responseRecibida = apiService.verificarSolicitudPendiente(authToken, username, currentUsername)
+                        if (responseRecibida.isSuccessful) {
+                            hayPendienteRecibida = responseRecibida.body() ?: false
+                        }
+
+                        if (hayPendienteRecibida) {
+                            val solicitudesResponse = apiService.verSolicitudesAmistad(authToken, currentUsername)
+                            if (solicitudesResponse.isSuccessful) {
+                                val solicitudes = solicitudesResponse.body() ?: emptyList()
+                                val solicitudDeEsteUsuario = solicitudes.find { it.remitente == username }
+                                solicitudRecibidaId = solicitudDeEsteUsuario?._id
+                            }
+                        }
+
+                        if (hayPendienteEnviada) {
+                            val todasSolicitudesResponse = apiService.verSolicitudesAmistad(authToken, username)
+                            if (todasSolicitudesResponse.isSuccessful) {
+                                val todasSolicitudes = todasSolicitudesResponse.body() ?: emptyList()
+                                val solicitudEnviada = todasSolicitudes.find {
+                                    it.remitente == currentUsername && it.destinatario == username && !it.aceptada
+                                }
+                                solicitudEnviadaId = solicitudEnviada?._id
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("UsuarioDetalles", "Error al verificar solicitudes: ${e.message}")
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("UsuarioDetalles", "Error al verificar solicitudes: ${e.message}")
+            } else {
+                errorMessage = "Error al cargar el usuario: ${response.code()}"
+                isLoading = false
             }
+        } catch (e: Exception) {
+            errorMessage = "Error de conexion: ${e.message}"
+            isLoading = false
         }
     }
 
@@ -294,7 +306,16 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                     esAmigo = true
                     hayPendienteRecibida = false
                     solicitudRecibidaId = null
-                    cargarAmigos()
+
+                    cargandoAmigos = true
+                    try {
+                        val amigosResponse = apiService.verAmigos(authToken, username)
+                        if (amigosResponse.isSuccessful) {
+                            amigosDelUsuario = amigosResponse.body() ?: emptyList()
+                        }
+                    } finally {
+                        cargandoAmigos = false
+                    }
                 } else {
                     Toast.makeText(context, "Error al aceptar solicitud", Toast.LENGTH_SHORT).show()
                 }
@@ -347,36 +368,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 Log.e("UsuarioDetalles", "Error al bloquear: ${e.message}")
-            }
-        }
-    }
-
-    LaunchedEffect(username) {
-        scope.launch {
-            try {
-                val response = apiService.verUsuarioPorUsername(authToken, username)
-                if (response.isSuccessful) {
-                    val usuarioData = response.body()
-                    usuario = usuarioData
-
-                    if (usuarioData != null) {
-                        privacidadComunidades = usuarioData.privacidadComunidades
-                        privacidadActividades = usuarioData.privacidadActividades
-                    }
-
-                    isLoading = false
-
-                    cargarAmigos()
-                    if (!isOwnProfile) {
-                        verificarSolicitudesPendientes()
-                    }
-                } else {
-                    errorMessage = "Error al cargar el usuario: ${response.code()}"
-                    isLoading = false
-                }
-            } catch (e: Exception) {
-                errorMessage = "Error de conexion: ${e.message}"
-                isLoading = false
             }
         }
     }
@@ -1079,6 +1070,44 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMsg = null
+
+        try {
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMsg = "No se ha encontrado un token de autenticacion"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verComunidadPorUsuario(authToken, username, currentUsername)
+
+            if (response.isSuccessful) {
+                comunidades = response.body() ?: emptyList()
+            } else {
+                if (response.code() == 500) {
+                    comunidades = emptyList()
+                } else {
+                    errorMsg = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesion nuevamente."
+                        403 -> "No tienes permisos para ver las comunidades de este usuario."
+                        404 -> "No se encontraron comunidades para este usuario."
+                        else -> "Error al cargar comunidades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            errorMsg = "Error de conexion: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarComunidades() {
         scope.launch {
             isLoading = true
@@ -1117,10 +1146,6 @@ fun ComunidadCarouselUsuario(username: String, navController: NavController) {
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarComunidades()
     }
 
     when {
@@ -1208,6 +1233,49 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val currentUsername = sharedPreferences.getString("USERNAME", "") ?: ""
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMsg = null
+
+        try {
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMsg = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verActividadPorUsernameFechaSuperior(authToken, username, currentUsername)
+
+            if (response.isSuccessful) {
+                actividades = response.body() ?: emptyList()
+            } else {
+                errorMsg = when (response.code()) {
+                    401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                    403 -> "No tienes permisos para ver las actividades de este usuario."
+                    404 -> "No se encontraron actividades para este usuario."
+                    500 -> {
+                        actividades = emptyList()
+                        null
+                    }
+                    else -> "Error al cargar actividades: ${response.message()}"
+                }
+
+                if (response.code() == 500) {
+                    actividades = emptyList()
+                    errorMsg = null
+                }
+            }
+        } catch (e: Exception) {
+            errorMsg = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarActividades() {
         scope.launch {
             isLoading = true
@@ -1234,12 +1302,11 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
                         404 -> "No se encontraron actividades para este usuario."
                         500 -> {
                             actividades = emptyList()
-                            null // No mostrar error para 500, solo lista vacía
+                            null
                         }
                         else -> "Error al cargar actividades: ${response.message()}"
                     }
 
-                    // Si es error 500, limpiar error para mostrar lista vacía
                     if (response.code() == 500) {
                         actividades = emptyList()
                         errorMsg = null
@@ -1252,10 +1319,6 @@ fun ActividadCarouselUsuario(username: String, navController: NavController) {
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarActividades()
     }
 
     when {

@@ -48,8 +48,8 @@ import androidx.navigation.NavController
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,6 +73,7 @@ import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
+import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
@@ -114,14 +115,12 @@ fun ActividadDetalleScreen(
     val username = remember { mutableStateOf("") }
 
     val showMenu = remember { mutableStateOf(false) }
-
     val showReportDialog = remember { mutableStateOf(false) }
     val reportReason = remember { mutableStateOf("") }
     val reportBody = remember { mutableStateOf("") }
     val isReportLoading = remember { mutableStateOf(false) }
 
     val utils = FunctionUtils
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -168,6 +167,8 @@ fun ActividadDetalleScreen(
                         }
 
                         val comunidadResponseDeferred = async(Dispatchers.IO) {
+                            Log.d("ActividadDetalle", "Token final enviado: '$authToken'")
+
                             retrofitService.verComunidadPorActividad(
                                 token = authToken,
                                 idActividad = actividadId
@@ -180,13 +181,49 @@ fun ActividadDetalleScreen(
                         isParticipating.value = participacionResponse.isSuccessful &&
                                 participacionResponse.body() == true
 
-                        if (comunidadResponse.isSuccessful) {
-                            comunidad.value = comunidadResponse.body()
+                        Log.d("ActividadDetalle", "Código de respuesta comunidad: ${comunidadResponse.code()}")
+                        Log.d("ActividadDetalle", "Respuesta exitosa: ${comunidadResponse.isSuccessful}")
+                        Log.d("ActividadDetalle", "Body no nulo: ${comunidadResponse.body() != null}")
+                        Log.d("ActividadDetalle", "Body: ${comunidadResponse.body()}")
+
+                        when {
+                            comunidadResponse.isSuccessful && comunidadResponse.body() != null -> {
+                                comunidad.value = comunidadResponse.body()
+                                Log.d("ActividadDetalle", "Comunidad cargada exitosamente: ${comunidad.value?.nombre}")
+                                Log.d("ActividadDetalle", "URL de la comunidad: ${comunidad.value?.url}")
+                            }
+                            comunidadResponse.code() == 403 -> {
+                                Log.w("ActividadDetalle", "Sin permisos para ver la comunidad de esta actividad")
+                                comunidad.value = ComunidadDTO(
+                                    url = "comunidad_privada",
+                                    nombre = "Comunidad privada",
+                                    descripcion = "No tienes permisos para ver esta comunidad",
+                                    privada = true,
+                                    creador = "",
+                                    fechaCreacion = Date(),
+                                    intereses = emptyList(),
+                                    fotoPerfilId = "",
+                                    fotoCarruselIds = emptyList(),
+                                    administradores = emptyList(),
+                                    codigoUnion = null,
+                                    coordenadas = Coordenadas("", "")
+                                )
+                                Log.d("ActividadDetalle", "Comunidad privada creada: ${comunidad.value?.nombre}")
+                            }
+                            else -> {
+                                Log.e("ActividadDetalle", "Error cargando comunidad: ${comunidadResponse.code()} - ${comunidadResponse.message()}")
+                                try {
+                                    Log.e("ActividadDetalle", "Error body: ${comunidadResponse.errorBody()?.string()}")
+                                } catch (e: Exception) {
+                                    Log.e("ActividadDetalle", "No se pudo leer error body: ${e.message}")
+                                }
+                            }
                         }
                     } else {
                         error.value = "No se pudo cargar la actividad: ${actividadResponse.message()}"
                     }
                 } catch (e: Exception) {
+                    Log.e("ActividadDetalle", "Excepción en supervisorScope: ${e.message}", e)
                     error.value = when (e) {
                         is TimeoutCancellationException -> "Tiempo de espera agotado. Comprueba tu conexión."
                         else -> "Error de red: ${e.message}"
@@ -194,9 +231,11 @@ fun ActividadDetalleScreen(
                 }
             }
         } catch (e: Exception) {
+            Log.e("ActividadDetalle", "Excepción general: ${e.message}", e)
             error.value = "Error general: ${e.message}"
         } finally {
             isLoading.value = false
+            Log.d("ActividadDetalle", "Estado final - Comunidad: ${comunidad.value?.nombre}")
         }
     }
 
@@ -331,17 +370,13 @@ fun ActividadDetalleContent(
     val context = LocalContext.current
 
     val isUserParticipating = remember { mutableStateOf(isParticipating) }
+    val isLoading = remember { mutableStateOf(false) }
+    val cantidadParticipantes = remember { mutableStateOf(0) }
+    val isLoadingParticipantes = remember { mutableStateOf(true) }
+    val actividadExpirada = remember { mutableStateOf(false) }
 
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val scope = rememberCoroutineScope()
-
-    val isLoading = remember { mutableStateOf(false) }
-
-    val cantidadParticipantes = remember { mutableStateOf(0) }
-
-    val isLoadingParticipantes = remember { mutableStateOf(true) }
-
-    val actividadExpirada = remember { mutableStateOf(false) }
 
     LaunchedEffect(actividad) {
         val fechaActual = Date()
@@ -350,29 +385,27 @@ fun ActividadDetalleContent(
 
     LaunchedEffect(actividad._id) {
         isLoadingParticipantes.value = true
-        scope.launch {
-            try {
-                val response = withContext(Dispatchers.IO) {
-                    withTimeout(5000) {
-                        retrofitService.contarUsuariosEnUnaActividad(
-                            actividadId = actividad._id,
-                            token = authToken
-                        )
-                    }
+        try {
+            val response = withContext(Dispatchers.IO) {
+                withTimeout(5000) {
+                    retrofitService.contarUsuariosEnUnaActividad(
+                        actividadId = actividad._id,
+                        token = authToken
+                    )
                 }
-
-                if (response.isSuccessful) {
-                    cantidadParticipantes.value = response.body() ?: 0
-                } else {
-                    Log.e("ActividadDetalle", "Error al contar participantes: ${response.message()}")
-                    cantidadParticipantes.value = participantes
-                }
-            } catch (e: Exception) {
-                Log.e("ActividadDetalle", "Excepción al contar participantes: ${e.message}")
-                cantidadParticipantes.value = participantes
-            } finally {
-                isLoadingParticipantes.value = false
             }
+
+            if (response.isSuccessful) {
+                cantidadParticipantes.value = response.body() ?: 0
+            } else {
+                Log.e("ActividadDetalle", "Error al contar participantes: ${response.message()}")
+                cantidadParticipantes.value = participantes
+            }
+        } catch (e: Exception) {
+            Log.e("ActividadDetalle", "Excepción al contar participantes: ${e.message}")
+            cantidadParticipantes.value = participantes
+        } finally {
+            isLoadingParticipantes.value = false
         }
     }
 
@@ -446,7 +479,7 @@ fun ActividadDetalleContent(
                     .background(Color.White.copy(alpha = 0.7f), CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Volver",
                     tint = colorResource(R.color.azulPrimario),
                 )
@@ -538,19 +571,35 @@ fun ActividadDetalleContent(
             }
         }
 
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Text(
-                text = actividad.nombre,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = actividad.nombre,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                if (actividad.privada) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lock),
+                        contentDescription = "Actividad privada",
+                        tint = colorResource(R.color.textoSecundario),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -650,88 +699,148 @@ fun ActividadDetalleContent(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            if (comunidad != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickable {
-                            navController.navigate(
-                                AppScreen.ComunidadDetalleScreen.createRoute(comunidad.url)
-                            )
-                        },
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, colorResource(R.color.cyanSecundario).copy(alpha = 0.3f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+            Log.d("ActividadDetalle", "Renderizando organizadores. Comunidad: ${comunidad?.nombre}, URL: ${comunidad?.url}")
+
+            comunidad?.let { comunidadData ->
+                Log.d("ActividadDetalle", "Mostrando comunidad: ${comunidadData.nombre}")
+                if (comunidadData.url == "comunidad_privada") {
+                    Log.d("ActividadDetalle", "Renderizando tarjeta de comunidad privada")
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp)
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Gray.copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Box(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(colorResource(R.color.cyanSecundario)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(12.dp)
                         ) {
-                            if (comunidad.fotoPerfilId.isNotEmpty()) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data("$baseUrl/files/download/${comunidad.fotoPerfilId}")
-                                        .crossfade(true)
-                                        .placeholder(R.drawable.app_icon)
-                                        .error(R.drawable.app_icon)
-                                        .setHeader("Authorization", authToken)
-                                        .build(),
-                                    contentDescription = "Foto de perfil de ${comunidad.nombre}",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                    imageLoader = imageLoader
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Gray.copy(alpha = 0.3f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lock),
+                                    contentDescription = "Comunidad privada",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(24.dp)
                                 )
-                            } else {
-                                Image(
-                                    painter = painterResource(id = R.drawable.app_icon),
-                                    contentDescription = "Perfil por defecto",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Comunidad privada",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Gray
+                                )
+
+                                Text(
+                                    text = "No tienes acceso a esta comunidad",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
                                 )
                             }
                         }
+                    }
+                } else {
+                    Log.d("ActividadDetalle", "Renderizando tarjeta de comunidad normal")
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                navController.navigate(
+                                    AppScreen.ComunidadDetalleScreen.createRoute(comunidadData.url)
+                                )
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, colorResource(R.color.cyanSecundario).copy(alpha = 0.3f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(colorResource(R.color.cyanSecundario)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (comunidadData.fotoPerfilId.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data("$baseUrl/files/download/${comunidadData.fotoPerfilId}")
+                                            .crossfade(true)
+                                            .placeholder(R.drawable.app_icon)
+                                            .error(R.drawable.app_icon)
+                                            .setHeader("Authorization", authToken)
+                                            .build(),
+                                        contentDescription = "Foto de perfil de ${comunidadData.nombre}",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        imageLoader = imageLoader
+                                    )
+                                } else {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.app_icon),
+                                        contentDescription = "Perfil por defecto",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = comunidad.nombre,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.Black
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = comunidadData.nombre,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Black
+                                )
 
-                            Text(
-                                text = "Comunidad organizadora",
-                                fontSize = 14.sp,
-                                color = Color.Gray
+                                Text(
+                                    text = "Comunidad organizadora",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Ver comunidad",
+                                tint = colorResource(R.color.azulPrimario),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-
-                        Icon(
-                            Icons.Filled.ArrowForward,
-                            contentDescription = "Ver comunidad",
-                            tint = colorResource(R.color.azulPrimario),
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+            } ?: run {
+                Log.d("ActividadDetalle", "Comunidad es null, no se muestra tarjeta")
+            }
 
             Card(
                 modifier = Modifier
@@ -788,7 +897,7 @@ fun ActividadDetalleContent(
                     }
 
                     Icon(
-                        Icons.Filled.ArrowForward,
+                        Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Ver usuario",
                         tint = colorResource(R.color.azulPrimario),
                         modifier = Modifier.size(20.dp)
@@ -893,7 +1002,6 @@ fun ActividadDetalleContent(
                                                 if (response.isSuccessful) {
                                                     isUserParticipating.value = true
                                                     Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
-
                                                     cantidadParticipantes.value += 1
                                                 } else {
                                                     Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
@@ -911,7 +1019,6 @@ fun ActividadDetalleContent(
                                                 if (response.isSuccessful) {
                                                     isUserParticipating.value = false
                                                     Toast.makeText(context, "Has abandonado la actividad", Toast.LENGTH_SHORT).show()
-
                                                     if (cantidadParticipantes.value > 0) {
                                                         cantidadParticipantes.value -= 1
                                                     }

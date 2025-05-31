@@ -1,4 +1,3 @@
-
 package com.example.socialme_interfazgrafica.navigation
 
 import android.content.Context
@@ -53,6 +52,16 @@ fun AppNavigation(viewModel: UserViewModel) {
     val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
+    fun getAuthToken(): String {
+        val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("TOKEN", "") ?: ""
+        return if (token.startsWith("Bearer ")) {
+            token
+        } else {
+            "Bearer $token"
+        }
+    }
+
     NavHost(navController = navController, startDestination = AppScreen.InicioSesionScreen.route) {
         composable(AppScreen.InicioSesionScreen.route) {
             InicioSesionScreen(navController, viewModel)
@@ -95,10 +104,7 @@ fun AppNavigation(viewModel: UserViewModel) {
             )
         ) { backStackEntry ->
             val actividadId = backStackEntry.arguments?.getString("actividadId") ?: ""
-
-            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("TOKEN", "") ?: ""
-            val authToken = "Bearer $token"
+            val authToken = getAuthToken()
 
             ActividadDetalleScreen(navController=navController, authToken = authToken , actividadId =  actividadId)
         }
@@ -112,13 +118,8 @@ fun AppNavigation(viewModel: UserViewModel) {
             )
         ) { backStackEntry ->
             val comunidadUrl = backStackEntry.arguments?.getString("comunidadUrl") ?: ""
+            val authToken = getAuthToken()
 
-            // Obtener el token de autenticación
-            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("TOKEN", "") ?: ""
-            val authToken = "Bearer $token"
-
-            // Estado para almacenar los datos de la comunidad
             var comunidad by remember { mutableStateOf<ComunidadDTO?>(null) }
             var isLoading by remember { mutableStateOf(true) }
             var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -302,8 +303,7 @@ fun AppNavigation(viewModel: UserViewModel) {
 
             val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
             val username = sharedPreferences.getString("USERNAME", "") ?: ""
-            val token = sharedPreferences.getString("TOKEN", "") ?: ""
-            val authToken = "Bearer $token"
+            val authToken = getAuthToken()
 
             NotificacionesScreen(
                 navController = navController,

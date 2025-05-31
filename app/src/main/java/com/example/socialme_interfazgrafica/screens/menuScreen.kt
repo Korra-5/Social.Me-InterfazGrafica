@@ -73,16 +73,14 @@ fun MenuScreen(navController: NavController) {
         token.value = sharedPreferences.getString("TOKEN", "") ?: ""
 
         if (username.value.isNotEmpty()) {
-            scope.launch {
-                try {
-                    val authToken = "Bearer ${token.value}"
-                    val response = apiService.verSolicitudesAmistad(authToken, username.value)
-                    if (response.isSuccessful) {
-                        solicitudesPendientes = (response.body() ?: emptyList()).size
-                    }
-                } catch (e: Exception) {
-                    Log.e("MenuScreen", "Error al cargar solicitudes: ${e.message}")
+            try {
+                val authToken = "Bearer ${token.value}"
+                val response = apiService.verSolicitudesAmistad(authToken, username.value)
+                if (response.isSuccessful) {
+                    solicitudesPendientes = (response.body() ?: emptyList()).size
                 }
+            } catch (e: Exception) {
+                Log.e("MenuScreen", "Error al cargar solicitudes: ${e.message}")
             }
         }
     }
@@ -342,19 +340,17 @@ fun UserProfileHeader(
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
     LaunchedEffect(username) {
-        scope.launch {
-            try {
-                val response = apiService.verUsuarioPorUsername(authToken, username)
-                if (response.isSuccessful && response.body() != null) {
-                    val usuario = response.body()!!
-                    nombreCompleto = "${usuario.nombre} ${usuario.apellido}"
-                    fotoPerfilId = usuario.fotoPerfilId ?: ""
-                }
-            } catch (e: Exception) {
-                Log.e("UserProfileHeader", "Error: ${e.message}")
-            } finally {
-                isLoading = false
+        try {
+            val response = apiService.verUsuarioPorUsername(authToken, username)
+            if (response.isSuccessful && response.body() != null) {
+                val usuario = response.body()!!
+                nombreCompleto = "${usuario.nombre} ${usuario.apellido}"
+                fotoPerfilId = usuario.fotoPerfilId ?: ""
             }
+        } catch (e: Exception) {
+            Log.e("UserProfileHeader", "Error: ${e.message}")
+        } finally {
+            isLoading = false
         }
     }
 
@@ -478,6 +474,44 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMessage = null
+
+        try {
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMessage = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verComunidadPorUsuario(authToken, username, username)
+
+            if (response.isSuccessful) {
+                comunidades = response.body() ?: emptyList()
+            } else {
+                if (response.code() == 500) {
+                    comunidades = emptyList()
+                } else {
+                    errorMessage = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        404 -> "No se encontraron comunidades para este usuario."
+                        else -> "Error al cargar comunidades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarComunidades() {
         scope.launch {
             isLoading = true
@@ -516,10 +550,6 @@ fun ComunidadCarouselMenu(username: String, navController: NavController) {
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarComunidades()
     }
 
     Column(
@@ -618,6 +648,45 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMessage = null
+
+        try {
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMessage = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verActividadPorUsernameFechaSuperior(authToken, username, username)
+
+            if (response.isSuccessful) {
+                val actividadesRecibidas = response.body() ?: emptyList()
+                actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
+            } else {
+                if (response.code() == 500) {
+                    actividades = emptyList()
+                } else {
+                    errorMessage = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        404 -> "No estas apuntado a ninguna actividad próxima."
+                        else -> "Error al cargar actividades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarActividades() {
         scope.launch {
             isLoading = true
@@ -657,10 +726,6 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarActividades()
     }
 
     Column(
@@ -759,6 +824,44 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMessage = null
+        try {
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMessage = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verActividadNoParticipaUsuarioFechaSuperior(token = authToken, username = username)
+
+            if (response.isSuccessful) {
+                val actividadesRecibidas = response.body() ?: emptyList()
+                actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
+            } else {
+                if (response.code() == 500) {
+                    actividades = emptyList()
+                } else {
+                    errorMessage = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        404 -> "No se encontraron actividades públicas próximas en esta zona."
+                        else -> "Error al cargar actividades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarActividades() {
         scope.launch {
             isLoading = true
@@ -797,10 +900,6 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarActividades()
     }
 
     Column(
@@ -1236,6 +1335,44 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController)
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMessage = null
+
+        try {
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMessage = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verComunidadesPublicas(authToken, username)
+
+            if (response.isSuccessful) {
+                comunidades = response.body() ?: emptyList()
+            } else {
+                if (response.code() == 500) {
+                    comunidades = emptyList()
+                } else {
+                    errorMessage = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        404 -> "No se encontraron comunidades públicas en esta zona."
+                        else -> "Error al cargar comunidades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarTodasComunidades() {
         scope.launch {
             isLoading = true
@@ -1274,10 +1411,6 @@ fun VerTodasComunidadesCarrousel(username: String, navController: NavController)
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarTodasComunidades()
     }
 
     Column(
@@ -1376,6 +1509,44 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(username) {
+        isLoading = true
+        errorMessage = null
+        try {
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                errorMessage = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            val response = apiService.verActividadesPublicasFechaSuperior(authToken, username)
+
+            if (response.isSuccessful) {
+                val actividadesRecibidas = response.body() ?: emptyList()
+                actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
+            } else {
+                if (response.code() == 500) {
+                    actividades = emptyList()
+                } else {
+                    errorMessage = when (response.code()) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        404 -> "No se encontraron actividades públicas y próximas en esta zona."
+                        else -> "Error al cargar actividades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun cargarActividadesPublicasEnTuZona() {
         scope.launch {
             isLoading = true
@@ -1414,10 +1585,6 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController) {
                 isLoading = false
             }
         }
-    }
-
-    LaunchedEffect(username) {
-        cargarActividadesPublicasEnTuZona()
     }
 
     Column(

@@ -73,6 +73,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,7 +91,6 @@ import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
-import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.utils.FunctionUtils
@@ -106,7 +106,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import org.json.JSONObject
-import retrofit2.Response
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.Date
@@ -121,6 +120,155 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     val utils = FunctionUtils
 
     val isUserParticipating = remember { mutableStateOf(false) }
+
+    @Composable
+    fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
+        val context = LocalContext.current
+        val baseUrl = "https://social-me-tfg.onrender.com"
+
+        val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("TOKEN", "") ?: ""
+        val authToken = "Bearer $token"
+
+        val tieneImagenes = actividad.fotosCarruselIds.isNotEmpty()
+        val imagenUrl = if (tieneImagenes)
+            "$baseUrl/files/download/${actividad.fotosCarruselIds[0]}"
+        else ""
+
+        val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+        val imageLoader = ImageLoader.Builder(context)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .networkCachePolicy(CachePolicy.ENABLED)
+            .memoryCache {
+                MemoryCache.Builder(context)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(context.cacheDir.resolve("actividad_images"))
+                    .maxSizeBytes(50 * 1024 * 1024)
+                    .build()
+            }
+            .okHttpClient(okHttpClient)
+            .build()
+
+        val fechaInicio = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaInicio)
+        val fechaFinalizacion = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaFinalizacion)
+
+        Card(
+            modifier = Modifier
+                .width(200.dp)
+                .height(250.dp)
+                .clickable {
+                    navController.navigate("actividadDetalle/${actividad._id}")
+                },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = colorResource(R.color.white)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(colorResource(R.color.background)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (tieneImagenes) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(imagenUrl)
+                                .crossfade(true)
+                                .placeholder(R.drawable.app_icon)
+                                .error(R.drawable.app_icon)
+                                .setHeader("Authorization", authToken)
+                                .memoryCacheKey("actividad_${actividad.fotosCarruselIds[0]}")
+                                .diskCacheKey("actividad_${actividad.fotosCarruselIds[0]}")
+                                .build(),
+                            contentDescription = "Foto de ${actividad.nombre}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            imageLoader = imageLoader
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.app_icon),
+                            contentDescription = "Imagen por defecto",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = actividad.nombre,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorResource(R.color.azulPrimario),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = "Por: @${actividad.creador}",
+                    fontSize = 12.sp,
+                    color = colorResource(R.color.textoSecundario),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = actividad.descripcion,
+                    fontSize = 12.sp,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_calendar),
+                        contentDescription = "Fechas",
+                        tint = colorResource(R.color.textoSecundario),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "$fechaInicio - $fechaFinalizacion",
+                        fontSize = 10.sp,
+                        color = colorResource(R.color.textoSecundario)
+                    )
+                }
+            }
+        }
+    }
     val isLoading = remember { mutableStateOf(false) }
     val username = remember { mutableStateOf("") }
 
@@ -180,30 +328,28 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
     LaunchedEffect(comunidad.url) {
         isLoadingUsuarios.value = true
-        scope.launch {
-            try {
-                val response = withContext(Dispatchers.IO) {
-                    withTimeout(5000) {
-                        retrofitService.contarUsuariosEnUnaComunidad(
-                            token = authToken,
-                            comunidad = comunidad.url
-                        )
-                    }
+        try {
+            val response = withContext(Dispatchers.IO) {
+                withTimeout(5000) {
+                    retrofitService.contarUsuariosEnUnaComunidad(
+                        token = authToken,
+                        comunidad = comunidad.url
+                    )
                 }
-
-                if (response.isSuccessful) {
-                    cantidadUsuarios.value = response.body() ?: 0
-                    Log.d("ComunidadDetalle", "Usuarios en la comunidad: ${cantidadUsuarios.value}")
-                } else {
-                    Log.e("ComunidadDetalle", "Error al contar usuarios: ${response.message()}")
-                    cantidadUsuarios.value = 0
-                }
-            } catch (e: Exception) {
-                Log.e("ComunidadDetalle", "Excepción al contar usuarios: ${e.message}")
-                cantidadUsuarios.value = 0
-            } finally {
-                isLoadingUsuarios.value = false
             }
+
+            if (response.isSuccessful) {
+                cantidadUsuarios.value = response.body() ?: 0
+                Log.d("ComunidadDetalle", "Usuarios en la comunidad: ${cantidadUsuarios.value}")
+            } else {
+                Log.e("ComunidadDetalle", "Error al contar usuarios: ${response.message()}")
+                cantidadUsuarios.value = 0
+            }
+        } catch (e: Exception) {
+            Log.e("ComunidadDetalle", "Excepción al contar usuarios: ${e.message}")
+            cantidadUsuarios.value = 0
+        } finally {
+            isLoadingUsuarios.value = false
         }
     }
 
@@ -213,7 +359,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
         isLoadingVerificacion.value = true
         try {
             supervisorScope {
-                val response = withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     withTimeout(5000) {
                         val response = retrofitService.verificarCreadorAdministradorComunidad(
                             token = authToken,
@@ -1114,7 +1260,6 @@ fun CarruselImagenes(
 @Composable
 fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavController) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
     var actividades by remember { mutableStateOf<List<ActividadDTO>>(emptyList()) }
@@ -1122,62 +1267,56 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var mostrarSoloProximas by remember { mutableStateOf(true) }
 
-    fun cargarActividadesComunidad() {
-        scope.launch {
-            isLoading = true
-            errorMessage = null
-            try {
-                val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("TOKEN", "") ?: ""
-
-                if (token.isEmpty()) {
-                    Log.e("CarruselActividadesComunidad", "Token vacío, no se puede proceder")
-                    errorMessage = "No se ha encontrado un token de autenticación"
-                    isLoading = false
-                    return@launch
-                }
-
-                val authToken = "Bearer $token"
-                Log.d("CarruselActividadesComunidad", "Realizando petición API con token: ${token.take(5)}... para comunidad: $comunidadUrl")
-
-                val response = if (mostrarSoloProximas) {
-                    apiService.verActividadesPorComunidadFechaSuperior(authToken, comunidadUrl)
-                } else {
-                    apiService.verActividadesPorComunidadCualquierFecha(authToken, comunidadUrl)
-                }
-
-                if (response.isSuccessful) {
-                    val actividadesRecibidas = response.body() ?: emptyList()
-                    Log.d("CarruselActividadesComunidad", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
-                    actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
-                } else {
-                    if (response.code() == 500) {
-                        Log.w("CarruselActividadesComunidad", "Código 500 recibido, asumiendo lista vacía")
-                        actividades = emptyList()
-                    } else {
-                        val errorCode = response.code()
-                        Log.e("CarruselActividadesComunidad", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
-                        errorMessage = when (errorCode) {
-                            401 -> "No autorizado. Por favor, inicie sesión nuevamente."
-                            404 -> "No se encontraron actividades en esta comunidad."
-                            else -> "Error al cargar actividades: ${response.message()}"
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("CarruselActividadesComunidad", "Excepción al cargar actividades", e)
-                errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
-                e.printStackTrace()
-            } finally {
-                isLoading = false
-                Log.d("CarruselActividadesComunidad", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
-            }
-        }
-    }
-
     LaunchedEffect(comunidadUrl, mostrarSoloProximas) {
         Log.d("CarruselActividadesComunidad", "LaunchedEffect iniciado para comunidad: $comunidadUrl")
-        cargarActividadesComunidad()
+        isLoading = true
+        errorMessage = null
+        try {
+            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("TOKEN", "") ?: ""
+
+            if (token.isEmpty()) {
+                Log.e("CarruselActividadesComunidad", "Token vacío, no se puede proceder")
+                errorMessage = "No se ha encontrado un token de autenticación"
+                isLoading = false
+                return@LaunchedEffect
+            }
+
+            val authToken = "Bearer $token"
+            Log.d("CarruselActividadesComunidad", "Realizando petición API con token: ${token.take(5)}... para comunidad: $comunidadUrl")
+
+            val response = if (mostrarSoloProximas) {
+                apiService.verActividadesPorComunidadFechaSuperior(authToken, comunidadUrl)
+            } else {
+                apiService.verActividadesPorComunidadCualquierFecha(authToken, comunidadUrl)
+            }
+
+            if (response.isSuccessful) {
+                val actividadesRecibidas = response.body() ?: emptyList()
+                Log.d("CarruselActividadesComunidad", "Actividades recibidas correctamente: ${actividadesRecibidas.size}")
+                actividades = actividadesRecibidas.sortedBy { it.fechaInicio }
+            } else {
+                if (response.code() == 500) {
+                    Log.w("CarruselActividadesComunidad", "Código 500 recibido, asumiendo lista vacía")
+                    actividades = emptyList()
+                } else {
+                    val errorCode = response.code()
+                    Log.e("CarruselActividadesComunidad", "Error al cargar actividades. Código: $errorCode, Mensaje: ${response.message()}")
+                    errorMessage = when (errorCode) {
+                        401 -> "No autorizado. Por favor, inicie sesión nuevamente."
+                        404 -> "No se encontraron actividades en esta comunidad."
+                        else -> "Error al cargar actividades: ${response.message()}"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CarruselActividadesComunidad", "Excepción al cargar actividades", e)
+            errorMessage = "Error de conexión: ${e.message ?: "No se pudo conectar al servidor"}"
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+            Log.d("CarruselActividadesComunidad", "Finalizada carga de actividades. isLoading: $isLoading, errorMessage: $errorMessage")
+        }
     }
 
     Column(
@@ -1185,7 +1324,6 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
             .fillMaxWidth()
             .padding(vertical = 16.dp)
     ) {
-        // Header section with title and toggle
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1199,7 +1337,6 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Toggle section
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1275,27 +1412,11 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = errorMessage!!,
-                            color = colorResource(R.color.error),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                Log.d("CarruselActividadesComunidad", "Botón 'Intentar de nuevo' pulsado")
-                                cargarActividadesComunidad()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colorResource(R.color.azulPrimario)
-                            )
-                        ) {
-                            Text("Intentar de nuevo")
-                        }
-                    }
+                    Text(
+                        text = errorMessage!!,
+                        color = colorResource(R.color.error),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
             actividades.isEmpty() -> {

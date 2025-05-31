@@ -2,14 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- PERMISOS NECESARIOS -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -19,11 +11,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SocialMeInterfazGrafica"
-        android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31"
         tools:replace="android:allowBackup">
-
-        <!-- ACTIVIDAD PRINCIPAL -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -31,48 +20,13 @@
             android:theme="@style/Theme.SocialMeInterfazGrafica">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- SERVICIO WEBSOCKET -->
-        <service
-            android:name=".services.WebSocketService"
-            android:enabled="true"
-            android:exported="false" />
-
-        <!-- ========== PAYPAL CONFIGURACIÓN ========== -->
-        <!-- Actividad principal de pago de PayPal -->
-        <activity
-            android:name="com.paypal.android.sdk.payments.PaymentActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <!-- Actividad de login de PayPal -->
-        <activity
-            android:name="com.paypal.android.sdk.payments.LoginActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <!-- Actividad de método de pago -->
-        <activity
-            android:name="com.paypal.android.sdk.payments.PaymentMethodActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="false" />
-
-        <!-- Actividad de confirmación de pago -->
-        <activity
-            android:name="com.paypal.android.sdk.payments.PaymentConfirmActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="false" />
-
-        <!-- Servicio de PayPal - MUY IMPORTANTE -->
-        <service
-            android:name="com.paypal.android.sdk.payments.PayPalService"
-            android:exported="false" />
-
     </application>
-
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>

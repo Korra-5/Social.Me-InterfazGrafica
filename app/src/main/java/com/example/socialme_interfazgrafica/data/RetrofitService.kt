@@ -16,6 +16,10 @@ import com.example.socialme_interfazgrafica.model.MensajeDTO
 import com.example.socialme_interfazgrafica.model.NotificacionDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
+import com.example.socialme_interfazgrafica.model.PaymentRequestDTO
+import com.example.socialme_interfazgrafica.model.PaymentResponseDTO
+import com.example.socialme_interfazgrafica.model.PaymentStatusDTO
+import com.example.socialme_interfazgrafica.model.PaymentVerificationDTO
 import com.example.socialme_interfazgrafica.model.PaymentVerificationRequest
 import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.SolicitudAmistadDTO
@@ -204,7 +208,6 @@ interface RetrofitService {
         @Body solicitudAmistadDTO: SolicitudAmistadDTO
     ): Response<SolicitudAmistadDTO>
 
-
     @PUT("/Usuario/aceptarSolicitud/{id}")
     suspend fun aceptarSolicitud(
         @Header("Authorization") token: String,
@@ -240,7 +243,6 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Body comunidadCreateDTO: ComunidadCreateDTO
     ): Response<ComunidadDTO>
-
 
     @GET("/Comunidad/verComunidadPorUrl/{url}")
     suspend fun verComunidadPorUrl(
@@ -341,7 +343,6 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("id") id: String
     ): Response<ActividadDTO>
-
 
     @GET("/Actividad/verActividadNoParticipaUsuarioFechaSuperior/{username}")
     suspend fun verActividadNoParticipaUsuarioFechaSuperior(
@@ -498,13 +499,13 @@ interface RetrofitService {
         @Path("comunidadUrl") comunidadUrl: String
     ): Response<List<MensajeDTO>>
 
-    @GET("/Comunidad/verComunidadPorActividad/{idActividad}")
+    @GET("/Actividad/verComunidadPorActividad/{idActividad}")
     suspend fun verComunidadPorActividad(
         @Header("Authorization") token: String,
         @Path("idActividad") idActividad: String
     ): Response<ComunidadDTO>
 
-   @PUT("Usuario/cambiarContrasena")
+    @PUT("Usuario/cambiarContrasena")
     suspend fun cambiarContrasena(
         @Header("Authorization") token: String,
         @Body cambiarContrasenaDTO: CambiarContrasenaDTO
@@ -522,7 +523,58 @@ interface RetrofitService {
     @POST("/Usuario/completarRegistro")
     suspend fun completarRegistro(@Body verificacionDTO: VerificacionDTO): Response<UsuarioDTO>
 
+    @POST("api/paypal/create-payment")
+    suspend fun createPayment(
+        @Header("Authorization") token: String,
+        @Body paymentRequest: PaymentRequestDTO
+    ): Response<PaymentResponseDTO>
+
+    @POST("api/paypal/verify-payment")
+    suspend fun verifyPayment(
+        @Header("Authorization") token: String,
+        @Body verificationRequest: PaymentVerificationDTO
+    ): Response<PaymentResponseDTO>
+
+    @GET("api/paypal/payment-status/{paymentId}")
+    suspend fun getPaymentStatus(
+        @Header("Authorization") token: String,
+        @Path("paymentId") paymentId: String
+    ): Response<PaymentStatusDTO>
+
+    @POST("api/paypal/simulate-premium-purchase")
+    suspend fun simulatePremiumPurchase(
+        @Header("Authorization") token: String,
+        @Query("username") username: String
+    ): Response<PaymentResponseDTO>
+
+    @GET("api/paypal/health-check")
+    suspend fun healthCheck(): Response<Map<String, String>>
+
     object RetrofitServiceFactory {
+
+        val retrofit: Retrofit by lazy {
+            val gson = GsonBuilder()
+                .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS")
+                .create()
+
+            val loggingInterceptor = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+
+            val client = OkHttpClient.Builder()
+                .addInterceptor(loggingInterceptor)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
+
+            Retrofit.Builder()
+                .baseUrl("https://social-me-tfg.onrender.com")
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build()
+        }
+
         fun makeRetrofitService(): RetrofitService {
             val gson = GsonBuilder()
                 .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS")
