@@ -63,9 +63,46 @@ private fun normalizarUrl(url: String): String {
         .replace("í", "i").replace("Í", "I")
         .replace("ó", "o").replace("Ó", "O")
         .replace("ú", "u").replace("Ú", "U")
+        .replace("ý", "y").replace("Ý", "Y")
+        .replace("à", "a").replace("À", "A")
+        .replace("è", "e").replace("È", "E")
+        .replace("ì", "i").replace("Ì", "I")
+        .replace("ò", "o").replace("Ò", "O")
+        .replace("ù", "u").replace("Ù", "U")
+        .replace("â", "a").replace("Â", "A")
+        .replace("ê", "e").replace("Ê", "E")
+        .replace("î", "i").replace("Î", "I")
+        .replace("ô", "o").replace("Ô", "O")
+        .replace("û", "u").replace("Û", "U")
+        .replace("ä", "a").replace("Ä", "A")
+        .replace("ë", "e").replace("Ë", "E")
+        .replace("ï", "i").replace("Ï", "I")
+        .replace("ö", "o").replace("Ö", "O")
         .replace("ü", "u").replace("Ü", "U")
+        .replace("ÿ", "y").replace("Ÿ", "Y")
+        .replace("ã", "a").replace("Ã", "A")
         .replace("ñ", "n").replace("Ñ", "N")
+        .replace("õ", "o").replace("Õ", "O")
         .replace("ç", "c").replace("Ç", "C")
+        .replace("ş", "s").replace("Ş", "S")
+        .replace("ţ", "t").replace("Ţ", "T")
+        .replace("æ", "ae").replace("Æ", "AE")
+        .replace("œ", "oe").replace("Œ", "OE")
+        .replace("ø", "o").replace("Ø", "O")
+        .replace("å", "a").replace("Å", "A")
+        .replace("ß", "ss")
+        .replace("ð", "d").replace("Ð", "D")
+        .replace("þ", "th").replace("Þ", "TH")
+        .replace("č", "c").replace("Č", "C")
+        .replace("š", "s").replace("Š", "S")
+        .replace("ž", "z").replace("Ž", "Z")
+        .replace("ć", "c").replace("Ć", "C")
+        .replace("đ", "d").replace("Đ", "D")
+        .replace(Regex("[^a-zA-Z0-9\\-._/\\s]"), "")
+        .replace(Regex("[-]{2,}"), "-")
+        .replace(Regex("[.]{2,}"), ".")
+        .replace(Regex("[/]{2,}"), "/")
+        .trim('-', '.', '_')
 }
 
 fun filtrarCaracteresUrl(texto: String): String {
@@ -81,6 +118,24 @@ fun formatearTextoAUrl(texto: String): String {
         .replace(Regex("\\s+"), "-")
         .replace(Regex("^-+"), "")
         .replace(Regex("-+$"), "")
+}
+
+private fun validarInteres(interes: String): String? {
+    val interesLimpio = interes.trim()
+
+    if (interesLimpio.length > 25) {
+        return "Los intereses no pueden superar 25 caracteres"
+    }
+
+    if (interesLimpio.contains(" ")) {
+        return "Los intereses no pueden contener espacios"
+    }
+
+    if (interesLimpio.contains(",")) {
+        return "Los intereses no pueden contener comas"
+    }
+
+    return null
 }
 
 @Composable
@@ -201,6 +256,13 @@ fun CrearComunidadScreen(navController: NavController) {
 
         if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(descripcion.trim())) {
             return Pair(false, "La descripción contiene palabras no permitidas")
+        }
+
+        intereses.forEach { interes ->
+            val errorInteres = validarInteres(interes)
+            if (errorInteres != null) {
+                return Pair(false, errorInteres)
+            }
         }
 
         if (PalabrasMalsonantesValidator.validarLista(intereses)) {
@@ -560,7 +622,11 @@ fun CrearComunidadScreen(navController: NavController) {
                         ) {
                             OutlinedTextField(
                                 value = nuevoInteres,
-                                onValueChange = { nuevoInteres = it },
+                                onValueChange = {
+                                    if (!it.contains(" ") && !it.contains(",")) {
+                                        nuevoInteres = it
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 placeholder = {
                                     Text(
@@ -583,7 +649,10 @@ fun CrearComunidadScreen(navController: NavController) {
                                 onClick = {
                                     val interesTrimmed = nuevoInteres.trim()
                                     if (interesTrimmed.isNotBlank()) {
-                                        if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(interesTrimmed)) {
+                                        val errorValidacion = validarInteres(interesTrimmed)
+                                        if (errorValidacion != null) {
+                                            Toast.makeText(context, errorValidacion, Toast.LENGTH_SHORT).show()
+                                        } else if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(interesTrimmed)) {
                                             Toast.makeText(context, "El interés contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
                                         } else if (!intereses.contains(interesTrimmed)) {
                                             intereses = intereses + interesTrimmed
@@ -849,4 +918,18 @@ fun actualizarMarcador(map: MapView, geoPoint: GeoPoint) {
     map.controller.setZoom(15.0)
     map.controller.setCenter(geoPoint)
     map.invalidate()
+}
+
+suspend fun convertToBase64(context: Context, uri: Uri): String? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val bytes = inputStream?.readBytes()
+        inputStream?.close()
+        if (bytes != null) {
+            android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        } else null
+    } catch (e: Exception) {
+        Log.e("ConvertToBase64", "Error converting to base64", e)
+        null
+    }
 }
