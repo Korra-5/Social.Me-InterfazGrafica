@@ -12,7 +12,7 @@ data class ComunidadDTO(
     val creador: String,
     val administradores: List<String>?,
     val fechaCreacion: Date,
-    val privada: Boolean,
+    var privada: Boolean,
     val coordenadas: Coordenadas?,
     val codigoUnion:String?
 )

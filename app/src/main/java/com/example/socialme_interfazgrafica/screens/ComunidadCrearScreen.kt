@@ -1,10 +1,13 @@
 package com.example.socialme_interfazgrafica.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationRequest
 import android.net.Uri
+import android.os.Looper
 import android.util.Log
 import android.view.MotionEvent
 import android.widget.Toast
@@ -46,7 +49,11 @@ import com.example.socialme_interfazgrafica.model.ComunidadCreateDTO
 import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.util.GeoPoint
@@ -98,16 +105,15 @@ private fun normalizarUrl(url: String): String {
         .replace("ž", "z").replace("Ž", "Z")
         .replace("ć", "c").replace("Ć", "C")
         .replace("đ", "d").replace("Đ", "D")
-        .replace(Regex("[^a-zA-Z0-9\\-._/\\s]"), "")
-        .replace(Regex("[-]{2,}"), "-")
+        .replace(Regex("[^a-zA-Z0-9._/\\s-]"), "")
         .replace(Regex("[.]{2,}"), ".")
         .replace(Regex("[/]{2,}"), "/")
-        .trim('-', '.', '_')
+        .trim('.', '_')
 }
 
 fun filtrarCaracteresUrl(texto: String): String {
     return texto.filter { char ->
-        char.isLetterOrDigit() || char.isWhitespace()
+        char.isLetterOrDigit() || char.isWhitespace() || char == '-'
     }
 }
 
@@ -115,7 +121,7 @@ fun formatearTextoAUrl(texto: String): String {
     return normalizarUrl(texto)
         .trim()
         .lowercase()
-        .replace(Regex("\\s+"), "-")
+        .replace(Regex("[\\s-]+"), "-")
         .replace(Regex("^-+"), "")
         .replace(Regex("-+$"), "")
 }
@@ -275,7 +281,7 @@ fun CrearComunidadScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
+            .background(colorResource(R.color.background))
     ) {
         Scaffold(
             topBar = {
@@ -285,7 +291,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             "Crear Comunidad",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A)
+                            color = colorResource(R.color.azulPrimario)
                         )
                     },
                     navigationIcon = {
@@ -293,12 +299,12 @@ fun CrearComunidadScreen(navController: NavController) {
                             onClick = { navController.popBackStack() },
                             modifier = Modifier
                                 .size(40.dp)
-                                .background(Color(0xFFE6EAF5), CircleShape)
+                                .background(colorResource(R.color.card_colors), CircleShape)
                         ) {
                             Icon(
                                 Icons.Default.ArrowBack,
                                 contentDescription = "Volver",
-                                tint = Color(0xFF1E3A8A)
+                                tint = colorResource(R.color.azulPrimario)
                             )
                         }
                     },
@@ -322,7 +328,7 @@ fun CrearComunidadScreen(navController: NavController) {
                         .padding(vertical = 8.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = colorResource(R.color.card_colors)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -336,7 +342,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "Imagen de perfil",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -345,8 +351,8 @@ fun CrearComunidadScreen(navController: NavController) {
                                 .fillMaxWidth()
                                 .height(180.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF1F5F9))
+                                .border(1.dp, colorResource(R.color.card_colors), RoundedCornerShape(12.dp))
+                                .background(Color.White)
                                 .clickable { imagePickerLauncher.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
@@ -367,14 +373,14 @@ fun CrearComunidadScreen(navController: NavController) {
                                         contentDescription = "Añadir imagen",
                                         modifier = Modifier
                                             .size(48.dp)
-                                            .background(Color(0xFFE0E7FF), CircleShape)
+                                            .background(colorResource(R.color.card_colors), CircleShape)
                                             .padding(12.dp),
-                                        tint = Color(0xFF3B82F6)
+                                        tint = colorResource(R.color.azulPrimario),
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         "Añadir imagen de perfil",
-                                        color = Color(0xFF3B82F6),
+                                        color =colorResource(R.color.azulPrimario),
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
@@ -385,7 +391,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "URL de la comunidad",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -403,7 +409,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF3B82F6),
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
                                 focusedTextColor = Color(0xFF1E293B),
                                 unfocusedTextColor = Color(0xFF1E293B)
@@ -417,7 +423,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "Nombre de la comunidad",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -432,7 +438,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF3B82F6),
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
                                 focusedTextColor = Color(0xFF1E293B),
                                 unfocusedTextColor = Color(0xFF1E293B)
@@ -444,7 +450,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "Descripción",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -461,7 +467,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF3B82F6),
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
                                 unfocusedBorderColor = Color(0xFFCBD5E1),
                                 focusedTextColor = Color(0xFF1E293B),
                                 unfocusedTextColor = Color(0xFF1E293B)
@@ -474,7 +480,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "Ubicación",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
@@ -554,7 +560,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                         .align(Alignment.BottomEnd)
                                         .padding(16.dp)
                                         .size(48.dp),
-                                    containerColor = Color(0xFF3B82F6),
+                                    containerColor = colorResource(R.color.azulPrimario),
                                     shape = CircleShape
                                 ) {
                                     Icon(
@@ -569,7 +575,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                         modifier = Modifier
                                             .size(50.dp)
                                             .align(Alignment.Center),
-                                        color = Color(0xFF3B82F6)
+                                        color = colorResource(R.color.azulPrimario),
                                     )
                                 }
 
@@ -584,7 +590,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     Icon(
                                         if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
                                         contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
-                                        tint = Color(0xFF3B82F6)
+                                        tint = colorResource(R.color.azulPrimario),
                                     )
                                 }
                             }
@@ -612,7 +618,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "Intereses",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -635,7 +641,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     )
                                 },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFF3B82F6),
+                                    focusedBorderColor = colorResource(R.color.azulPrimario),
                                     unfocusedBorderColor = Color(0xFFCBD5E1),
                                     focusedTextColor = Color(0xFF1E293B),
                                     unfocusedTextColor = Color(0xFF1E293B)
@@ -661,7 +667,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF3B82F6)
+                                    containerColor = colorResource(R.color.azulPrimario),
                                 ),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -681,7 +687,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     Surface(
                                         modifier = Modifier,
                                         shape = RoundedCornerShape(50.dp),
-                                        color = Color(0xFFE0E7FF)
+                                        color = colorResource(R.color.card_colors),
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(
@@ -692,7 +698,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                         ) {
                                             Text(
                                                 text = interes,
-                                                color = Color(0xFF1E3A8A),
+                                                color = colorResource(R.color.azulPrimario),
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -707,7 +713,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                                     .clickable {
                                                         intereses = intereses - interes
                                                     },
-                                                tint = Color(0xFF3B82F6)
+                                                tint = colorResource(R.color.azulPrimario),
                                             )
                                         }
                                     }
@@ -719,7 +725,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             text = "Opciones de comunidad",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color =colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
@@ -728,7 +734,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFF8FAFC)
+                                containerColor =colorResource(R.color.card_colors),
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -743,7 +749,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     text = "Comunidad privada",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF1E293B)
+                                    color = Color.Black
                                 )
 
                                 Switch(
@@ -751,12 +757,19 @@ fun CrearComunidadScreen(navController: NavController) {
                                     onCheckedChange = { privada = it },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF3B82F6),
+                                        checkedTrackColor = colorResource(R.color.azulPrimario),
                                         uncheckedThumbColor = Color.White,
-                                        uncheckedTrackColor = Color(0xFFCBD5E1)
+                                        uncheckedTrackColor = colorResource(R.color.card_colors),
                                     )
                                 )
                             }
+
+                            Text(
+                                text = "(La privacidad de la comunidad no se podrá modificar una vez creada)",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Gray
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -825,8 +838,8 @@ fun CrearComunidadScreen(navController: NavController) {
                                 .height(54.dp),
                             enabled = !isLoading,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1E3A8A),
-                                disabledContainerColor = Color(0xFF94A3B8)
+                                containerColor = colorResource(R.color.azulPrimario),
+                                disabledContainerColor =colorResource(R.color.card_colors),
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -852,10 +865,10 @@ fun CrearComunidadScreen(navController: NavController) {
                                 .fillMaxWidth()
                                 .height(54.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF1E3A8A)
+                                contentColor = colorResource(R.color.azulPrimario),
                             ),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFF1E3A8A))
+                            border = BorderStroke(1.dp, colorResource(R.color.azulPrimario))
                         ) {
                             Text(
                                 "CANCELAR",
@@ -870,6 +883,7 @@ fun CrearComunidadScreen(navController: NavController) {
     }
 }
 
+// Función simplificada que usa Madrid como ubicación por defecto
 fun obtenerUbicacionActual(context: Context, onLocationReceived: (Location) -> Unit) {
     try {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -878,36 +892,56 @@ fun obtenerUbicacionActual(context: Context, onLocationReceived: (Location) -> U
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
+            // Intentar obtener la última ubicación conocida
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                 if (location != null) {
                     onLocationReceived(location)
                 } else {
-                    Toast.makeText(
-                        context,
-                        "No se pudo obtener la ubicación actual. Selecciona manualmente.",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // Si no hay ubicación, usar Madrid por defecto
+                    val madridLocation = Location("default").apply {
+                        latitude = 40.4168
+                        longitude = -3.7038
+                    }
+                    onLocationReceived(madridLocation)
+                    Toast.makeText(context, "Usando ubicación de Madrid por defecto", Toast.LENGTH_SHORT).show()
                 }
             }.addOnFailureListener { exception ->
-                Toast.makeText(
-                    context,
-                    "Error al obtener ubicación: ${exception.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                // En caso de error, usar Madrid por defecto
+                val madridLocation = Location("default").apply {
+                    latitude = 40.4168
+                    longitude = -3.7038
+                }
+                onLocationReceived(madridLocation)
+                Toast.makeText(context, "Error obteniendo ubicación, usando Madrid", Toast.LENGTH_SHORT).show()
                 Log.e("MapaUbicacion", "Error obteniendo ubicación", exception)
             }
         } else {
+            // Sin permisos, usar Madrid por defecto
+            val madridLocation = Location("default").apply {
+                latitude = 40.4168
+                longitude = -3.7038
+            }
+            onLocationReceived(madridLocation)
+            Toast.makeText(context, "Sin permisos de ubicación, usando Madrid", Toast.LENGTH_SHORT).show()
             Log.d("MapaUbicacion", "No hay permisos de ubicación")
         }
     } catch (e: Exception) {
+        // En cualquier excepción, usar Madrid por defecto
+        val madridLocation = Location("default").apply {
+            latitude = 40.4168
+            longitude = -3.7038
+        }
+        onLocationReceived(madridLocation)
+        Toast.makeText(context, "Error obteniendo ubicación, usando Madrid", Toast.LENGTH_SHORT).show()
         Log.e("MapaUbicacion", "Excepción al obtener ubicación: ${e.message}", e)
     }
 }
-
 fun actualizarMarcador(map: MapView, geoPoint: GeoPoint) {
+    // Remover marcadores existentes
     val markersToRemove = map.overlays.filterIsInstance<Marker>()
     map.overlays.removeAll(markersToRemove)
 
+    // Crear nuevo marcador
     val newMarker = Marker(map).apply {
         position = geoPoint
         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -915,21 +949,8 @@ fun actualizarMarcador(map: MapView, geoPoint: GeoPoint) {
     }
 
     map.overlays.add(newMarker)
-    map.controller.setZoom(15.0)
-    map.controller.setCenter(geoPoint)
-    map.invalidate()
-}
 
-suspend fun convertToBase64(context: Context, uri: Uri): String? {
-    return try {
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val bytes = inputStream?.readBytes()
-        inputStream?.close()
-        if (bytes != null) {
-            android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-        } else null
-    } catch (e: Exception) {
-        Log.e("ConvertToBase64", "Error converting to base64", e)
-        null
-    }
+    map.controller.animateTo(geoPoint, 15.0, 500L)
+
+    map.invalidate()
 }

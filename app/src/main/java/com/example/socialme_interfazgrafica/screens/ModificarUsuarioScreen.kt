@@ -775,6 +775,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+
                         Button(
                             onClick = {
                                 val (isValid, errorMsg) = validarCampos(
@@ -799,6 +800,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                 )
 
                                 val usernameCambiado = normalizarUsername(newUsername.value) != username
+                                val emailCambiado = email.value != usuarioOriginal.value?.email
 
                                 val usuarioUpdate = UsuarioUpdateDTO(
                                     currentUsername = username,
@@ -836,6 +838,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                             val requiresVerification = responseBody["requiresVerification"] == "true"
 
                                             if (requiresVerification) {
+                                                // Si requiere verificación por email, navegar a EmailVerificationScreen
                                                 val emailToVerify = responseBody["email"] ?: email.value
                                                 withContext(Dispatchers.Main) {
                                                     navController.navigate(
@@ -847,6 +850,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                                     )
                                                 }
                                             } else {
+                                                // Si no requiere verificación, actualizar SharedPreferences y navegar al MenuScreen
                                                 if (usernameCambiado) {
                                                     val editor = sharedPreferences.edit()
                                                     editor.putString("USERNAME", normalizarUsername(newUsername.value))
@@ -860,7 +864,11 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                                         "Perfil actualizado correctamente",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
-                                                    navController.popBackStack()
+                                                    // Navegar al MenuScreen en lugar de hacer popBackStack
+                                                    navController.navigate(AppScreen.MenuScreen.route) {
+                                                        // Limpiar el stack de navegación hasta el menu
+                                                        popUpTo(AppScreen.MenuScreen.route) { inclusive = true }
+                                                    }
                                                 }
                                             }
                                         } else {

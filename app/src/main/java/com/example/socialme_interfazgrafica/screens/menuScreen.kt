@@ -48,7 +48,6 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
-import com.example.socialme_interfazgrafica.viewModel.NotificacionViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -65,7 +64,6 @@ fun MenuScreen(navController: NavController) {
     val scrollState = rememberScrollState()
 
     var solicitudesPendientes by remember { mutableStateOf(0) }
-    val notificacionViewModel: NotificacionViewModel = viewModel()
 
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
@@ -85,12 +83,6 @@ fun MenuScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(username.value) {
-        if (username.value.isNotEmpty()) {
-            notificacionViewModel.inicializarWebSocket(username.value)
-            notificacionViewModel.contarNoLeidas(username.value, token.value)
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -229,38 +221,7 @@ fun BadgedIconImproved(
 }
 
 @Composable
-fun NotificacionIndicator(
-    count: Int,
-    onClick: () -> Unit
-) {
-    IconButton(
-        onClick = onClick
-    ) {
-        BadgedBox(
-            badge = {
-                if (count > 0) {
-                    Badge {
-                        Text(
-                            text = if (count > 99) "99+" else count.toString(),
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = "Notificaciones",
-                tint = colorResource(R.color.cyanSecundario)
-            )
-        }
-    }
-}
-
-@Composable
 fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
-    val notificacionViewModel: NotificacionViewModel = viewModel()
-    val notificacionesNoLeidas = notificacionViewModel.numeroNoLeidas.toInt()
 
     Card(
         modifier = modifier
@@ -301,11 +262,6 @@ fun BottomNavBar(navController: NavController, modifier: Modifier = Modifier) {
                     tint = colorResource(R.color.cyanSecundario)
                 )
             }
-
-            NotificacionIndicator(
-                count = notificacionesNoLeidas,
-                onClick = { navController.navigate(AppScreen.NotificacionesScreen.route) }
-            )
 
             IconButton(
                 onClick = {

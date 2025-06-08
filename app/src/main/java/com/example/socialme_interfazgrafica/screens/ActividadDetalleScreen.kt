@@ -82,6 +82,7 @@ import com.example.socialme_interfazgrafica.utils.FunctionUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -99,6 +100,7 @@ import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.Date
+import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 fun ActividadDetalleScreen(
@@ -124,11 +126,13 @@ fun ActividadDetalleScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Cargar username una sola vez
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
     }
 
+    // Cargar datos de la actividad con manejo mejorado de corrutinas
     LaunchedEffect(actividadId, username.value) {
         if (username.value.isEmpty()) return@LaunchedEffect
 
@@ -138,16 +142,20 @@ fun ActividadDetalleScreen(
         try {
             val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
+            // Usar el scope del LaunchedEffect que se cancela automáticamente
             supervisorScope {
                 try {
+                    // Cargar actividad
                     val actividadResponseDeferred = async(Dispatchers.IO) {
-                        retrofitService.verActividadPorId(
-                            token = authToken,
-                            id = actividadId
-                        )
+                        withTimeout(10000) {
+                            retrofitService.verActividadPorId(
+                                token = authToken,
+                                id = actividadId
+                            )
+                        }
                     }
 
-                    val actividadResponse = withTimeout(10000) { actividadResponseDeferred.await() }
+                    val actividadResponse = actividadResponseDeferred.await()
 
                     if (actividadResponse.isSuccessful && actividadResponse.body() != null) {
                         actividad.value = actividadResponse.body()
@@ -159,86 +167,88 @@ fun ActividadDetalleScreen(
                             nombreActividad = actividadResponse.body()?.nombre ?: ""
                         )
 
+                        // Ejecutar llamadas en paralelo con timeouts más cortos
                         val participacionResponseDeferred = async(Dispatchers.IO) {
-                            retrofitService.booleanUsuarioApuntadoActividad(
-                                participantesActividadDTO = participantesDTO,
-                                token = authToken
-                            )
+                            withTimeout(5000) {
+                                retrofitService.booleanUsuarioApuntadoActividad(
+                                    participantesActividadDTO = participantesDTO,
+                                    token = authToken
+                                )
+                            }
                         }
 
                         val comunidadResponseDeferred = async(Dispatchers.IO) {
-                            Log.d("ActividadDetalle", "Token final enviado: '$authToken'")
-
-                            retrofitService.verComunidadPorActividad(
-                                token = authToken,
-                                idActividad = actividadId
-                            )
+                            withTimeout(5000) {
+                                retrofitService.verComunidadPorActividad(
+                                    token = authToken,
+                                    idActividad = actividadId
+                                )
+                            }
                         }
 
-                        val participacionResponse = withTimeout(8000) { participacionResponseDeferred.await() }
-                        val comunidadResponse = withTimeout(8000) { comunidadResponseDeferred.await() }
+                        // Esperar resultados
+                        val participacionResponse = participacionResponseDeferred.await()
+                        val comunidadResponse = comunidadResponseDeferred.await()
 
-                        isParticipating.value = participacionResponse.isSuccessful &&
-                                participacionResponse.body() == true
+                        // Actualizar estados solo si aún estamos en composición
+                        if (isActive) {
+                            isParticipating.value = participacionResponse.isSuccessful &&
+                                    participacionResponse.body() == true
 
-                        Log.d("ActividadDetalle", "Código de respuesta comunidad: ${comunidadResponse.code()}")
-                        Log.d("ActividadDetalle", "Respuesta exitosa: ${comunidadResponse.isSuccessful}")
-                        Log.d("ActividadDetalle", "Body no nulo: ${comunidadResponse.body() != null}")
-                        Log.d("ActividadDetalle", "Body: ${comunidadResponse.body()}")
-
-                        when {
-                            comunidadResponse.isSuccessful && comunidadResponse.body() != null -> {
-                                comunidad.value = comunidadResponse.body()
-                                Log.d("ActividadDetalle", "Comunidad cargada exitosamente: ${comunidad.value?.nombre}")
-                                Log.d("ActividadDetalle", "URL de la comunidad: ${comunidad.value?.url}")
-                            }
-                            comunidadResponse.code() == 403 -> {
-                                Log.w("ActividadDetalle", "Sin permisos para ver la comunidad de esta actividad")
-                                comunidad.value = ComunidadDTO(
-                                    url = "comunidad_privada",
-                                    nombre = "Comunidad privada",
-                                    descripcion = "No tienes permisos para ver esta comunidad",
-                                    privada = true,
-                                    creador = "",
-                                    fechaCreacion = Date(),
-                                    intereses = emptyList(),
-                                    fotoPerfilId = "",
-                                    fotoCarruselIds = emptyList(),
-                                    administradores = emptyList(),
-                                    codigoUnion = null,
-                                    coordenadas = Coordenadas("", "")
-                                )
-                                Log.d("ActividadDetalle", "Comunidad privada creada: ${comunidad.value?.nombre}")
-                            }
-                            else -> {
-                                Log.e("ActividadDetalle", "Error cargando comunidad: ${comunidadResponse.code()} - ${comunidadResponse.message()}")
-                                try {
-                                    Log.e("ActividadDetalle", "Error body: ${comunidadResponse.errorBody()?.string()}")
-                                } catch (e: Exception) {
-                                    Log.e("ActividadDetalle", "No se pudo leer error body: ${e.message}")
+                            when {
+                                comunidadResponse.isSuccessful && comunidadResponse.body() != null -> {
+                                    comunidad.value = comunidadResponse.body()
+                                }
+                                comunidadResponse.code() == 403 -> {
+                                    comunidad.value = ComunidadDTO(
+                                        url = "comunidad_privada",
+                                        nombre = "Comunidad privada",
+                                        descripcion = "No tienes permisos para ver esta comunidad",
+                                        privada = true,
+                                        creador = "",
+                                        fechaCreacion = Date(),
+                                        intereses = emptyList(),
+                                        fotoPerfilId = "",
+                                        fotoCarruselIds = emptyList(),
+                                        administradores = emptyList(),
+                                        codigoUnion = null,
+                                        coordenadas = Coordenadas("", "")
+                                    )
+                                }
+                                else -> {
+                                    Log.e("ActividadDetalle", "Error cargando comunidad: ${comunidadResponse.code()}")
                                 }
                             }
                         }
                     } else {
-                        error.value = "No se pudo cargar la actividad: ${actividadResponse.message()}"
+                        if (isActive) {
+                            error.value = "No se pudo cargar la actividad: ${actividadResponse.message()}"
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e("ActividadDetalle", "Excepción en supervisorScope: ${e.message}", e)
-                    error.value = when (e) {
-                        is TimeoutCancellationException -> "Tiempo de espera agotado. Comprueba tu conexión."
-                        else -> "Error de red: ${e.message}"
+                    if (isActive) {
+                        Log.e("ActividadDetalle", "Excepción: ${e.message}", e)
+                        error.value = when (e) {
+                            is TimeoutCancellationException -> "Tiempo de espera agotado. Comprueba tu conexión."
+                            is CancellationException -> return@supervisorScope // Cancelación normal
+                            else -> "Error de red: ${e.message}"
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
-            Log.e("ActividadDetalle", "Excepción general: ${e.message}", e)
-            error.value = "Error general: ${e.message}"
+            if (isActive) {
+                Log.e("ActividadDetalle", "Excepción general: ${e.message}", e)
+                error.value = "Error general: ${e.message}"
+            }
         } finally {
-            isLoading.value = false
-            Log.d("ActividadDetalle", "Estado final - Comunidad: ${comunidad.value?.nombre}")
+            if (isActive) {
+                isLoading.value = false
+            }
         }
     }
 
+    // Resto del código del composable...
     if (showReportDialog.value) {
         utils.ReportDialog(
             onDismiss = { showReportDialog.value = false },
@@ -255,35 +265,31 @@ fun ActividadDetalleScreen(
                         )
 
                         val response = withContext(Dispatchers.IO) {
-                            RetrofitService.RetrofitServiceFactory.makeRetrofitService()
-                                .crearDenuncia(authToken, denunciaDTO)
+                            withTimeout(8000) {
+                                RetrofitService.RetrofitServiceFactory.makeRetrofitService()
+                                    .crearDenuncia(authToken, denunciaDTO)
+                            }
                         }
 
                         if (response.isSuccessful) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Denuncia enviada correctamente", Toast.LENGTH_SHORT).show()
-                                showReportDialog.value = false
-                            }
+                            Toast.makeText(context, "Denuncia enviada correctamente", Toast.LENGTH_SHORT).show()
+                            showReportDialog.value = false
                         } else {
                             val errorBody = response.errorBody()?.string() ?: "Error desconocido"
-                            withContext(Dispatchers.Main) {
-                                try {
-                                    val jsonObject = JSONObject(errorBody)
-                                    val errorMessage = jsonObject.optString("error", "")
-                                    if (errorMessage.isNotEmpty()) {
-                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
-                                    } else {
-                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
-                                    }
-                                } catch (e: Exception) {
+                            try {
+                                val jsonObject = JSONObject(errorBody)
+                                val errorMessage = jsonObject.optString("error", "")
+                                if (errorMessage.isNotEmpty()) {
+                                    Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                } else {
                                     Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
                                 }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
                             }
                         }
                     } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"), Toast.LENGTH_LONG).show()
-                        }
+                        Toast.makeText(context, ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"), Toast.LENGTH_LONG).show()
                     } finally {
                         isReportLoading.value = false
                     }

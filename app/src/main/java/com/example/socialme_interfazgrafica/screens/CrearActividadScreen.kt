@@ -258,7 +258,6 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorResource(R.color.background))
     ) {
         Scaffold(
             topBar = {

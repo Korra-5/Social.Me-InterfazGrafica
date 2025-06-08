@@ -51,8 +51,8 @@ fun ChatComunidadScreen(
     // Estado para la lista de mensajes
     var mensajes by remember { mutableStateOf<List<MensajeDTO>>(emptyList()) }
 
-    // Estado para indicar carga
-    var isLoading by remember { mutableStateOf(true) }
+    // Estado para indicar carga INICIAL (solo primera vez)
+    var isInitialLoading by remember { mutableStateOf(true) }
 
     // Estado para errores
     var error by remember { mutableStateOf<String?>(null) }
@@ -74,32 +74,41 @@ fun ChatComunidadScreen(
         authToken.value = "Bearer $token"
     }
 
-    // Función para cargar mensajes
-    fun cargarMensajes() {
-        scope.launch {
-            try {
-                isLoading = true
-                error = null
+    // Función para cargar mensajes (sin mostrar indicador de carga)
+    suspend fun cargarMensajes(esInicialLoad: Boolean = false) {
+        try {
+            if (esInicialLoad) {
+                isInitialLoading = true
+            }
+            error = null
 
-                val response = apiService.obtenerMensajesComunidad(
-                    token = authToken.value,
-                    comunidadUrl = comunidadUrl
-                )
+            val response = apiService.obtenerMensajesComunidad(
+                token = authToken.value,
+                comunidadUrl = comunidadUrl
+            )
 
-                if (response.isSuccessful) {
-                    mensajes = response.body() ?: emptyList()
-                    // Hacer scroll al último mensaje
+            if (response.isSuccessful) {
+                val nuevosMensajes = response.body() ?: emptyList()
+
+                // Solo hacer scroll si hay mensajes nuevos o es la carga inicial
+                if (esInicialLoad || nuevosMensajes.size > mensajes.size) {
+                    mensajes = nuevosMensajes
+                    // Hacer scroll al último mensaje si hay mensajes
                     if (mensajes.isNotEmpty()) {
-                        scrollState.scrollToItem(mensajes.size - 1)
+                        scrollState.animateScrollToItem(mensajes.size - 1)
                     }
                 } else {
-                    error = "Error al cargar mensajes: ${response.message()}"
+                    mensajes = nuevosMensajes
                 }
-            } catch (e: Exception) {
-                error = "Error de conexión: ${e.message}"
-                Log.e("ChatComunidad", "Error al cargar mensajes", e)
-            } finally {
-                isLoading = false
+            } else {
+                error = "Error al cargar mensajes: ${response.message()}"
+            }
+        } catch (e: Exception) {
+            error = "Error de conexión: ${e.message}"
+            Log.e("ChatComunidad", "Error al cargar mensajes", e)
+        } finally {
+            if (esInicialLoad) {
+                isInitialLoading = false
             }
         }
     }
@@ -124,8 +133,8 @@ fun ChatComunidadScreen(
                 if (response.isSuccessful) {
                     // Limpiar el campo de texto
                     mensajeTexto = ""
-                    // Recargar mensajes
-                    cargarMensajes()
+                    // Recargar mensajes inmediatamente sin indicador
+                    cargarMensajes(esInicialLoad = false)
                 } else {
                     Toast.makeText(
                         context,
@@ -144,15 +153,16 @@ fun ChatComunidadScreen(
         }
     }
 
-    // Cargar mensajes iniciales
+    // Cargar mensajes iniciales y configurar actualizaciones periódicas
     LaunchedEffect(comunidadUrl, authToken.value) {
         if (authToken.value.isNotEmpty()) {
-            cargarMensajes()
+            // Carga inicial
+            cargarMensajes(esInicialLoad = true)
 
-            // Configurar carga periódica de mensajes cada 5 segundos
+            // Configurar carga periódica de mensajes cada 5 segundos (sin indicador)
             while (isActive) {
                 delay(5000)
-                cargarMensajes()
+                cargarMensajes(esInicialLoad = false)
             }
         }
     }
@@ -207,7 +217,9 @@ fun ChatComunidadScreen(
                         maxLines = 3,
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = colorResource(R.color.azulPrimario),
-                            unfocusedBorderColor = colorResource(R.color.cyanSecundario)
+                            unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black
                         )
                     )
 
@@ -237,8 +249,8 @@ fun ChatComunidadScreen(
                 .background(Color(0xFFF5F5F5))
         ) {
             when {
-                isLoading && mensajes.isEmpty() -> {
-                    // Mostrar indicador de carga inicial
+                isInitialLoading && mensajes.isEmpty() -> {
+                    // Mostrar indicador de carga inicial SOLAMENTE
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         color = colorResource(R.color.azulPrimario)
@@ -259,7 +271,11 @@ fun ChatComunidadScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = { cargarMensajes() },
+                            onClick = {
+                                scope.launch {
+                                    cargarMensajes(esInicialLoad = true)
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colorResource(R.color.azulPrimario)
                             )
@@ -280,7 +296,7 @@ fun ChatComunidadScreen(
                     )
                 }
                 else -> {
-                    // Mostrar lista de mensajes
+                    // Mostrar lista de mensajes (SIN LinearProgressIndicator)
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -293,17 +309,6 @@ fun ChatComunidadScreen(
                                 mensaje = mensaje,
                                 esPropio = mensaje.username == username.value
                             )
-                        }
-
-                        if (isLoading) {
-                            item {
-                                LinearProgressIndicator(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(2.dp),
-                                    color = colorResource(R.color.azulPrimario)
-                                )
-                            }
                         }
                     }
                 }

@@ -80,7 +80,10 @@ fun EmailVerificationScreen(
                     }
                 } else {
                     viewModel.resetRegistroState()
-                    navController.popBackStack()
+                    navController.navigate(AppScreen.MenuScreen.route) {
+                        popUpTo(AppScreen.MenuScreen.route) { inclusive = true }
+                    }
+
                 }
             }
             is VerificacionState.Error -> {

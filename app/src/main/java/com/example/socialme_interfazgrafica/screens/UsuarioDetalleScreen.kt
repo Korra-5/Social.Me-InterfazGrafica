@@ -844,24 +844,6 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                     }
                                 }
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_email),
-                                        contentDescription = "Email",
-                                        tint = colorResource(R.color.textoSecundario),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = usuario!!.email,
-                                        fontSize = 14.sp,
-                                        color = colorResource(R.color.textoSecundario)
-                                    )
-                                }
-
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 if (usuario!!.intereses.isNotEmpty()) {

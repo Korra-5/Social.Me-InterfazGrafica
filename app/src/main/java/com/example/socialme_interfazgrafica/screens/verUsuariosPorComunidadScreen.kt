@@ -394,7 +394,7 @@ fun VerUsuariosPorComunidadScreen(
                             .fillMaxWidth()
                             .padding(8.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = colorResource(R.color.cyanSecundario).copy(alpha = 0.1f)
+                            containerColor = colorResource(R.color.azulPrimario).copy(alpha = 0.1f)
                         )
                     ) {
                         Column(
@@ -635,10 +635,7 @@ fun VerUsuariosPorComunidadScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (esModoSeleccionCreador)
-                        colorResource(R.color.azulPrimario)
-                    else
-                        colorResource(R.color.cyanSecundario)
+                    containerColor = colorResource(R.color.azulPrimario)
                 )
             )
         }
@@ -653,7 +650,7 @@ fun VerUsuariosPorComunidadScreen(
                 isLoading.value -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = colorResource(R.color.cyanSecundario)
+                        color = colorResource(R.color.azulPrimario)
                     )
                 }
                 error.value != null -> {
@@ -824,10 +821,7 @@ fun VerUsuariosPorComunidadScreen(
                             text = nombreComunidad,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (esModoSeleccionCreador)
-                                colorResource(R.color.azulPrimario)
-                            else
-                                colorResource(R.color.cyanSecundario),
+                            color = colorResource(R.color.azulPrimario),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(bottom = 16.dp)
@@ -886,15 +880,11 @@ fun VerUsuariosPorComunidadScreen(
                                                 navController.navigate(AppScreen.UsuarioDetalleScreen.createRoute(usuario.username))
                                             }
                                         },
-                                        color = if (esModoSeleccionCreador)
-                                            colorResource(R.color.azulPrimario)
-                                        else
-                                            colorResource(R.color.cyanSecundario),
+                                        color = colorResource(R.color.azulPrimario),
                                         mostrarEliminar = puedeEliminar,
                                         onEliminar = {
                                             eliminarUsuarioDeComunidad(usuario.username)
                                         },
-                                        // Nuevos parámetros para modo selección
                                         esSeleccionable = esModoSeleccionCreador,
                                         textoAccion = if (esModoSeleccionCreador) "hacer creador" else null
                                     )

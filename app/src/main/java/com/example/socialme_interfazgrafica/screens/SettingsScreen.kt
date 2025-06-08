@@ -91,7 +91,6 @@ object PreferenciasUsuario {
     const val PREMIUM_KEY = "PREMIUM"
     const val TOKEN_KEY = "TOKEN"
     const val USERNAME_KEY = "USERNAME"
-    const val ROLE_KEY = "ROLE"
 }
 
 @Composable
@@ -197,17 +196,13 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        // Sección de Notificaciones con checkboxes expandibles
-                        NotificacionesSection()
-
-                        Divider(color = Color.LightGray, thickness = 0.5.dp)
 
                         // Sección de Privacidad con dropdowns
                         PrivacidadSection()
 
                         Divider(color = Color.LightGray, thickness = 0.5.dp)
 
-                        // NUEVA SECCIÓN: Cambiar contraseña
+                        // Cambiar contraseña
                         CambiarContrasenaSection()
 
                         Divider(color = Color.LightGray, thickness = 0.5.dp)
@@ -1427,95 +1422,6 @@ fun ComunidadesSection(navController: NavController) {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun NotificacionesSection() {
-    var expandedNotifications by remember { mutableStateOf(false) }
-    var notificarComunidad by remember { mutableStateOf(true) }
-    var notificarSolicitudes by remember { mutableStateOf(true) }
-    var notificarActividades by remember { mutableStateOf(false) }
-
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expandedNotifications = !expandedNotifications }
-                .padding(vertical = 16.dp, horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Notificaciones",
-                modifier = Modifier.weight(1f),
-                fontSize = 16.sp,
-                color = Color.Black
-            )
-            Icon(
-                imageVector = if (expandedNotifications) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = Color.Gray
-            )
-        }
-
-        AnimatedVisibility(
-            visible = expandedNotifications,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp)
-            ) {
-                // Checkbox 1: Notificar nuevas actividades de tu comunidad
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = notificarComunidad,
-                        onCheckedChange = { notificarComunidad = it }
-                    )
-                    Text(
-                        text = "Notificar nuevas actividades de tu comunidad",
-                        fontSize = 14.sp,
-                        color = Color.Black
-                    )
-                }
-
-                // Checkbox 2: Notificar solicitudes de amistad
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = notificarSolicitudes,
-                        onCheckedChange = { notificarSolicitudes = it }
-                    )
-                    Text(
-                        text = "Notificar solicitudes de amistad",
-                        fontSize = 14.sp,
-                        color = Color.Black
-                    )
-                }
-
-                // Checkbox 3: Notificar actividades cercanas
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = notificarActividades,
-                        onCheckedChange = { notificarActividades = it }
-                    )
-                    Text(
-                        text = "Notificar actividades cercanas",
-                        fontSize = 14.sp,
-                        color = Color.Black
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }

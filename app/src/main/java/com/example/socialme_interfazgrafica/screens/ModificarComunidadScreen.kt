@@ -44,6 +44,9 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -102,56 +105,6 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import java.io.ByteArrayOutputStream
 
-
-private fun normalizarUrl(url: String): String {
-    return url
-        .replace("á", "a").replace("Á", "A")
-        .replace("é", "e").replace("É", "E")
-        .replace("í", "i").replace("Í", "I")
-        .replace("ó", "o").replace("Ó", "O")
-        .replace("ú", "u").replace("Ú", "U")
-        .replace("ý", "y").replace("Ý", "Y")
-        .replace("à", "a").replace("À", "A")
-        .replace("è", "e").replace("È", "E")
-        .replace("ì", "i").replace("Ì", "I")
-        .replace("ò", "o").replace("Ò", "O")
-        .replace("ù", "u").replace("Ù", "U")
-        .replace("â", "a").replace("Â", "A")
-        .replace("ê", "e").replace("Ê", "E")
-        .replace("î", "i").replace("Î", "I")
-        .replace("ô", "o").replace("Ô", "O")
-        .replace("û", "u").replace("Û", "U")
-        .replace("ä", "a").replace("Ä", "A")
-        .replace("ë", "e").replace("Ë", "E")
-        .replace("ï", "i").replace("Ï", "I")
-        .replace("ö", "o").replace("Ö", "O")
-        .replace("ü", "u").replace("Ü", "U")
-        .replace("ÿ", "y").replace("Ÿ", "Y")
-        .replace("ã", "a").replace("Ã", "A")
-        .replace("ñ", "n").replace("Ñ", "N")
-        .replace("õ", "o").replace("Õ", "O")
-        .replace("ç", "c").replace("Ç", "C")
-        .replace("ş", "s").replace("Ş", "S")
-        .replace("ţ", "t").replace("Ţ", "T")
-        .replace("æ", "ae").replace("Æ", "AE")
-        .replace("œ", "oe").replace("Œ", "OE")
-        .replace("ø", "o").replace("Ø", "O")
-        .replace("å", "a").replace("Å", "A")
-        .replace("ß", "ss")
-        .replace("ð", "d").replace("Ð", "D")
-        .replace("þ", "th").replace("Þ", "TH")
-        .replace("č", "c").replace("Č", "C")
-        .replace("š", "s").replace("Š", "S")
-        .replace("ž", "z").replace("Ž", "Z")
-        .replace("ć", "c").replace("Ć", "C")
-        .replace("đ", "d").replace("Đ", "D")
-        .replace(Regex("[^a-zA-Z0-9\\-._/\\s]"), "")
-        .replace(Regex("[-]{2,}"), "-")
-        .replace(Regex("[.]{2,}"), ".")
-        .replace(Regex("[/]{2,}"), "/")
-        .trim('-', '.', '_')
-}
-
 private fun validarInteres(interes: String): String? {
     val interesLimpio = interes.trim()
 
@@ -186,10 +139,8 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     val url = remember { mutableStateOf(comunidadUrl) }
     val intereses = remember { mutableStateOf<List<String>>(emptyList()) }
     val interesInput = remember { mutableStateOf("") }
-    val isPrivada = remember { mutableStateOf(false) }
     val administradores = remember { mutableStateOf<List<String>>(emptyList()) }
     val adminInput = remember { mutableStateOf("") }
-
     val isLoading = remember { mutableStateOf(true) }
     val isSaving = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
@@ -272,10 +223,12 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     ) { isGranted ->
         hasLocationPermission = isGranted
         if (isGranted) {
+            isLoadingLocation = true
             obtenerUbicacionActual(context) { location ->
                 val geoPoint = GeoPoint(location.latitude, location.longitude)
                 ubicacionSeleccionada = geoPoint
                 mapView?.let { actualizarMarcador(it, geoPoint) }
+                isLoadingLocation = false
             }
         } else {
             Toast.makeText(
@@ -303,7 +256,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                 descripcion.value = comunidad.descripcion
                 url.value = comunidad.url
                 intereses.value = comunidad.intereses
-                isPrivada.value = comunidad.privada
                 administradores.value = comunidad.administradores ?: emptyList()
                 fotosCarruselExistentesIds.value = comunidad.fotoCarruselIds ?: emptyList()
 
@@ -648,7 +600,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             color = colorResource(R.color.textoPrimario),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
-
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -661,56 +612,56 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                DisposableEffect(ubicacionSeleccionada) {
-                                    val map = MapView(context).apply {
-                                        setMultiTouchControls(true)
-                                        setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-                                        controller.setZoom(15.0)
+                                AndroidView(
+                                    factory = { context ->
+                                        MapView(context).apply {
+                                            setMultiTouchControls(true)
+                                            setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                                            controller.setZoom(15.0)
 
-                                        val startPoint = ubicacionSeleccionada ?: GeoPoint(40.416775, -3.703790)
-                                        controller.setCenter(startPoint)
+                                            // Configurar ubicación inicial
+                                            val startPoint = ubicacionSeleccionada ?: GeoPoint(40.416775, -3.703790)
+                                            controller.setCenter(startPoint)
 
-                                        overlays.add(object : Overlay() {
-                                            override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
-                                                mapView?.let {
-                                                    val projection = it.projection
-                                                    val geoPoint = projection.fromPixels(
-                                                        e?.x?.toInt() ?: 0,
-                                                        e?.y?.toInt() ?: 0
-                                                    ) as GeoPoint
-                                                    ubicacionSeleccionada = geoPoint
-                                                    actualizarMarcador(it, geoPoint)
+                                            // Añadir overlay para detectar toques
+                                            overlays.add(object : Overlay() {
+                                                override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
+                                                    mapView?.let { mv ->
+                                                        val projection = mv.projection
+                                                        val geoPoint = projection.fromPixels(
+                                                            e?.x?.toInt() ?: 0,
+                                                            e?.y?.toInt() ?: 0
+                                                        ) as GeoPoint
+                                                        ubicacionSeleccionada = geoPoint
+                                                        actualizarMarcador(mv, geoPoint)
+                                                    }
+                                                    return true
                                                 }
-                                                return true
-                                            }
-                                        })
-                                    }
+                                            })
 
-                                    mapView = map
+                                            // Establecer referencia para uso posterior
+                                            mapView = this
+                                        }
+                                    },
+                                    update = { map ->
+                                        // Actualizar el mapa cuando cambie la ubicación seleccionada
+                                        ubicacionSeleccionada?.let { location ->
+                                            actualizarMarcador(map, location)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
 
-                                    ubicacionSeleccionada?.let { location ->
-                                        actualizarMarcador(map, location)
-                                    }
-
-                                    onDispose {
-                                        map.onDetach()
-                                    }
-                                }
-
-                                mapView?.let { map ->
-                                    AndroidView(
-                                        factory = { map },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-
+                                // Botón de ubicación actual
                                 FloatingActionButton(
                                     onClick = {
                                         if (hasLocationPermission) {
+                                            isLoadingLocation = true
                                             obtenerUbicacionActual(context) { location ->
                                                 val geoPoint = GeoPoint(location.latitude, location.longitude)
                                                 ubicacionSeleccionada = geoPoint
                                                 mapView?.let { actualizarMarcador(it, geoPoint) }
+                                                isLoadingLocation = false
                                             }
                                         } else {
                                             requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -724,12 +675,13 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     shape = CircleShape
                                 ) {
                                     Icon(
-                                        Icons.Default.Call,
+                                        Icons.Default.LocationOn,
                                         contentDescription = "Mi ubicación",
                                         tint = Color.White
                                     )
                                 }
 
+                                // Indicador de carga
                                 if (isLoadingLocation) {
                                     CircularProgressIndicator(
                                         modifier = Modifier
@@ -739,6 +691,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     )
                                 }
 
+                                // Botón de expandir/contraer
                                 IconButton(
                                     onClick = { isMapExpanded = !isMapExpanded },
                                     modifier = Modifier
@@ -748,7 +701,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                         .background(Color.White.copy(alpha = 0.8f), CircleShape)
                                 ) {
                                     Icon(
-                                        if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
+                                        if (isMapExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
                                         tint = colorResource(R.color.azulPrimario)
                                     )
@@ -772,42 +725,6 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                        }
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Comunidad privada",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = colorResource(R.color.textoPrimario)
-                                )
-
-                                Switch(
-                                    checked = isPrivada.value,
-                                    onCheckedChange = { isPrivada.value = it },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = colorResource(R.color.azulPrimario),
-                                        uncheckedThumbColor = Color.White,
-                                        uncheckedTrackColor = colorResource(R.color.cyanSecundario)
-                                    )
-                                )
-                            }
                         }
 
                         Text(
@@ -1191,9 +1108,12 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     )
                                 }
 
+                                // Capturar la nueva URL antes de la actualización
+                                val nuevaUrl = formatearTextoAUrl(url.value)
+
                                 val comunidadUpdate = ComunidadUpdateDTO(
                                     currentURL = comunidadUrl,
-                                    newUrl = formatearTextoAUrl(url.value),
+                                    newUrl = nuevaUrl,
                                     nombre = nombre.value.trim(),
                                     descripcion = descripcion.value.trim(),
                                     intereses = intereses.value,
@@ -1202,13 +1122,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                     fotoCarruselBase64 = fotosCarruselBase64.value.takeIf { it.isNotEmpty() },
                                     fotoCarruselIds = fotosCarruselExistentesIds.value,
                                     administradores = administradores.value,
-                                    privada = isPrivada.value,
+                                    privada = comunidadOriginal.value!!.privada,
                                     coordenadas = coordenadas
                                 )
-
-                                Log.d("ModificarComunidad", "Enviando datos:")
-                                Log.d("ModificarComunidad", "Fotos nuevas: ${fotosCarruselBase64.value.size}")
-                                Log.d("ModificarComunidad", "Fotos existentes: ${fotosCarruselExistentesIds.value.size}")
 
                                 isSaving.value = true
                                 scope.launch {
@@ -1223,7 +1139,17 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                         if (response.isSuccessful) {
                                             withContext(Dispatchers.Main) {
                                                 Toast.makeText(context, "Comunidad actualizada correctamente", Toast.LENGTH_SHORT).show()
-                                                navController.popBackStack()
+
+                                                if (nuevaUrl != comunidadUrl) {
+                                                    navController.popBackStack()
+                                                    navController.navigate("comunidadDetalle/$nuevaUrl") {
+                                                        popUpTo(navController.graph.startDestinationId)
+                                                        launchSingleTop = true
+                                                    }
+                                                } else {
+                                                    // Si la URL no cambió, simplemente volver
+                                                    navController.popBackStack()
+                                                }
                                             }
                                         } else {
                                             val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
@@ -1402,7 +1328,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                 } else {
                                     val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
                                     Log.e("EliminarComunidad", "Error: ${response.code()} - $errorBody")
-                                    errorMessage.value = "Error al eliminar: ${response.code()} - ${response.message()}"
+                                    errorMessage.value = ErrorUtils.parseErrorMessage(errorBody)
                                 }
                             } catch (e: Exception) {
                                 Log.e("EliminarComunidad", "Excepción", e)

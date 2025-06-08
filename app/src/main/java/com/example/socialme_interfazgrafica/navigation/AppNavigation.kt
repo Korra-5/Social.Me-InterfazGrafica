@@ -30,7 +30,6 @@ import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import com.example.socialme_interfazgrafica.screens.MenuScreen
 import com.example.socialme_interfazgrafica.screens.ModificarComunidadScreen
 import com.example.socialme_interfazgrafica.screens.ModificarUsuarioScreen
-import com.example.socialme_interfazgrafica.screens.NotificacionesScreen
 import com.example.socialme_interfazgrafica.screens.OpcionesScreen
 import com.example.socialme_interfazgrafica.screens.RegistroUsuarioScreen
 import com.example.socialme_interfazgrafica.screens.SolicitudesAmistadScreen
@@ -38,7 +37,6 @@ import com.example.socialme_interfazgrafica.screens.UsuarioDetallesScreen
 import com.example.socialme_interfazgrafica.screens.UsuariosBloqueadosScreen
 import com.example.socialme_interfazgrafica.screens.VerUsuariosPorActividadScreen
 import com.example.socialme_interfazgrafica.screens.VerUsuariosPorComunidadScreen
-import com.example.socialme_interfazgrafica.viewModel.NotificacionViewModel
 import com.example.socialme_interfazgrafica.viewModel.UserViewModel
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
@@ -297,20 +295,6 @@ fun AppNavigation(viewModel: UserViewModel) {
 
         composable(AppScreen.UsuariosBloqueadosScreen.route) {
             UsuariosBloqueadosScreen(navController = navController)
-        }
-        composable(AppScreen.NotificacionesScreen.route) {
-            val notificacionViewModel = androidx.lifecycle.viewmodel.compose.viewModel<NotificacionViewModel>()
-
-            val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-            val username = sharedPreferences.getString("USERNAME", "") ?: ""
-            val authToken = getAuthToken()
-
-            NotificacionesScreen(
-                navController = navController,
-                notificacionViewModel = notificacionViewModel,
-                username = username,
-                authToken = authToken
-            )
         }
 
         composable(

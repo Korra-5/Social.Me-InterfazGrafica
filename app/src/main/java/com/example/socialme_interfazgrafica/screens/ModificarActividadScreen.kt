@@ -46,6 +46,9 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -356,7 +359,6 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorResource(R.color.background))
     ) {
         Column(
             modifier = Modifier
@@ -516,59 +518,56 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
-                                DisposableEffect(ubicacionSeleccionada) {
-                                    val map = MapView(context).apply {
-                                        setMultiTouchControls(true)
-                                        setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
-                                        controller.setZoom(15.0)
+                                AndroidView(
+                                    factory = { context ->
+                                        MapView(context).apply {
+                                            setMultiTouchControls(true)
+                                            setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                                            controller.setZoom(15.0)
 
-                                        val startPoint = ubicacionSeleccionada ?: GeoPoint(40.416775, -3.703790)
-                                        controller.setCenter(startPoint)
+                                            // Configurar ubicación inicial
+                                            val startPoint = ubicacionSeleccionada ?: GeoPoint(40.416775, -3.703790)
+                                            controller.setCenter(startPoint)
 
-                                        overlays.add(object : Overlay() {
-                                            override fun onSingleTapConfirmed(
-                                                e: MotionEvent?,
-                                                mapView: MapView?
-                                            ): Boolean {
-                                                mapView?.let {
-                                                    val projection = it.projection
-                                                    val geoPoint = projection.fromPixels(
-                                                        e?.x?.toInt() ?: 0,
-                                                        e?.y?.toInt() ?: 0
-                                                    ) as GeoPoint
-                                                    ubicacionSeleccionada = geoPoint
-                                                    actualizarMarcador(it, geoPoint)
+                                            // Añadir overlay para detectar toques
+                                            overlays.add(object : Overlay() {
+                                                override fun onSingleTapConfirmed(e: MotionEvent?, mapView: MapView?): Boolean {
+                                                    mapView?.let { mv ->
+                                                        val projection = mv.projection
+                                                        val geoPoint = projection.fromPixels(
+                                                            e?.x?.toInt() ?: 0,
+                                                            e?.y?.toInt() ?: 0
+                                                        ) as GeoPoint
+                                                        ubicacionSeleccionada = geoPoint
+                                                        actualizarMarcador(mv, geoPoint)
+                                                    }
+                                                    return true
                                                 }
-                                                return true
-                                            }
-                                        })
-                                    }
+                                            })
 
-                                    mapView = map
+                                            // Establecer referencia para uso posterior
+                                            mapView = this
+                                        }
+                                    },
+                                    update = { map ->
+                                        // Actualizar el mapa cuando cambie la ubicación seleccionada
+                                        ubicacionSeleccionada?.let { location ->
+                                            actualizarMarcador(map, location)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
 
-                                    ubicacionSeleccionada?.let { location ->
-                                        actualizarMarcador(map, location)
-                                    }
-
-                                    onDispose {
-                                        map.onDetach()
-                                    }
-                                }
-
-                                mapView?.let { map ->
-                                    AndroidView(
-                                        factory = { map },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-
+                                // Botón de ubicación actual
                                 FloatingActionButton(
                                     onClick = {
                                         if (hasLocationPermission) {
+                                            isLoadingLocation = true
                                             obtenerUbicacionActual(context) { location ->
                                                 val geoPoint = GeoPoint(location.latitude, location.longitude)
                                                 ubicacionSeleccionada = geoPoint
                                                 mapView?.let { actualizarMarcador(it, geoPoint) }
+                                                isLoadingLocation = false
                                             }
                                         } else {
                                             requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -578,25 +577,27 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                         .align(Alignment.BottomEnd)
                                         .padding(16.dp)
                                         .size(48.dp),
-                                    containerColor = Color(0xFF3B82F6),
+                                    containerColor = colorResource(R.color.azulPrimario),
                                     shape = CircleShape
                                 ) {
                                     Icon(
-                                        Icons.Default.Call,
+                                        Icons.Default.LocationOn,
                                         contentDescription = "Mi ubicación",
                                         tint = Color.White
                                     )
                                 }
 
+                                // Indicador de carga
                                 if (isLoadingLocation) {
                                     CircularProgressIndicator(
                                         modifier = Modifier
                                             .size(50.dp)
                                             .align(Alignment.Center),
-                                        color = Color(0xFF3B82F6)
+                                        color = colorResource(R.color.azulPrimario)
                                     )
                                 }
 
+                                // Botón de expandir/contraer
                                 IconButton(
                                     onClick = { isMapExpanded = !isMapExpanded },
                                     modifier = Modifier
@@ -606,9 +607,9 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                         .background(Color.White.copy(alpha = 0.8f), CircleShape)
                                 ) {
                                     Icon(
-                                        if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
+                                        if (isMapExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
-                                        tint = Color(0xFF3B82F6)
+                                        tint = colorResource(R.color.azulPrimario)
                                     )
                                 }
                             }
