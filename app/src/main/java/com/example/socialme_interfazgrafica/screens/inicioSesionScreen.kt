@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import kotlin.math.roundToInt
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import kotlinx.coroutines.launch
@@ -82,7 +83,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
     val loginState by viewModel.loginState.observeAsState()
     val tokenLogin by viewModel.tokenLogin.observeAsState("")
 
-    // ✨ ANIMACIÓN DEL FONDO
+    // ANIMACIÓN DEL FONDO
     val infiniteTransition = rememberInfiniteTransition(label = "background")
     val animatedOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -307,6 +308,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                         enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .testTag("textoUsuario")
                             .padding(bottom = 20.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -356,6 +358,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                         enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .testTag("textoContrasena")
                             .padding(bottom = 24.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -437,6 +440,7 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
+                            .testTag("inicioSesionButton")
                             .shadow(
                                 elevation = 8.dp,
                                 shape = RoundedCornerShape(16.dp)

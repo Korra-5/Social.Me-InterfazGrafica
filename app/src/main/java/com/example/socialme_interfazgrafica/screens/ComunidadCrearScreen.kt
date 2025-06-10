@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -177,6 +178,8 @@ fun CrearComunidadScreen(navController: NavController) {
 
     var nuevoInteres by remember { mutableStateOf("") }
     var intereses by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    val errorMessage = remember { mutableStateOf<String?>(null) }
 
     var imagenPerfil by remember { mutableStateOf<Uri?>(null) }
     var imagenPerfilBase64 by remember { mutableStateOf<String?>(null) }
@@ -393,6 +396,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             fontWeight = FontWeight.Bold,
                             color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
+
                         )
 
                         OutlinedTextField(
@@ -401,7 +405,9 @@ fun CrearComunidadScreen(navController: NavController) {
                                 val textoFiltrado = filtrarCaracteresUrl(it)
                                 url = textoFiltrado
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
+                                .testTag("textoUrl")
+                            ,
                             placeholder = {
                                 Text(
                                     "URL única para tu comunidad",
@@ -430,7 +436,9 @@ fun CrearComunidadScreen(navController: NavController) {
                         OutlinedTextField(
                             value = nombre,
                             onValueChange = { nombre = it },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth()
+                                .testTag("textoNombre")
+                            ,
                             placeholder = {
                                 Text(
                                     "Nombre de la comunidad",
@@ -459,6 +467,7 @@ fun CrearComunidadScreen(navController: NavController) {
                             onValueChange = { descripcion = it },
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .testTag("textoDescripcion")
                                 .height(120.dp),
                             placeholder = {
                                 Text(
@@ -657,7 +666,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     if (interesTrimmed.isNotBlank()) {
                                         val errorValidacion = validarInteres(interesTrimmed)
                                         if (errorValidacion != null) {
-                                            Toast.makeText(context, errorValidacion, Toast.LENGTH_SHORT).show()
+                                            errorMessage.value=errorValidacion
                                         } else if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(interesTrimmed)) {
                                             Toast.makeText(context, "El interés contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
                                         } else if (!intereses.contains(interesTrimmed)) {
@@ -758,7 +767,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
                                         checkedTrackColor = colorResource(R.color.azulPrimario),
-                                        uncheckedThumbColor = Color.White,
+                                        uncheckedThumbColor = colorResource(R.color.cyanSecundario),
                                         uncheckedTrackColor = colorResource(R.color.card_colors),
                                     )
                                 )
@@ -817,24 +826,24 @@ fun CrearComunidadScreen(navController: NavController) {
                                                 navController.popBackStack()
                                             } else {
                                                 val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
-                                                val mensajeError = ErrorUtils.parseErrorMessage(errorMsg)
-                                                Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                                errorMessage.value= ErrorUtils.parseErrorMessage(errorMsg)
                                                 Log.e("CrearComunidad", "Error: $errorMsg")
                                             }
                                         } catch (e: Exception) {
                                             val mensajeError = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
-                                            Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                            errorMessage.value=mensajeError
                                             Log.e("CrearComunidad", "Excepción: ${e.message}", e)
                                         } finally {
                                             isLoading = false
                                         }
                                     }
                                 } else {
-                                    Toast.makeText(context, errorMsg ?: "Error de validación", Toast.LENGTH_SHORT).show()
+                                    errorMessage.value = errorMsg
                                 }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .testTag("buttonCrearComunidad")
                                 .height(54.dp),
                             enabled = !isLoading,
                             colors = ButtonDefaults.buttonColors(
@@ -875,6 +884,55 @@ fun CrearComunidadScreen(navController: NavController) {
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                    }
+                }
+
+                // Componente de error movido aquí, fuera de la Card
+                errorMessage.value?.let { error ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFEBEE)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Error",
+                                tint = Color(0xFFD32F2F),
+                                modifier = Modifier.size(24.dp)
+                            )
+
+                            Text(
+                                text = error,
+                                color = Color(0xFFD32F2F),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            IconButton(
+                                onClick = { errorMessage.value = null },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Cerrar error",
+                                    tint = Color(0xFFD32F2F),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }

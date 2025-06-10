@@ -29,8 +29,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -98,6 +102,8 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val dateTimeFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+
+    val errorMessage = remember { mutableStateOf<String?>(null) }
 
     var imagenes by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var imagenesBase64 by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -498,7 +504,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                     shape = CircleShape
                                 ) {
                                     Icon(
-                                        Icons.Default.Call,
+                                        Icons.Default.LocationOn,
                                         contentDescription = "Mi ubicación",
                                         tint = Color.White
                                     )
@@ -522,7 +528,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                         .background(Color.White.copy(alpha = 0.8f), CircleShape)
                                 ) {
                                     Icon(
-                                        if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
+                                        if (isMapExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
                                         tint = colorResource(R.color.azulPrimario)
                                     )
@@ -831,18 +837,18 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                                 navController.popBackStack()
                                             } else {
                                                 val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
-                                                val mensajeError = ErrorUtils.parseErrorMessage(errorMsg)
-                                                Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                                errorMessage.value = ErrorUtils.parseErrorMessage(errorMsg)
+
                                             }
                                         } catch (e: Exception) {
                                             val mensajeError = ErrorUtils.parseErrorMessage(e.message ?: "Error desconocido")
-                                            Toast.makeText(context, mensajeError, Toast.LENGTH_LONG).show()
+                                            errorMessage.value=mensajeError
                                         } finally {
                                             isLoading = false
                                         }
                                     }
                                 } else {
-                                    Toast.makeText(context, errorMsg ?: "Error de validación", Toast.LENGTH_SHORT).show()
+                                    errorMessage.value=errorMsg
                                 }
                             },
                             modifier = Modifier
@@ -886,6 +892,37 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                                 "CANCELAR",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                errorMessage.value?.let { error ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFEDED)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Error",
+                                tint = colorResource(R.color.error),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = ErrorUtils.parseErrorMessage(error),
+                                color = colorResource(R.color.error),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }

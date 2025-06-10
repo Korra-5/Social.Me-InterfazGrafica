@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -16,6 +19,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val configProperties = Properties()
+        configProperties.load(FileInputStream(file("src/main/assets/config.properties")))
+        buildConfigField("String", "URL_API", "\"${configProperties["URL_API"]}\"")
     }
 
     buildTypes {
@@ -36,6 +43,20 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/DEPENDENCIES"
+        }
     }
 }
 
@@ -53,7 +74,6 @@ dependencies {
     implementation(libs.androidx.runtime.livedata)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.play.services.cast.framework)
-    implementation(libs.androidx.compiler)
     implementation(libs.play.services.maps)
     implementation(libs.play.services.location)
     implementation(libs.firebase.firestore.ktx)
@@ -65,40 +85,26 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
-    // Coil Compose
-    implementation ("io.coil-kt:coil-compose:2.4.0")
-
-    // Optional: If you want to support loading images from URLs
-    implementation ("io.coil-kt:coil-compose-base:2.4.0")
-
-    implementation ("com.google.accompanist:accompanist-flowlayout:0.28.0")
-
-    // Librería principal OSMDroid
-    implementation ("org.osmdroid:osmdroid-android:6.1.17")
-
-    // Eliminadas las siguientes dependencias que no están disponibles o han cambiado:
-    // implementation ("org.osmdroid:osmdroid-mapsforge:6.1.17")
-    // implementation ("org.osmdroid:osmdroid-geopackage:6.1.17")
-    // implementation ("org.osmdroid:osmdroid-wms:6.1.17")
-    // implementation ("org.osmdroid:osmdroid-third-party:6.1.17")
-
-    // Para geocodificación y funcionalidades adicionales
-    implementation ("com.github.MKergall:osmbonuspack:6.9.0")
-    // PayPal SDK
-    implementation ("com.paypal.sdk:paypal-android-sdk:2.16.0")
-
-    // También necesitarás estas para compatibilidad
-    implementation ("androidx.legacy:legacy-support-v4:1.0.0")
-    implementation ("androidx.cardview:cardview:1.0.0")
-
-    // WebSockets
-    implementation ("org.java-websocket:Java-WebSocket:1.5.3")
-
-    // Retrofit y Gson (si no lo tienes ya)
-    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation ("com.google.code.gson:gson:2.9.0")
+    implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("io.coil-kt:coil-compose-base:2.4.0")
+    implementation("com.google.accompanist:accompanist-flowlayout:0.28.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.17")
+    implementation("com.github.MKergall:osmbonuspack:6.9.0")
+    implementation("com.paypal.sdk:paypal-android-sdk:2.16.0")
+    implementation("androidx.legacy:legacy-support-v4:1.0.0")
+    implementation("androidx.cardview:cardview:1.0.0")
+    implementation("org.java-websocket:Java-WebSocket:1.5.3")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.google.code.gson:gson:2.9.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:rules:1.5.0")
+    androidTestImplementation("io.mockk:mockk-android:1.13.8")
+    testImplementation("io.mockk:mockk:1.13.8")
+    androidTestImplementation("androidx.navigation:navigation-testing:2.7.5")
 }

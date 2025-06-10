@@ -200,16 +200,8 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
             return Pair(false, "El nombre de usuario no puede estar vacío")
         }
 
-        if (usernameNormalizado.isEmpty()) {
-            return Pair(false, "El nombre de usuario no es válido después de la normalización")
-        }
-
-        if (usernameNormalizado.length < 3) {
-            return Pair(false, "El nombre de usuario debe tener al menos 3 caracteres")
-        }
-
-        if (usernameNormalizado.length > 20) {
-            return Pair(false, "El nombre de usuario no puede tener más de 20 caracteres")
+        if (usernameNormalizado.length > 30) {
+            return Pair(false, "El nombre de usuario no puede tener más de 30 caracteres")
         }
 
         if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(usernameNormalizado)) {
@@ -864,9 +856,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                                         "Perfil actualizado correctamente",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
-                                                    // Navegar al MenuScreen en lugar de hacer popBackStack
                                                     navController.navigate(AppScreen.MenuScreen.route) {
-                                                        // Limpiar el stack de navegación hasta el menu
                                                         popUpTo(AppScreen.MenuScreen.route) { inclusive = true }
                                                     }
                                                 }
@@ -958,7 +948,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = errorMessage.value ?: "",
+                            text = ErrorUtils.parseErrorMessage(errorMessage.value ?: ""),
                             color = colorResource(R.color.error),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium

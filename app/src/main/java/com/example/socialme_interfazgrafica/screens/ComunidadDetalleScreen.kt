@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -930,6 +931,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("joinComunidadButton")
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isUserParticipating.value)

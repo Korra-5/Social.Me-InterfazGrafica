@@ -92,6 +92,7 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
 import com.example.socialme_interfazgrafica.model.Coordenadas
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.screens.actualizarMarcador
 import com.example.socialme_interfazgrafica.screens.obtenerUbicacionActual
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
@@ -380,12 +381,12 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         },
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0xFFE6EAF5), CircleShape)
+                            .background(colorResource(R.color.background), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Volver",
-                            tint = Color(0xFF1E3A8A)
+                            tint = colorResource(R.color.azulPrimario)
                         )
                     }
 
@@ -395,8 +396,8 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         text = "Modificar Actividad",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E3A8A)
-                    )
+                        color = colorResource(R.color.azulPrimario
+                    ))
                 }
 
                 IconButton(
@@ -405,7 +406,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                     },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color(0xFFFEE2E2), CircleShape)
+                        .background(colorResource(R.color.card_colors), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
@@ -422,7 +423,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         .height(400.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF3B82F6))
+                    CircularProgressIndicator(color = colorResource(R.color.azulPrimario))
                 }
             } else {
                 Card(
@@ -445,7 +446,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Nombre de la actividad",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -460,10 +461,10 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF3B82F6),
-                                unfocusedBorderColor = Color(0xFFCBD5E1),
-                                focusedTextColor = Color(0xFF1E293B),
-                                unfocusedTextColor = Color(0xFF1E293B)
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
@@ -472,7 +473,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Descripción",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color =colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -489,10 +490,10 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF3B82F6),
-                                unfocusedBorderColor = Color(0xFFCBD5E1),
-                                focusedTextColor = Color(0xFF1E293B),
-                                unfocusedTextColor = Color(0xFF1E293B)
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
                             ),
                             shape = RoundedCornerShape(12.dp),
                             minLines = 3
@@ -502,7 +503,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Ubicación",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
@@ -642,7 +643,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Lugar",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color = colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -657,10 +658,10 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 )
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF3B82F6),
-                                unfocusedBorderColor = Color(0xFFCBD5E1),
-                                focusedTextColor = Color(0xFF1E293B),
-                                unfocusedTextColor = Color(0xFF1E293B)
+                                focusedBorderColor = colorResource(R.color.azulPrimario),
+                                unfocusedBorderColor = colorResource(R.color.cyanSecundario),
+                                focusedTextColor = colorResource(R.color.textoPrimario),
+                                unfocusedTextColor = colorResource(R.color.textoPrimario)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
@@ -669,7 +670,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Fecha y hora de inicio",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color =  colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -683,17 +684,17 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(end = 8.dp),
-                                border = BorderStroke(1.dp, Color(0xFF3B82F6)),
+                                border = BorderStroke(1.dp,  colorResource(R.color.azulPrimario)),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF3B82F6)
+                                    contentColor =  colorResource(R.color.azulPrimario)
                                 )
                             ) {
                                 Text(
                                     text = if (fechaInicio.value != null)
                                         dateFormat.format(fechaInicio.value!!)
                                     else "Seleccionar fecha",
-                                    color = Color(0xFF3B82F6)
+                                    color =  colorResource(R.color.azulPrimario)
                                 )
                             }
 
@@ -702,17 +703,17 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(start = 8.dp),
-                                border = BorderStroke(1.dp, Color(0xFF3B82F6)),
+                                border = BorderStroke(1.dp,  colorResource(R.color.azulPrimario)),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF3B82F6)
+                                    contentColor =  colorResource(R.color.azulPrimario)
                                 )
                             ) {
                                 Text(
                                     text = if (fechaInicio.value != null)
                                         timeFormat.format(fechaInicio.value!!)
                                     else "Seleccionar hora",
-                                    color = Color(0xFF3B82F6)
+                                    color =  colorResource(R.color.azulPrimario)
                                 )
                             }
                         }
@@ -721,7 +722,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Fecha y hora de finalización",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color =  colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
 
@@ -735,17 +736,17 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(end = 8.dp),
-                                border = BorderStroke(1.dp, Color(0xFF3B82F6)),
+                                border = BorderStroke(1.dp, colorResource(R.color.azulPrimario)),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF3B82F6)
+                                    contentColor = colorResource(R.color.azulPrimario)
                                 )
                             ) {
                                 Text(
                                     text = if (fechaFinalizacion.value != null)
                                         dateFormat.format(fechaFinalizacion.value!!)
                                     else "Seleccionar fecha",
-                                    color = Color(0xFF3B82F6)
+                                    color =  colorResource(R.color.azulPrimario)
                                 )
                             }
 
@@ -754,17 +755,17 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(start = 8.dp),
-                                border = BorderStroke(1.dp, Color(0xFF3B82F6)),
+                                border = BorderStroke(1.dp,  colorResource(R.color.azulPrimario)),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF3B82F6)
+                                    contentColor =  colorResource(R.color.azulPrimario)
                                 )
                             ) {
                                 Text(
                                     text = if (fechaFinalizacion.value != null)
                                         timeFormat.format(fechaFinalizacion.value!!)
                                     else "Seleccionar hora",
-                                    color = Color(0xFF3B82F6)
+                                    color =  colorResource(R.color.azulPrimario)
                                 )
                             }
                         }
@@ -773,7 +774,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                             text = "Fotos de carrusel",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E3A8A),
+                            color =  colorResource(R.color.azulPrimario),
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                         )
 
@@ -782,7 +783,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 fotosCarruselLauncher.launch("image/*")
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF3B82F6)
+                                containerColor =  colorResource(R.color.azulPrimario)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -820,7 +821,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                         modifier = Modifier
                                             .size(120.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                                            .border(1.dp,  colorResource(R.color.card_colors), RoundedCornerShape(12.dp))
                                     ) {
                                         AsyncImage(
                                             model = ImageRequest.Builder(context)
@@ -875,7 +876,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                         modifier = Modifier
                                             .size(120.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                                            .border(1.dp,  colorResource(R.color.card_colors), RoundedCornerShape(12.dp))
                                     ) {
                                         AsyncImage(
                                             model = uri,
@@ -983,8 +984,8 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 .height(54.dp),
                             enabled = !isSaving.value,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1E3A8A),
-                                disabledContainerColor = Color(0xFF94A3B8)
+                                containerColor =  colorResource(R.color.azulPrimario),
+                                disabledContainerColor =  colorResource(R.color.card_colors)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -1012,10 +1013,10 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                 .fillMaxWidth()
                                 .height(54.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF1E3A8A)
+                                contentColor =  colorResource(R.color.azulPrimario)
                             ),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFF1E3A8A))
+                            border = BorderStroke(1.dp,  colorResource(R.color.azulPrimario))
                         ) {
                             Text(
                                 "CANCELAR",
@@ -1033,7 +1034,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFEE2E2)
+                        containerColor =  colorResource(R.color.background)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -1078,7 +1079,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         verticalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator(
-                            color = Color(0xFF3B82F6),
+                            color =  colorResource(R.color.azulPrimario),
                             strokeWidth = 3.dp
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1230,14 +1231,14 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                     "Eliminar actividad",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
+                    color =  colorResource(R.color.textoPrimario)
                 )
             },
             text = {
                 Text(
                     "¿Estás seguro de que deseas eliminar esta actividad? Esta acción no se puede deshacer.",
                     fontSize = 15.sp,
-                    color = Color(0xFF475569)
+                    color = colorResource(R.color.textoPrimario)
                 )
             },
             confirmButton = {
@@ -1262,8 +1263,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                             "Actividad eliminada correctamente",
                                             Toast.LENGTH_SHORT
                                         ).show()
-                                        navController.popBackStack()
-                                    }
+                                        navController.navigate(AppScreen.MenuScreen.route)                                    }
                                 } else {
                                     val errorBody =
                                         response.errorBody()?.string() ?: "Sin cuerpo de error"
@@ -1293,9 +1293,9 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                 OutlinedButton(
                     onClick = { showDeleteConfirmation.value = false },
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF64748B)
+                        contentColor = colorResource(R.color.textoSecundario)
                     ),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    border = BorderStroke(1.dp, colorResource(R.color.card_colors)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("CANCELAR", fontWeight = FontWeight.Bold)
@@ -1333,7 +1333,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                         text = "Eliminando...",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF475569)
+                        color = colorResource(R.color.textoPrimario)
                     )
                 }
             }

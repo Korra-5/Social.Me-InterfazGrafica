@@ -127,15 +127,36 @@ object ErrorUtils {
             errorMsg.contains("No tienes permisos para crear esta actividad") ->
                 "No puedes crear actividades en esta comunidad"
 
-            errorMsg.contains("El nombre de la actividad no puede superar los 25 caracteres") ->
-                "El nombre es demasiado largo (máximo 25 caracteres)"
+            errorMsg.contains("Credenciales incorrectas") ->
+                "El usuario o la contraseña son incorrectos"
 
-            errorMsg.contains("La descrpicion no puede superar los 2000 caracteres") ->
-                "La descripción es demasiado larga (máximo 2000 caracteres)"
+            errorMsg.contains("Esta url es demasiado larga, pruebe con uno inferior a 100 caracteres") ->
+                "La url es demasiado larga (máximo 100 caracteres)"
+
+            errorMsg.contains("Este nombre es demasiado largo, pruebe con uno inferior a 40 caracteres")->
+                "El nombre es demasiado largo (máximo 40 caracteres)\""
+
+            errorMsg.contains("Ya existe una solicitud de amistad pendiente con este usuario")->
+                "Ya existe una solicitud de amistad pendiente con este usuario"
+
+            errorMsg.contains("El creador de la comunidad no puede ser añadido como administrador") ->
+                "El creador de la comunidad no puede ser adminsitrador"
+
+            errorMsg.contains("El usuario debe estar unido a la comunidad para ser administrador") ->
+                "El usuario debe estar unido a la comunidad para ser administrador"
+
+            errorMsg.contains("El nombre de la actividad no puede superar los 40 caracteres") ->
+                "El nombre es demasiado largo (máximo 40 caracteres)"
+
+            errorMsg.contains("La descrpicion no puede superar los 600 caracteres") ->
+                "La descripción es demasiado larga (máximo 600 caracteres)"
 
             // ERRORES DE COMUNIDADES - NO ENCONTRADAS
             errorMsg.contains("Comunidad") && (errorMsg.contains("no encontrada") || errorMsg.contains("not found")) ->
                 "Comunidad no encontrada"
+
+            errorMsg.contains("El lugar no puede superar los 40 caracteres")->
+                ("El lugar es demasiado largo (maximo 40 caracteres)")
 
             errorMsg.contains("Esta comunidad no existe") || errorMsg.contains("Comunidad no existe") ->
                 "Comunidad no encontrada"
@@ -205,8 +226,8 @@ object ErrorUtils {
             errorMsg.contains("Este nombre es demasiado largo") ->
                 "El nombre es demasiado largo (máximo 40 caracteres)"
 
-            errorMsg.contains("la descripción no puede superar los 5000 caracteres") ->
-                "La descripción es demasiado larga (máximo 5000 caracteres)"
+            errorMsg.contains("Lo sentimos, la descripción no puede superar los 1000 caracteres") ->
+                "La descripción es demasiado larga (máximo 1000 caracteres)"
 
             errorMsg.contains("Se requiere una foto de perfil") ->
                 "Debes añadir una foto de perfil"
@@ -339,6 +360,27 @@ object ErrorUtils {
 
             errorMsg.contains("Invalid base64 encoding") ->
                 "Formato de imagen inválido"
+
+            //OTROS
+            errorMsg.contains("La descripcion de un usuario no puede ser superior a 600 caracteres") ->
+                "La descripcion de un usuario no puede ser superior a 600 caracteres"
+
+            errorMsg.contains("El municipio especificado no existe en la provincia indicada")->
+                "El municipio especificado no existe en la provincia indicada"
+
+            errorMsg.contains("El municipio especificado no existe en la provincia indicada")->
+                "El municipio especificado no existe en la provincia indicada"
+
+            errorMsg.contains("La provincia no es válida") ->
+                "La provincia no es válida"
+
+            errorMsg.contains("Los apellidos de un usuario no pueden ser superiores a 60 caracteres") ->
+                "Los apellidos de un usuario no pueden ser superiores a 60 caracteres"
+
+            errorMsg.contains("El username de un usuario no puede ser superior a 30 caracteres") ->
+                "El username de un usuario no puede ser superior a 30 caracteres"
+
+
 
             // ERRORES DE FORMATO
             errorMsg.contains("Formato de coordenadas inválido") ->

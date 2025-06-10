@@ -1,6 +1,10 @@
 package com.example.socialme_interfazgrafica
 
+import com.example.socialme_interfazgrafica.navigation.AppScreen
+import com.example.socialme_interfazgrafica.screens.InicioSesionScreen
 import org.junit.Test
+import androidx.compose.ui.test.*
+import org.junit.Rule
 
 import org.junit.Assert.*
 
@@ -10,8 +14,5 @@ import org.junit.Assert.*
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 class ExampleUnitTest {
-    @Test
-    fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
-    }
+
 }

@@ -32,7 +32,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
@@ -412,7 +411,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                     )
 
                     Column {
-                        ModernTextField(
+                        EditedTextFields(
                             value = username,
                             onValueChange = { username = it },
                             label = "Nombre de usuario",
@@ -422,7 +421,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         VistaPreviewUsername(username)
                     }
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = email,
                         onValueChange = { email = it },
                         label = "Email",
@@ -431,7 +430,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["email"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = password,
                         onValueChange = { password = it },
                         label = "Contraseña",
@@ -442,7 +441,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["password"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         label = "Confirmar contraseña",
@@ -453,7 +452,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["confirmPassword"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = nombre,
                         onValueChange = { nombre = it },
                         label = "Nombre",
@@ -461,7 +460,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["nombre"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = apellidos,
                         onValueChange = { apellidos = it },
                         label = "Apellidos",
@@ -469,7 +468,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["apellidos"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = municipio,
                         onValueChange = { municipio = it },
                         label = "Municipio",
@@ -477,7 +476,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["municipio"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = provincia,
                         onValueChange = { provincia = it },
                         label = "Provincia",
@@ -485,7 +484,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
                         errorMessage = errorFields["provincia"]
                     )
 
-                    ModernTextField(
+                    EditedTextFields(
                         value = descripcion,
                         onValueChange = { descripcion = it },
                         label = "Descripción (opcional)",
@@ -731,7 +730,7 @@ fun RegistroUsuarioScreen(navController: NavController, viewModel: UserViewModel
 }
 
 @Composable
-fun ModernTextField(
+fun EditedTextFields(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,

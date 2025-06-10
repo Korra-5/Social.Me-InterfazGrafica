@@ -180,7 +180,7 @@ fun ComprarPremiumScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Desbloquea todas las funciones especiales",
+                text = "Expande tu capacidad de crear comunidades",
                 fontSize = 16.sp,
                 color = colorResource(R.color.textoSecundario),
                 textAlign = TextAlign.Center
@@ -188,7 +188,7 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Beneficios Premium
+            // Comparación Premium vs Básico
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -199,18 +199,153 @@ fun ComprarPremiumScreen(navController: NavController) {
                     modifier = Modifier.padding(20.dp)
                 ) {
                     Text(
-                        text = "Beneficios Premium:",
+                        text = "¿Qué obtienes con Premium?",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = colorResource(R.color.azulPrimario)
+                        color = colorResource(R.color.azulPrimario),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    BenefitItem(text = "Crea hasta 10 comunidades (en lugar de 3)", icon = "✨")
-                    BenefitItem(text = "Prioridad en las búsquedas", icon = "🔍")
-                    BenefitItem(text = "Soporte prioritario", icon = "🛟")
-                    BenefitItem(text = "Insignia Premium visible", icon = "⭐")
+                    // Comparación visual
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // Plan Básico
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.Gray.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "👤",
+                                        fontSize = 32.sp
+                                    )
+                                    Text(
+                                        text = "Plan Básico",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Gray
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "3",
+                                        fontSize = 36.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Gray
+                                    )
+                                    Text(
+                                        text = "comunidades",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
+                        // Vs
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.weight(0.3f)
+                        ) {
+                            Text(
+                                text = "VS",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorResource(R.color.azulPrimario)
+                            )
+                        }
+
+                        // Plan Premium
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFFFFD700).copy(alpha = 0.2f)
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "⭐",
+                                        fontSize = 32.sp
+                                    )
+                                    Text(
+                                        text = "Plan Premium",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFB8860B)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "10",
+                                        fontSize = 36.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFB8860B)
+                                    )
+                                    Text(
+                                        text = "comunidades",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFB8860B),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Descripción del beneficio
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = colorResource(R.color.cyanSecundario).copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🚀",
+                                fontSize = 24.sp,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "¡Más de 3 veces la capacidad!",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorResource(R.color.azulPrimario)
+                                )
+                                Text(
+                                    text = "Crea hasta 10 comunidades y lidera más grupos",
+                                    fontSize = 14.sp,
+                                    color = colorResource(R.color.textoSecundario)
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -231,7 +366,7 @@ fun ComprarPremiumScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Precio especial",
+                        text = "Precio especial de lanzamiento",
                         fontSize = 16.sp,
                         color = colorResource(R.color.textoSecundario)
                     )
@@ -244,7 +379,7 @@ fun ComprarPremiumScreen(navController: NavController) {
                     )
 
                     Text(
-                        text = "Procesado con PayPal",
+                        text = "Pago único • Procesado con PayPal",
                         fontSize = 14.sp,
                         color = colorResource(R.color.textoSecundario)
                     )
@@ -308,7 +443,10 @@ fun ComprarPremiumScreen(navController: NavController) {
                 }
             } else if (!connectionOk) {
                 Button(
-                    onClick = { testConnection() },
+                    onClick = {
+                        isConnecting = true
+                        testConnection()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -358,36 +496,41 @@ fun ComprarPremiumScreen(navController: NavController) {
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Simulación de pago - No se cobra dinero real",
-                fontSize = 12.sp,
-                color = colorResource(R.color.textoSecundario),
-                textAlign = TextAlign.Center,
-                style = androidx.compose.ui.text.TextStyle(
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                )
-            )
         }
     }
 
-    // Diálogo de confirmación (simplificado)
+    // Diálogo de confirmación
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
             title = {
                 Text(
-                    "Confirmar compra",
+                    "Confirmar compra Premium",
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                Text(
-                    "¿Confirmas la compra de Premium por €$PREMIUM_PRICE_EUR?\n\n" +
-                            "Es una simulación - no se cobrará dinero real."
-                )
+                Column {
+                    Text(
+                        "¿Confirmas la compra de Premium por €$PREMIUM_PRICE_EUR?",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Podrás crear hasta 10 comunidades en lugar de 3.",
+                        fontSize = 14.sp,
+                        color = colorResource(R.color.textoSecundario)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "(Esto es una simulacion)",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        )
+                    )
+                }
             },
             confirmButton = {
                 Button(
@@ -412,25 +555,6 @@ fun ComprarPremiumScreen(navController: NavController) {
                     Text("Cancelar")
                 }
             }
-        )
-    }
-}
-
-@Composable
-fun BenefitItem(text: String, icon: String) {
-    Row(
-        modifier = Modifier.padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = icon,
-            fontSize = 20.sp,
-            modifier = Modifier.padding(end = 12.dp)
-        )
-        Text(
-            text = text,
-            fontSize = 16.sp,
-            color = Color.Black
         )
     }
 }

@@ -274,10 +274,8 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botón de eliminar cuenta
                 OutlinedButton(
                     onClick = {
-                        // Mostrar diálogo de confirmación
                         mostrarDialogoConfirmacion = true
                     },
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -288,7 +286,6 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                     Text("Eliminar cuenta", color = Color.Red)
                 }
 
-                // DIÁLOGO MEJORADO DE CONFIRMACIÓN PARA ELIMINAR CUENTA
                 if (mostrarDialogoConfirmacion) {
                     AlertDialog(
                         onDismissRequest = {
@@ -305,16 +302,13 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                         text = {
                             Column {
                                 Text(
-                                    text = "⚠️ Esta acción eliminará permanentemente:",
+                                    text = "⚠️ Esta acción eliminará permanentemente tu cuenta",
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
 
                                 Text(
-                                    text = "• Tu cuenta de usuario\n" +
-                                            "• Todas las comunidades que hayas creado\n" +
-                                            "• Todas tus actividades publicadas\n" +
-                                            "• Tu historial y datos personales",
+                                    text = "Antes de eliminar tu cuenta debes asginar un nuevo creador a cada una de las comunidades que gestiones, de otra manera no será posible",
                                     modifier = Modifier.padding(bottom = 16.dp),
                                     lineHeight = 20.sp
                                 )
@@ -326,7 +320,6 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 )
 
-                                // Checkbox de confirmación
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
@@ -339,7 +332,7 @@ fun OpcionesScreen(navController: NavController, viewModel: UserViewModel) {
                                         onCheckedChange = { confirmarEliminacion = it }
                                     )
                                     Text(
-                                        text = "Entiendo que esta acción eliminará mi cuenta y todas mis comunidades de forma permanente",
+                                        text = "Entiendo que esta acción eliminará mi cuenta de forma permanente",
                                         fontSize = 14.sp,
                                         modifier = Modifier.padding(start = 8.dp),
                                         lineHeight = 18.sp
@@ -1450,12 +1443,6 @@ fun OptionItem(text: String, onClick: () -> Unit) {
     }
 }
 
-/**
- * Función para eliminar la cuenta del usuario:
- * - Intenta borrar la cuenta del servidor vía API
- * - Maneja posibles errores, especialmente si el usuario es dueño de comunidades
- * - Si tiene éxito, limpia los datos locales y redirige al login
- */
 private fun eliminarCuenta(context: Context, navController: NavController, viewModel: UserViewModel, onError: (String) -> Unit) {
     val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)
     val token = sharedPreferences.getString(PreferenciasUsuario.TOKEN_KEY, "") ?: ""
@@ -1466,41 +1453,33 @@ private fun eliminarCuenta(context: Context, navController: NavController, viewM
         return
     }
 
-    // Ejecutar la llamada a la API en un hilo secundario
     CoroutineScope(Dispatchers.IO).launch {
         try {
             val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
             val tokenBearer = "Bearer $token"
             val response = apiService.eliminarUsuario(tokenBearer, username)
 
-            // Procesar la respuesta en el hilo principal
             withContext(Dispatchers.Main) {
                 if (response.isSuccessful) {
-                    // Éxito: Limpiar datos locales y navegar a login
                     with(sharedPreferences.edit()) {
                         clear()
                         apply()
                     }
 
-                    // Resetear el estado de login
                     viewModel.resetLoginState()
 
-                    // Mostrar mensaje de éxito
                     Toast.makeText(
                         context,
                         "Cuenta eliminada correctamente",
                         Toast.LENGTH_LONG
                     ).show()
 
-                    // Navegar a la pantalla de inicio de sesión
                     navController.navigate(AppScreen.InicioSesionScreen.route) {
                         popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
                 } else {
-                    // Error: Mostrar mensaje de error
                     val errorBody = response.errorBody()?.string() ?: "Error desconocido"
 
-                    // Intentar extraer mensaje de error del backend
                     try {
                         val jsonObject = JSONObject(errorBody)
                         val errorMessage = jsonObject.optString("error", "")
@@ -1515,7 +1494,6 @@ private fun eliminarCuenta(context: Context, navController: NavController, viewM
                 }
             }
         } catch (e: Exception) {
-            // Manejar excepciones (problemas de red, etc.)
             withContext(Dispatchers.Main) {
                 onError(ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"))
             }
@@ -1523,13 +1501,6 @@ private fun eliminarCuenta(context: Context, navController: NavController, viewM
     }
 }
 
-/**
- * Función para cerrar la sesión del usuario:
- * - Limpia los datos de SharedPreferences
- * - Resetea el estado de login en el ViewModel
- * - Muestra un mensaje de confirmación
- * - Navega a la pantalla de inicio de sesión
- */
 private fun cerrarSesion(context: Context, navController: NavController, viewModel: UserViewModel) {
     // 1. Limpiar datos de SharedPreferences
     val sharedPreferences = context.getSharedPreferences(PreferenciasUsuario.SHARED_PREFS_NAME, Context.MODE_PRIVATE)

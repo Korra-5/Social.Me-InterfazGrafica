@@ -1,5 +1,6 @@
 package com.example.socialme_interfazgrafica.data
 
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.model.ActividadCreateDTO
 import com.example.socialme_interfazgrafica.model.ActividadDTO
 import com.example.socialme_interfazgrafica.model.ActividadUpdateDTO
@@ -47,6 +48,8 @@ import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
 interface RetrofitService {
+
+
 
     @POST("/Usuario/login")
     suspend fun loginUser(
@@ -569,7 +572,7 @@ interface RetrofitService {
                 .build()
 
             Retrofit.Builder()
-                .baseUrl("https://social-me-tfg.onrender.com")
+                .baseUrl(BuildConfig.URL_API)
                 .client(client)
                 .addConverterFactory(GsonConverterFactory.create(gson))
                 .build()
@@ -592,7 +595,7 @@ interface RetrofitService {
                 .build()
 
             return Retrofit.Builder()
-                .baseUrl("https://social-me-tfg.onrender.com")
+                .baseUrl(BuildConfig.URL_API)
                 .client(client)
                 .addConverterFactory(GsonConverterFactory.create(gson))
                 .build()

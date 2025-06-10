@@ -94,6 +94,7 @@ import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.Coordenadas
+import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
 import com.example.socialme_interfazgrafica.utils.PalabrasMalsonantesValidator
 import kotlinx.coroutines.Dispatchers
@@ -868,7 +869,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                         if (PalabrasMalsonantesValidator.contienepalabrasmalsonantes(adminTrimmed)) {
                                             Toast.makeText(context, "El nombre de administrador contiene palabras no permitidas", Toast.LENGTH_SHORT).show()
                                         } else if (!administradores.value.contains(adminTrimmed)) {
-                                            administradores.value = administradores.value + adminTrimmed
+                                            administradores.value += adminTrimmed.toLowerCase()
                                             adminInput.value = ""
                                         }
                                     }
@@ -1235,7 +1236,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = errorMessage.value ?: "",
+                            text = ErrorUtils.parseErrorMessage(errorMessage.value ?:"") ,
                             color = colorResource(R.color.error),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
@@ -1323,7 +1324,9 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
                                             "Comunidad eliminada correctamente",
                                             Toast.LENGTH_SHORT
                                         ).show()
-                                        navController.popBackStack()
+                                        navController.navigate(AppScreen.MenuScreen.route) {
+                                            popUpTo(AppScreen.MenuScreen.route) { inclusive = true }
+                                        }
                                     }
                                 } else {
                                     val errorBody = response.errorBody()?.string() ?: "Sin cuerpo de error"
