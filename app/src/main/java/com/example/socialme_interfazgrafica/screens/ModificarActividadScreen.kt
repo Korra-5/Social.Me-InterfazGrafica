@@ -114,7 +114,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val actividadOriginal = remember { mutableStateOf<ActividadDTO?>(null) }
     val nombre = remember { mutableStateOf("") }

@@ -70,6 +70,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
@@ -373,7 +374,7 @@ fun ActividadDetalleContent(
     showMenu: MutableState<Boolean>,
     showReportDialog: MutableState<Boolean>
 ) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
 
     val isUserParticipating = remember { mutableStateOf(isParticipating) }

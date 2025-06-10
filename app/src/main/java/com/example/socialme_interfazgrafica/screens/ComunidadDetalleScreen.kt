@@ -86,6 +86,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
@@ -114,7 +115,7 @@ import java.util.Date
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navController: NavController) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
@@ -122,154 +123,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
     val isUserParticipating = remember { mutableStateOf(false) }
 
-    @Composable
-    fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
-        val context = LocalContext.current
-        val baseUrl = "https://social-me-tfg.onrender.com"
-
-        val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
-        val token = sharedPreferences.getString("TOKEN", "") ?: ""
-        val authToken = "Bearer $token"
-
-        val tieneImagenes = actividad.fotosCarruselIds.isNotEmpty()
-        val imagenUrl = if (tieneImagenes)
-            "$baseUrl/files/download/${actividad.fotosCarruselIds[0]}"
-        else ""
-
-        val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-
-        val imageLoader = ImageLoader.Builder(context)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .networkCachePolicy(CachePolicy.ENABLED)
-            .memoryCache {
-                MemoryCache.Builder(context)
-                    .maxSizePercent(0.25)
-                    .build()
-            }
-            .diskCache {
-                DiskCache.Builder()
-                    .directory(context.cacheDir.resolve("actividad_images"))
-                    .maxSizeBytes(50 * 1024 * 1024)
-                    .build()
-            }
-            .okHttpClient(okHttpClient)
-            .build()
-
-        val fechaInicio = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaInicio)
-        val fechaFinalizacion = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(actividad.fechaFinalizacion)
-
-        Card(
-            modifier = Modifier
-                .width(200.dp)
-                .height(250.dp)
-                .clickable {
-                    navController.navigate("actividadDetalle/${actividad._id}")
-                },
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = colorResource(R.color.white)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(colorResource(R.color.background)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (tieneImagenes) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(imagenUrl)
-                                .crossfade(true)
-                                .placeholder(R.drawable.app_icon)
-                                .error(R.drawable.app_icon)
-                                .setHeader("Authorization", authToken)
-                                .memoryCacheKey("actividad_${actividad.fotosCarruselIds[0]}")
-                                .diskCacheKey("actividad_${actividad.fotosCarruselIds[0]}")
-                                .build(),
-                            contentDescription = "Foto de ${actividad.nombre}",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                            imageLoader = imageLoader
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.app_icon),
-                            contentDescription = "Imagen por defecto",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = actividad.nombre,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colorResource(R.color.azulPrimario),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Text(
-                    text = "Por: @${actividad.creador}",
-                    fontSize = 12.sp,
-                    color = colorResource(R.color.textoSecundario),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = actividad.descripcion,
-                    fontSize = 12.sp,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_calendar),
-                        contentDescription = "Fechas",
-                        tint = colorResource(R.color.textoSecundario),
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "$fechaInicio - $fechaFinalizacion",
-                        fontSize = 10.sp,
-                        color = colorResource(R.color.textoSecundario)
-                    )
-                }
-            }
-        }
-    }
     val isLoading = remember { mutableStateOf(false) }
     val username = remember { mutableStateOf("") }
 

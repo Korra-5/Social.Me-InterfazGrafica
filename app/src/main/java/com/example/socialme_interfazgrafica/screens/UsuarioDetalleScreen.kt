@@ -71,6 +71,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
@@ -129,7 +130,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
     val isOwnProfile = username == currentUsername
     val utils = FunctionUtils
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -1383,7 +1384,7 @@ fun AmigoItem(
     imageLoader: ImageLoader,
     authToken: String
 ) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
 
     Column(
@@ -1454,7 +1455,7 @@ fun AmigoItem(
 @Composable
 fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) {
     val context = LocalContext.current
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
@@ -1640,7 +1641,7 @@ fun ComunidadCardDetalle(comunidad: ComunidadDTO, navController: NavController) 
 @Composable
 fun ActividadCardDetalle(actividad: ActividadDTO, navController: NavController) {
     val context = LocalContext.current
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""

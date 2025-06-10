@@ -70,6 +70,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
@@ -981,7 +982,7 @@ fun UsuarioItem(
     esSeleccionable: Boolean = false, // Nuevo parámetro
     textoAccion: String? = null // Nuevo parámetro
 ) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
     val actualImageLoader = imageLoader ?: ImageLoader.Builder(context).build()
 

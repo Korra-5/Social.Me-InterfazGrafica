@@ -89,6 +89,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.model.ComunidadDTO
 import com.example.socialme_interfazgrafica.model.ComunidadUpdateDTO
@@ -132,7 +133,7 @@ fun ModificarComunidadScreen(comunidadUrl: String, navController: NavController)
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val comunidadOriginal = remember { mutableStateOf<ComunidadDTO?>(null) }
     val nombre = remember { mutableStateOf("") }

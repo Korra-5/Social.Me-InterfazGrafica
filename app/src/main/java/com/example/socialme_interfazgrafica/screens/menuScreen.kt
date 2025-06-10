@@ -43,6 +43,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
@@ -354,7 +355,7 @@ fun UserProfileHeader(
                         strokeWidth = 2.dp
                     )
                 } else if (fotoPerfilId.isNotEmpty()) {
-                    val baseUrl = "https://social-me-tfg.onrender.com"
+                    val baseUrl = BuildConfig.URL_API
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data("$baseUrl/files/download/$fotoPerfilId")
@@ -947,7 +948,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
 @Composable
 fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
     val context = LocalContext.current
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
@@ -1098,7 +1099,7 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
 @Composable
 fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
     val context = LocalContext.current
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val token = sharedPreferences.getString("TOKEN", "") ?: ""

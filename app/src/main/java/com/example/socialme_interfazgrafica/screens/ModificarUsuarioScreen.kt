@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.model.Direccion
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
@@ -163,7 +164,7 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
     val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
     val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
     val authToken = sharedPreferences.getString("TOKEN", "") ?: ""
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
 
     val usuarioOriginal = remember { mutableStateOf<UsuarioDTO?>(null) }
     val newUsername = remember { mutableStateOf("") }

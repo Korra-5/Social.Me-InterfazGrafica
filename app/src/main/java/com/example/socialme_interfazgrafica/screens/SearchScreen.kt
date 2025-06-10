@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.socialme_interfazgrafica.BuildConfig
 import com.example.socialme_interfazgrafica.R
 import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.ActividadDTO
@@ -499,7 +500,7 @@ fun ComunidadItem(
     authToken: String,
     navController: NavController
 ) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
 
     Card(
@@ -601,7 +602,7 @@ fun ActividadItem(
     authToken: String,
     navController: NavController
 ) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
@@ -689,7 +690,7 @@ fun UsuarioSearchItem(
     authToken: String,
     navController: NavController
 ) {
-    val baseUrl = "https://social-me-tfg.onrender.com"
+    val baseUrl = BuildConfig.URL_API
     val context = LocalContext.current
 
     Card(
