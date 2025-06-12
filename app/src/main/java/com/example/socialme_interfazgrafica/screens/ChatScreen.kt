@@ -159,7 +159,7 @@ fun ChatComunidadScreen(
             // Carga inicial
             cargarMensajes(esInicialLoad = true)
 
-            // Configurar carga periódica de mensajes cada 5 segundos (sin indicador)
+            // Configurar carga de mensajes cada 5 segundos (sin indicador)
             while (isActive) {
                 delay(5000)
                 cargarMensajes(esInicialLoad = false)
@@ -250,7 +250,7 @@ fun ChatComunidadScreen(
         ) {
             when {
                 isInitialLoading && mensajes.isEmpty() -> {
-                    // Mostrar indicador de carga inicial SOLAMENTE
+                    // Mostrar indicador de carga inicial
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         color = colorResource(R.color.azulPrimario)
@@ -296,7 +296,7 @@ fun ChatComunidadScreen(
                     )
                 }
                 else -> {
-                    // Mostrar lista de mensajes (SIN LinearProgressIndicator)
+                    // Mostrar lista de mensajes
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()

@@ -47,7 +47,7 @@ fun ComprarPremiumScreen(navController: NavController) {
     val token = sharedPreferences.getString("TOKEN", "") ?: ""
     val username = sharedPreferences.getString("USERNAME", "") ?: ""
 
-    // Función para verificar conexión (silenciosa)
+    // Función para verificar conexión
     fun testConnection() {
         scope.launch {
             try {
@@ -388,7 +388,7 @@ fun ComprarPremiumScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Botón de compra o estado
+            // Botón de compra
             if (isPremium) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),

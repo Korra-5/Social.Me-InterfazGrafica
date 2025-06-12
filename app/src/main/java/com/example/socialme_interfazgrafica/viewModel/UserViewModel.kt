@@ -17,7 +17,6 @@ import com.example.socialme_interfazgrafica.data.RetrofitService
 import com.example.socialme_interfazgrafica.model.Coordenadas
 import com.example.socialme_interfazgrafica.model.Direccion
 import com.example.socialme_interfazgrafica.model.LoginResponse
-import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
 import com.example.socialme_interfazgrafica.model.UsuarioRegisterDTO
 import com.example.socialme_interfazgrafica.model.VerificacionDTO
@@ -242,7 +241,7 @@ class UserViewModel : ViewModel() {
             val coordenadas = if (success) {
                 _ubicacionActual.value
             } else {
-                Coordenadas(0.0.toString(), 0.0.toString())
+                Coordenadas("40.41", "-3.7") //Coordenas de Madrid Centro
             }
 
             realizarLogin(username, password, coordenadas)

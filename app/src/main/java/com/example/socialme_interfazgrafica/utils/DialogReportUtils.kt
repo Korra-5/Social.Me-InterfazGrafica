@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.socialme_interfazgrafica.R
 
-object FunctionUtils {
+object DialogReportUtils {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable

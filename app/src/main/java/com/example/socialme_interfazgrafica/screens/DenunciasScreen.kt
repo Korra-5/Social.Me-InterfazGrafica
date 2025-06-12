@@ -89,8 +89,8 @@ fun DenunciasScreen(navController: NavController) {
         }
     }
 
-    // Toggle estado denuncia
-    fun toggleDenunciaStatus(denunciaId: String, completado: Boolean) {
+    // Actualizar estado denuncia
+    fun UpdateDenunciaStatus(denunciaId: String, completado: Boolean) {
         coroutineScope.launch {
             try {
                 val response = retrofitService.completarDenuncia(token, denunciaId, completado)
@@ -348,7 +348,7 @@ fun DenunciasScreen(navController: NavController) {
                     DenunciaItem(
                         denuncia = denuncia,
                         onToggleStatus = { denunciaId, completado ->
-                            toggleDenunciaStatus(denunciaId, completado)
+                            UpdateDenunciaStatus(denunciaId, completado)
                         },
                         navController = navController
                     )

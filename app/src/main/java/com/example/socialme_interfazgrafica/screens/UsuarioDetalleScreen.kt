@@ -82,9 +82,10 @@ import com.example.socialme_interfazgrafica.model.SolicitudAmistadDTO
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
-import com.example.socialme_interfazgrafica.utils.FunctionUtils
+import com.example.socialme_interfazgrafica.utils.DialogReportUtils
 import com.google.accompanist.flowlayout.FlowRow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -104,6 +105,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    var cargandoSolicitud by remember { mutableStateOf(false) }
     val showMenu = remember { mutableStateOf(false) }
 
     var esAmigo by remember { mutableStateOf(false) }
@@ -129,7 +131,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
     val authToken = "Bearer $token"
 
     val isOwnProfile = username == currentUsername
-    val utils = FunctionUtils
+    val utils = DialogReportUtils
     val baseUrl = BuildConfig.URL_API
 
     val okHttpClient = OkHttpClient.Builder()
@@ -245,6 +247,7 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
 
     fun enviarSolicitudAmistad() {
         scope.launch {
+            cargandoSolicitud = true // Activar estado de carga
             try {
                 val solicitudDTO = SolicitudAmistadDTO(
                     _id = "",
@@ -266,6 +269,10 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 Log.e("UsuarioDetalles", "Error al enviar solicitud: ${e.message}")
+            } finally {
+                // Mantener el estado de carga por 1 segundo adicional para evitar duplicacion de solictudes
+                delay(1000)
+                cargandoSolicitud = false
             }
         }
     }
@@ -773,8 +780,13 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                         else -> {
                                             Button(
                                                 onClick = { enviarSolicitudAmistad() },
+                                                enabled = !cargandoSolicitud,
                                                 colors = ButtonDefaults.buttonColors(
-                                                    containerColor = colorResource(R.color.azulPrimario)
+                                                    containerColor = if (cargandoSolicitud)
+                                                        colorResource(R.color.azulPrimario).copy(alpha = 0.7f)
+                                                    else
+                                                        colorResource(R.color.azulPrimario),
+                                                    disabledContainerColor = colorResource(R.color.azulPrimario).copy(alpha = 0.7f)
                                                 ),
                                                 modifier = Modifier
                                                     .fillMaxWidth(0.7f)
@@ -785,22 +797,32 @@ fun UsuarioDetallesScreen(navController: NavController, username: String) {
                                                     pressedElevation = 4.dp
                                                 )
                                             ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(id = R.drawable.ic_add),
-                                                        contentDescription = "Enviar solicitud",
-                                                        tint = Color.White,
+                                                if (cargandoSolicitud) {
+                                                    // Mostrar indicador de carga
+                                                    CircularProgressIndicator(
+                                                        color = Color.White,
+                                                        strokeWidth = 2.dp,
                                                         modifier = Modifier.size(16.dp)
                                                     )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(
-                                                        text = "Anadir amigo",
-                                                        fontSize = 14.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
+                                                } else {
+                                                    // Mostrar contenido normal del botón
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.ic_add),
+                                                            contentDescription = "Enviar solicitud",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text(
+                                                            text = "Añadir amigo",
+                                                            fontSize = 14.sp,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }

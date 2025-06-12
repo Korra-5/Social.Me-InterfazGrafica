@@ -186,11 +186,11 @@ fun InicioSesionScreen(navController: NavController, viewModel: UserViewModel) {
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        colorResource(R.color.azulPrimario), // Tu color #FF3D5A80
-                        Color(0xFF5A7BA8), // Variación más clara
-                        Color(0xFF7B9BC9)  // Variación aún más clara
+                        colorResource(R.color.azulPrimario),
+                        Color(0xFF5A7BA8),
+                        Color(0xFF7B9BC9)
                     ),
-                    // La magia de la animación: los puntos se mueven
+                    //Encargado del movimiento del fondo
                     start = androidx.compose.ui.geometry.Offset(0f, animatedOffset * 1000),
                     end = androidx.compose.ui.geometry.Offset(1000f, (1 - animatedOffset) * 1000)
                 )

@@ -14,5 +14,6 @@ data class ComunidadDTO(
     val fechaCreacion: Date,
     var privada: Boolean,
     val coordenadas: Coordenadas?,
-    val codigoUnion:String?
+    val codigoUnion:String?,
+    val expulsadosUsername:List<String>
 )

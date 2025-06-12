@@ -313,7 +313,7 @@ fun CrearActividadScreen(comunidadUrl: String, navController: NavController) {
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(color = colorResource(R.color.azulPrimario))
-                    }// En la sección donde se muestra la información de la comunidad, reemplaza esta parte:
+                    }
 
                     comunidad.value?.let { com ->
                         Card(

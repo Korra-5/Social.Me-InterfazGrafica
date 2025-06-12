@@ -14,15 +14,12 @@ import com.example.socialme_interfazgrafica.model.DenunciaDTO
 import com.example.socialme_interfazgrafica.model.LoginResponse
 import com.example.socialme_interfazgrafica.model.MensajeCreateDTO
 import com.example.socialme_interfazgrafica.model.MensajeDTO
-import com.example.socialme_interfazgrafica.model.NotificacionDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.model.PaymentRequestDTO
 import com.example.socialme_interfazgrafica.model.PaymentResponseDTO
 import com.example.socialme_interfazgrafica.model.PaymentStatusDTO
 import com.example.socialme_interfazgrafica.model.PaymentVerificationDTO
-import com.example.socialme_interfazgrafica.model.PaymentVerificationRequest
-import com.example.socialme_interfazgrafica.model.RegistroResponse
 import com.example.socialme_interfazgrafica.model.SolicitudAmistadDTO
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
@@ -47,15 +44,25 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
+//SERVICIO DE RETROFIT QUE MANEJA TODOS LOS ENDPOINTS DE LA APLICACION
+
 interface RetrofitService {
-
-
 
     @POST("/Usuario/login")
     suspend fun loginUser(
         @Body usuario: UsuarioLoginDTO
     ): Response<LoginResponse>
 
+    @POST("/Usuario/iniciarRegistro")
+    suspend fun iniciarRegistro(@Body usuarioRegisterDTO: UsuarioRegisterDTO): Response<Map<String, String>>
+
+    @POST("/Usuario/completarRegistro")
+    suspend fun completarRegistro(@Body verificacionDTO: VerificacionDTO): Response<UsuarioDTO>
+
+    @GET("/Usuario/reenviarCodigo/{email}")
+    suspend fun reenviarCodigo(
+        @Path("email") email: String
+    ): Response<Boolean>
     @GET("/Usuario/verUsuarioPorUsername/{username}")
     suspend fun verUsuarioPorUsername(
         @Header("Authorization") token: String,
@@ -88,28 +95,16 @@ interface RetrofitService {
         @Body usuarioUpdateDTO: UsuarioUpdateDTO
     ): Response<Map<String, String>>
 
-    @GET("/Usuario/usuarioEsAdmin/{username}")
-    suspend fun usuarioEsAdmin(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<Boolean>
-
     @POST("/Usuario/completarModificacionUsuario")
     suspend fun completarModificacionUsuario(
         @Header("Authorization") token: String,
         @Body verificacionDTO: VerificacionDTO
     ): Response<UsuarioDTO>
 
-    @PUT("/Usuario/modificarUsuario")
-    suspend fun modificarUsuario(
+    @GET("/Usuario/usuarioEsAdmin/{username}")
+    suspend fun usuarioEsAdmin(
         @Header("Authorization") token: String,
-        @Body usuarioUpdateDTO: UsuarioUpdateDTO
-    ): Response<UsuarioDTO>
-
-    @DELETE("/Usuario/cancelarSolicitudAmistad/{id}")
-    suspend fun cancelarSolicitudAmistad(
-        @Header("Authorization") token: String,
-        @Path("id") id: String
+        @Path("username") username: String
     ): Response<Boolean>
 
     @DELETE("/Usuario/eliminarUsuario/{username}")
@@ -117,28 +112,6 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("username") username: String
     ): Response<UsuarioDTO>
-
-    @PUT("/Usuario/actualizarPremium/{username}")
-    suspend fun actualizarPremium(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<UsuarioDTO>
-
-    @POST("/Usuario/verificarPremium")
-    suspend fun verificarPremium(
-        @Header("Authorization") token: String,
-        @Body paymentData: PaymentVerificationRequest
-    ): Response<Map<String, Any>>
-
-    @POST("/Usuario/verificarCodigo")
-    suspend fun verificarCodigo(
-        @Body verificacionDTO: VerificacionDTO
-    ): Response<Boolean>
-
-    @GET("/Usuario/reenviarCodigo/{email}")
-    suspend fun reenviarCodigo(
-        @Path("email") email: String
-    ): Response<Boolean>
 
     @PUT("/Usuario/cambiarPrivacidadComunidad/{username}/{privacidad}")
     suspend fun cambiarPrivacidadComunidad(
@@ -161,19 +134,11 @@ interface RetrofitService {
         @Path("radar") radar: String
     ): Response<UsuarioDTO>
 
-    @GET("/Comunidad/verComunidadPorUsuario/{username}/{usuarioSolicitante}")
-    suspend fun verComunidadPorUsuario(
+    @PUT("/Usuario/cambiarContrasena")
+    suspend fun cambiarContrasena(
         @Header("Authorization") token: String,
-        @Path("username") username: String,
-        @Path("usuarioSolicitante") usuarioSolicitante: String
-    ): Response<List<ComunidadDTO>>
-
-    @GET("/Actividad/verActividadPorUsernameFechaSuperior/{username}/{usuarioSolicitante}")
-    suspend fun verActividadPorUsernameFechaSuperior(
-        @Header("Authorization") token: String,
-        @Path("username") username: String,
-        @Path("usuarioSolicitante") usuarioSolicitante: String
-    ): Response<List<ActividadDTO>>
+        @Body cambiarContrasenaDTO: CambiarContrasenaDTO
+    ): Response<UsuarioDTO>
 
     @GET("/Usuario/verPrivacidadActividad/{username}")
     suspend fun verPrivacidadActividad(
@@ -217,10 +182,23 @@ interface RetrofitService {
         @Path("id") id: String
     ): Response<Boolean>
 
+    @DELETE("/Usuario/cancelarSolicitudAmistad/{id}")
+    suspend fun cancelarSolicitudAmistad(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<Boolean>
+
     @DELETE("/Usuario/rechazarSolicitud/{id}")
     suspend fun rechazarSolicitud(
         @Header("Authorization") token: String,
         @Path("id") id: String
+    ): Response<Boolean>
+
+    @GET("/Usuario/verificarSolicitudPendiente/{remitente}/{destinatario}")
+    suspend fun verificarSolicitudPendiente(
+        @Header("Authorization") token: String,
+        @Path("remitente") remitente: String,
+        @Path("destinatario") destinatario: String
     ): Response<Boolean>
 
     @POST("/Usuario/bloquearUsuario")
@@ -240,6 +218,15 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("username") username: String
     ): Response<List<UsuarioDTO>>
+
+    @GET("api/paypal/health-check")
+    suspend fun healthCheck(): Response<Map<String, String>>
+
+    @POST("api/paypal/simulate-premium-purchase")
+    suspend fun simulatePremiumPurchase(
+        @Header("Authorization") token: String,
+        @Query("username") username: String
+    ): Response<PaymentResponseDTO>
 
     @POST("/Comunidad/crearComunidad")
     suspend fun crearComunidad(
@@ -268,6 +255,13 @@ interface RetrofitService {
     suspend fun verComunidadesPublicas(
         @Header("Authorization") token: String,
         @Path("username") username: String,
+    ): Response<List<ComunidadDTO>>
+
+    @GET("/Comunidad/verComunidadPorUsuario/{username}/{usuarioSolicitante}")
+    suspend fun verComunidadPorUsuario(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("usuarioSolicitante") usuarioSolicitante: String
     ): Response<List<ComunidadDTO>>
 
     @POST("/Comunidad/unirseComunidad")
@@ -320,13 +314,6 @@ interface RetrofitService {
         @Path("comunidadUrl") comunidadUrl: String
     ): Response<Boolean>
 
-    @DELETE("/Comunidad/eliminarUsuarioDeComunidad/{usuarioSolicitante}")
-    suspend fun eliminarUsuarioDeComunidad(
-        @Header("Authorization") token: String,
-        @Body participantesComunidadDTO: ParticipantesComunidadDTO,
-        @Path("usuarioSolicitante") usuarioSolicitante: String
-    ): Response<ParticipantesComunidadDTO>
-
     @PUT("/Comunidad/cambiarCreadorComunidad/{comunidadUrl}/{creadorActual}/{nuevoCreador}")
     suspend fun cambiarCreadorComunidad(
         @Header("Authorization") token: String,
@@ -334,6 +321,14 @@ interface RetrofitService {
         @Path("creadorActual") creadorActual: String,
         @Path("nuevoCreador") nuevoCreador: String
     ): Response<ComunidadDTO>
+
+    @PUT("/Comunidad/expulsarUsuario/{username}/{url}/{usuarioSolicitante}")
+    suspend fun expulsarUsuario(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("url") url:String,
+        @Path("usuarioSolicitante") usuarioSolicitante:String
+    ): Response<UsuarioDTO>
 
     @POST("/Actividad/crearActividad")
     suspend fun crearActividad(
@@ -349,12 +344,6 @@ interface RetrofitService {
 
     @GET("/Actividad/verActividadNoParticipaUsuarioFechaSuperior/{username}")
     suspend fun verActividadNoParticipaUsuarioFechaSuperior(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<List<ActividadDTO>>
-
-    @GET("/Actividad/verActividadNoParticipaUsuarioCualquierFecha/{username}")
-    suspend fun verActividadNoParticipaUsuarioCualquierFecha(
         @Header("Authorization") token: String,
         @Path("username") username: String
     ): Response<List<ActividadDTO>>
@@ -375,12 +364,6 @@ interface RetrofitService {
         @Path("username") username: String,
     ): Response<List<ActividadDTO>>
 
-    @GET("/Actividad/verActividadesPublicasEnZonaCualquierFecha/{username}")
-    suspend fun verActividadesPublicasCualquierFecha(
-        @Header("Authorization") token: String,
-        @Path("username") username: String,
-    ): Response<List<ActividadDTO>>
-
     @GET("/Actividad/verActividadesPorComunidadFechaSuperior/{comunidad}")
     suspend fun verActividadesPorComunidadFechaSuperior(
         @Header("Authorization") token: String,
@@ -392,6 +375,19 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("comunidad") comunidad: String
     ): Response<List<ActividadDTO>>
+
+    @GET("/Actividad/verActividadPorUsernameFechaSuperior/{username}/{usuarioSolicitante}")
+    suspend fun verActividadPorUsernameFechaSuperior(
+        @Header("Authorization") token: String,
+        @Path("username") username: String,
+        @Path("usuarioSolicitante") usuarioSolicitante: String
+    ): Response<List<ActividadDTO>>
+
+    @GET("/Actividad/verComunidadPorActividad/{idActividad}")
+    suspend fun verComunidadPorActividad(
+        @Header("Authorization") token: String,
+        @Path("idActividad") idActividad: String
+    ): Response<ComunidadDTO>
 
     @POST("/Actividad/unirseActividad")
     suspend fun unirseActividad(
@@ -429,31 +425,11 @@ interface RetrofitService {
         @Path("actividadId") actividadId: String
     ): Response<Int>
 
-    @GET("/Usuario/verificarSolicitudPendiente/{remitente}/{destinatario}")
-    suspend fun verificarSolicitudPendiente(
-        @Header("Authorization") token: String,
-        @Path("remitente") remitente: String,
-        @Path("destinatario") destinatario: String
-    ): Response<Boolean>
-
-    @GET("/Actividad/verificarCreadorAdministradorActividad/{username}/{idActividad}")
-    suspend fun verificarCreadorAdministradorActividad(
-        @Header("Authorization") token: String,
-        @Path("username") username: String,
-        @Path("idActividad") idActividad: String
-    ): Response<Boolean>
-
     @POST("/Denuncia/crearDenuncia")
     suspend fun crearDenuncia(
         @Header("Authorization") token: String,
         @Body denunciaCreateDTO: DenunciaCreateDTO
     ): Response<DenunciaDTO>
-
-    @GET("/Denuncia/verDenunciasPuestas/{username}")
-    suspend fun verDenunciasPuestas(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<List<DenunciaDTO>>
 
     @GET("/Denuncia/verTodasLasDenuncias")
     suspend fun verTodasLasDenuncias(
@@ -472,24 +448,6 @@ interface RetrofitService {
         @Path("completado") completado: Boolean
     ): Response<DenunciaDTO>
 
-    @GET("/Notificacion/obtenerNotificaciones/{username}")
-    suspend fun obtenerNotificaciones(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<List<NotificacionDTO>>
-
-    @GET("/Notificacion/contarNoLeidas/{username}")
-    suspend fun contarNoLeidas(
-        @Header("Authorization") token: String,
-        @Path("username") username: String
-    ): Response<Long>
-
-    @PUT("/Notificacion/marcarComoLeida/{notificacionId}")
-    suspend fun marcarComoLeida(
-        @Header("Authorization") token: String,
-        @Path("notificacionId") notificacionId: String
-    ): Response<NotificacionDTO>
-
     @POST("/Chat/enviarMensaje")
     suspend fun enviarMensaje(
         @Header("Authorization") token: String,
@@ -501,57 +459,6 @@ interface RetrofitService {
         @Header("Authorization") token: String,
         @Path("comunidadUrl") comunidadUrl: String
     ): Response<List<MensajeDTO>>
-
-    @GET("/Actividad/verComunidadPorActividad/{idActividad}")
-    suspend fun verComunidadPorActividad(
-        @Header("Authorization") token: String,
-        @Path("idActividad") idActividad: String
-    ): Response<ComunidadDTO>
-
-    @PUT("Usuario/cambiarContrasena")
-    suspend fun cambiarContrasena(
-        @Header("Authorization") token: String,
-        @Body cambiarContrasenaDTO: CambiarContrasenaDTO
-    ): Response<UsuarioDTO>
-
-    @POST("api/payment/verify-premium")
-    suspend fun verifyPaymentAndUpgradePremium(
-        @Header("Authorization") token: String,
-        @Body request: Map<String, String>
-    ): Response<Map<String, Any>>
-
-    @POST("/Usuario/iniciarRegistro")
-    suspend fun iniciarRegistro(@Body usuarioRegisterDTO: UsuarioRegisterDTO): Response<Map<String, String>>
-
-    @POST("/Usuario/completarRegistro")
-    suspend fun completarRegistro(@Body verificacionDTO: VerificacionDTO): Response<UsuarioDTO>
-
-    @POST("api/paypal/create-payment")
-    suspend fun createPayment(
-        @Header("Authorization") token: String,
-        @Body paymentRequest: PaymentRequestDTO
-    ): Response<PaymentResponseDTO>
-
-    @POST("api/paypal/verify-payment")
-    suspend fun verifyPayment(
-        @Header("Authorization") token: String,
-        @Body verificationRequest: PaymentVerificationDTO
-    ): Response<PaymentResponseDTO>
-
-    @GET("api/paypal/payment-status/{paymentId}")
-    suspend fun getPaymentStatus(
-        @Header("Authorization") token: String,
-        @Path("paymentId") paymentId: String
-    ): Response<PaymentStatusDTO>
-
-    @POST("api/paypal/simulate-premium-purchase")
-    suspend fun simulatePremiumPurchase(
-        @Header("Authorization") token: String,
-        @Query("username") username: String
-    ): Response<PaymentResponseDTO>
-
-    @GET("api/paypal/health-check")
-    suspend fun healthCheck(): Response<Map<String, String>>
 
     object RetrofitServiceFactory {
 

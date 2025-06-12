@@ -620,7 +620,7 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
             }
 
             val authToken = "Bearer $token"
-            val response = apiService.verActividadPorUsernameFechaSuperior(authToken, username, username)
+            val response = apiService.verActividadPorUsernameFechaSuperior(token=authToken, username, username)
 
             if (response.isSuccessful) {
                 val actividadesRecibidas = response.body() ?: emptyList()
@@ -761,7 +761,7 @@ fun ActividadCarouselMenu(username: String, navController: NavController) {
                 ) {
                     items(
                         items = actividades,
-                        key = { it.nombre }
+                        key = { it._id }
                     ) { actividad ->
                         ActividadCard(actividad = actividad, navController = navController)
                     }
@@ -935,7 +935,7 @@ fun CarrouselActvidadesPorComunidad(username: String, navController: NavControll
                 ) {
                     items(
                         items = actividades,
-                        key = { it.nombre }
+                        key = { it._id }
                     ) { actividad ->
                         ActividadCard(actividad = actividad, navController)
                     }
@@ -1095,7 +1095,6 @@ fun ActividadCard(actividad: ActividadDTO, navController: NavController) {
         }
     }
 }
-
 @Composable
 fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
     val context = LocalContext.current
@@ -1145,137 +1144,138 @@ fun ComunidadCard(comunidad: ComunidadDTO, navController: NavController) {
             containerColor = colorResource(R.color.white)
         )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(colorResource(R.color.background)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (fotoPerfilUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(fotoPerfilUrl)
-                            .crossfade(true)
-                            .size(128, 128)
-                            .placeholder(R.drawable.app_icon)
-                            .error(R.drawable.app_icon)
-                            .setHeader("Authorization", authToken)
-                            .memoryCacheKey(fotoPerfilUrl)
-                            .diskCacheKey(fotoPerfilUrl)
-                            .build(),
-                        contentDescription = "Foto de ${comunidad.nombre}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        imageLoader = imageLoader
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.app_icon),
-                        contentDescription = "Perfil por defecto",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Indicador de privacidad en la esquina superior derecha
+            if (comunidad.privada) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(20.dp)
+                        .background(
+                            color = colorResource(R.color.textoSecundario).copy(alpha = 0.9f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lock),
+                        contentDescription = "Comunidad privada",
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = comunidad.nombre,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorResource(R.color.azulPrimario),
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = "@${comunidad.url}",
-                fontSize = 12.sp,
-                color = colorResource(R.color.textoSecundario),
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = comunidad.descripcion,
-                fontSize = 12.sp,
-                color = Color.Black,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (comunidad.intereses.isNotEmpty()) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(colorResource(R.color.background)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val tagsToShow = if (comunidad.intereses.size > 2) 2 else comunidad.intereses.size
-
-                    items(comunidad.intereses.take(tagsToShow)) { interes ->
-                        Badge(
-                            containerColor = colorResource(R.color.cyanSecundario)
-                        ) {
-                            Text(
-                                text = interes,
-                                color = colorResource(R.color.azulPrimario),
-                                fontSize = 9.sp,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
-                        }
+                    if (fotoPerfilUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(fotoPerfilUrl)
+                                .crossfade(true)
+                                .size(128, 128)
+                                .placeholder(R.drawable.app_icon)
+                                .error(R.drawable.app_icon)
+                                .setHeader("Authorization", authToken)
+                                .memoryCacheKey(fotoPerfilUrl)
+                                .diskCacheKey(fotoPerfilUrl)
+                                .build(),
+                            contentDescription = "Foto de ${comunidad.nombre}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            imageLoader = imageLoader
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.app_icon),
+                            contentDescription = "Perfil por defecto",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
+                }
 
-                    if (comunidad.intereses.size > 2) {
-                        item {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = comunidad.nombre,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorResource(R.color.azulPrimario),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = "@${comunidad.url}",
+                    fontSize = 12.sp,
+                    color = colorResource(R.color.textoSecundario),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = comunidad.descripcion,
+                    fontSize = 12.sp,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (comunidad.intereses.isNotEmpty()) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val tagsToShow = if (comunidad.intereses.size > 2) 2 else comunidad.intereses.size
+
+                        items(comunidad.intereses.take(tagsToShow)) { interes ->
                             Badge(
                                 containerColor = colorResource(R.color.cyanSecundario)
                             ) {
                                 Text(
-                                    text = "+${comunidad.intereses.size - 2}",
+                                    text = interes,
                                     color = colorResource(R.color.azulPrimario),
                                     fontSize = 9.sp,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
                         }
+
+                        if (comunidad.intereses.size > 2) {
+                            item {
+                                Badge(
+                                    containerColor = colorResource(R.color.cyanSecundario)
+                                ) {
+                                    Text(
+                                        text = "+${comunidad.intereses.size - 2}",
+                                        color = colorResource(R.color.azulPrimario),
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (comunidad.privada) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lock),
-                        contentDescription = "Comunidad privada",
-                        tint = colorResource(R.color.textoSecundario),
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "Privada",
-                        fontSize = 10.sp,
-                        color = colorResource(R.color.textoSecundario)
-                    )
                 }
             }
         }
@@ -1480,7 +1480,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController) {
             }
 
             val authToken = "Bearer $token"
-            val response = apiService.verActividadesPublicasFechaSuperior(authToken, username)
+            val response = apiService.verActividadesPublicasFechaSuperior(token=authToken, username=username)
 
             if (response.isSuccessful) {
                 val actividadesRecibidas = response.body() ?: emptyList()
@@ -1519,7 +1519,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController) {
                 }
 
                 val authToken = "Bearer $token"
-                val response = apiService.verActividadesPublicasFechaSuperior(authToken, username)
+                val response = apiService.verActividadesPublicasFechaSuperior(token=authToken, username=username)
 
                 if (response.isSuccessful) {
                     val actividadesRecibidas = response.body() ?: emptyList()
@@ -1620,7 +1620,7 @@ fun CarrouselActividadesEnZona(username: String, navController: NavController) {
                 ) {
                     items(
                         items = actividades,
-                        key = { it.nombre }
+                        key = { it._id }
                     ) { actividad ->
                         ActividadCard(actividad = actividad, navController=navController)
                     }

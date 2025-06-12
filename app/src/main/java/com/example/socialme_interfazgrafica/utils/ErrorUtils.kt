@@ -40,7 +40,7 @@ object ErrorUtils {
                 "Error al enviar el código. Verifica tu email"
 
             // ERRORES DE USUARIO - REGISTRO Y LOGIN
-            errorMsg.contains("ya está registrado") || errorMsg.contains("ya está en uso") ->
+            errorMsg.contains("El nombre de usuario") && errorMsg.contains("ya está en uso") ->
                 "Este usuario ya existe. Prueba con otro nombre"
 
             errorMsg.contains("email") && errorMsg.contains("ya está registrado") ->
@@ -105,12 +105,18 @@ object ErrorUtils {
             errorMsg.contains("Los administradores no pueden eliminar al creador") ->
                 "No tienes permisos para eliminar este usuario"
 
+            errorMsg.contains("Los administradores no pueden eliminar al creador ni a otros administradores") ->
+                "No tienes permisos para eliminar este usuario"
+
             // ERRORES DE ACTIVIDADES
             errorMsg.contains("Esta actividad no existe") || errorMsg.contains("Actividad no existe") ->
                 "Actividad no encontrada"
 
             errorMsg.contains("La actividad no existe") ->
                 "Actividad no encontrada"
+
+            errorMsg.contains("La comunidad de la actividad no existe") ->
+                "Error: la comunidad de esta actividad no existe"
 
             errorMsg.contains("Ya estás participando en esta actividad") ->
                 "Ya estás participando en esta actividad"
@@ -121,8 +127,17 @@ object ErrorUtils {
             errorMsg.contains("ya ha finalizado") || errorMsg.contains("que ya ha finalizado") ->
                 "Esta actividad ya ha terminado"
 
+            errorMsg.contains("No puedes unirte a una actividad que ya ha finalizado") ->
+                "Esta actividad ya ha terminado"
+
             errorMsg.contains("sin pertenecer a la comunidad") ->
                 "Debes unirte a la comunidad primero"
+
+            errorMsg.contains("No puedes unirte a esta actividad privada sin pertenecer a la comunidad") ->
+                "Debes unirte a la comunidad para acceder a esta actividad"
+
+            errorMsg.contains("Has sido expulsado de la comunidad de esta actividad y no puedes unirte") ->
+                "No puedes unirte: fuiste expulsado de la comunidad"
 
             errorMsg.contains("No tienes permisos para crear esta actividad") ->
                 "No puedes crear actividades en esta comunidad"
@@ -184,6 +199,9 @@ object ErrorUtils {
             errorMsg.contains("Ya estás unido") || errorMsg.contains("El usuario ya está unido") ->
                 "Ya estás unido a esta comunidad"
 
+            errorMsg.contains("El usuario ya está unido a esta comunidad") ->
+                "Ya estás unido a esta comunidad"
+
             errorMsg.contains("No estás en esta comunidad") ->
                 "No perteneces a esta comunidad"
 
@@ -199,8 +217,21 @@ object ErrorUtils {
             errorMsg.contains("no pertenece a esta comunidad") ->
                 "El usuario no pertenece a esta comunidad"
 
+            errorMsg.contains("El usuario a eliminar no pertenece a esta comunidad") ->
+                "El usuario no pertenece a esta comunidad"
+
+            // ERRORES DE EXPULSIÓN Y BLOQUEO DE COMUNIDADES
+            errorMsg.contains("Has sido expulsado de esta comunidad y no puedes volver a unirte") ->
+                "Has sido expulsado de esta comunidad y no puedes volver a unirte"
+
+            errorMsg.contains("El usuario ya está expulsado de esta comunidad") ->
+                "Este usuario ya fue expulsado de la comunidad"
+
             // ERRORES DE CÓDIGOS DE UNIÓN
             errorMsg.contains("codigo de union no es correcto") ->
+                "Código de unión incorrecto"
+
+            errorMsg.contains("El codigo de union no es correcto") ->
                 "Código de unión incorrecto"
 
             errorMsg.contains("es publica") ->
@@ -209,6 +240,9 @@ object ErrorUtils {
             // ERRORES DE PERMISOS EN COMUNIDADES
             errorMsg.contains("No tienes permisos para eliminar usuarios") ->
                 "No tienes permisos para eliminar usuarios"
+
+            errorMsg.contains("No tienes permisos para eliminar usuarios de esta comunidad") ->
+                "No tienes permisos para eliminar usuarios de esta comunidad"
 
             errorMsg.contains("Solo el creador actual puede transferir") ->
                 "Solo el creador puede transferir la propiedad"
@@ -361,12 +395,14 @@ object ErrorUtils {
             errorMsg.contains("Invalid base64 encoding") ->
                 "Formato de imagen inválido"
 
+
+            // ERRORES DE VALIDACIÓN JSON
+            errorMsg.contains("JSON parse error") ->
+                "Error en los datos enviados. Revise todos los campos"
+
             //OTROS
             errorMsg.contains("La descripcion de un usuario no puede ser superior a 600 caracteres") ->
                 "La descripcion de un usuario no puede ser superior a 600 caracteres"
-
-            errorMsg.contains("El municipio especificado no existe en la provincia indicada")->
-                "El municipio especificado no existe en la provincia indicada"
 
             errorMsg.contains("El municipio especificado no existe en la provincia indicada")->
                 "El municipio especificado no existe en la provincia indicada"
@@ -379,8 +415,6 @@ object ErrorUtils {
 
             errorMsg.contains("El username de un usuario no puede ser superior a 30 caracteres") ->
                 "El username de un usuario no puede ser superior a 30 caracteres"
-
-
 
             // ERRORES DE FORMATO
             errorMsg.contains("Formato de coordenadas inválido") ->

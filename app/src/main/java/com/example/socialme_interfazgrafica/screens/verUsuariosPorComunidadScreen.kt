@@ -327,19 +327,14 @@ fun VerUsuariosPorComunidadScreen(
                     .setPositiveButton("Eliminar") { dialog, _ ->
                         dialog.dismiss()
 
-                        // Realizar la eliminación
                         scope.launch {
                             try {
-                                val participantesComunidadDTO = ParticipantesComunidadDTO(
-                                    username = usuarioUsername,
-                                    comunidad = comunidadId
-                                )
-
                                 val response = withContext(Dispatchers.IO) {
                                     withTimeout(5000) {
-                                        retrofitService.eliminarUsuarioDeComunidad(
+                                        retrofitService.expulsarUsuario(
                                             token = authToken,
-                                            participantesComunidadDTO = participantesComunidadDTO,
+                                            url=comunidadId,
+                                            username = usuarioUsername,
                                             usuarioSolicitante = username
                                         )
                                     }
@@ -542,7 +537,6 @@ fun VerUsuariosPorComunidadScreen(
 
                     Text(
                         text = "⚠️ ADVERTENCIA: Esta acción es IRREVERSIBLE",
-                        color = colorResource(R.color.error),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(vertical = 8.dp)

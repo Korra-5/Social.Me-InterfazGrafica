@@ -546,7 +546,7 @@ fun ModificarActividadScreen(actividadId: String, navController: NavController) 
                                                 }
                                             })
 
-                                            // Establecer referencia para uso posterior
+                                            // Establecer referencia
                                             mapView = this
                                         }
                                     },

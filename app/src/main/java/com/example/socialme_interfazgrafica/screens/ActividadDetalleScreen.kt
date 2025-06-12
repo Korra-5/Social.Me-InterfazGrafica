@@ -80,7 +80,7 @@ import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
-import com.example.socialme_interfazgrafica.utils.FunctionUtils
+import com.example.socialme_interfazgrafica.utils.DialogReportUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -124,17 +124,17 @@ fun ActividadDetalleScreen(
     val reportBody = remember { mutableStateOf("") }
     val isReportLoading = remember { mutableStateOf(false) }
 
-    val utils = FunctionUtils
+    val utils = DialogReportUtils
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Cargar username una sola vez
+    // Cargar username
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
         username.value = sharedPreferences.getString("USERNAME", "") ?: ""
     }
 
-    // Cargar datos de la actividad con manejo mejorado de corrutinas
+    // Cargar datos de la actividad
     LaunchedEffect(actividadId, username.value) {
         if (username.value.isEmpty()) return@LaunchedEffect
 
@@ -144,7 +144,7 @@ fun ActividadDetalleScreen(
         try {
             val retrofitService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
-            // Usar el scope del LaunchedEffect que se cancela automáticamente
+            // Usar el scope del LaunchedEffect para que se cancela automáticamente
             supervisorScope {
                 try {
                     // Cargar actividad
@@ -214,7 +214,8 @@ fun ActividadDetalleScreen(
                                         fotoCarruselIds = emptyList(),
                                         administradores = emptyList(),
                                         codigoUnion = null,
-                                        coordenadas = Coordenadas("", "")
+                                        coordenadas = Coordenadas("", ""),
+                                        expulsadosUsername = listOf()
                                     )
                                 }
                                 else -> {
@@ -281,7 +282,7 @@ fun ActividadDetalleScreen(
                                 val jsonObject = JSONObject(errorBody)
                                 val errorMessage = jsonObject.optString("error", "")
                                 if (errorMessage.isNotEmpty()) {
-                                    Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context,  ErrorUtils.parseErrorMessage(errorMessage), Toast.LENGTH_LONG).show()
                                 } else {
                                     Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
                                 }
@@ -1012,7 +1013,19 @@ fun ActividadDetalleContent(
                                                     Toast.makeText(context, "Te has unido a la actividad", Toast.LENGTH_SHORT).show()
                                                     cantidadParticipantes.value += 1
                                                 } else {
-                                                    Toast.makeText(context, "Error al unirse: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                    // Parsear correctamente el error del servidor
+                                                    val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                                                    try {
+                                                        val jsonObject = JSONObject(errorBody)
+                                                        val errorMessage = jsonObject.optString("message", "")
+                                                        if (errorMessage.isNotEmpty()) {
+                                                            Toast.makeText(context, ErrorUtils.parseErrorMessage(errorMessage), Toast.LENGTH_LONG).show()
+                                                        } else {
+                                                            Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                                    }
                                                 }
                                             }
                                         } else {
@@ -1031,15 +1044,27 @@ fun ActividadDetalleContent(
                                                         cantidadParticipantes.value -= 1
                                                     }
                                                 } else {
-                                                    Toast.makeText(context, "Error al abandonar: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                                    // Parsear correctamente el error del servidor
+                                                    val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                                                    try {
+                                                        val jsonObject = JSONObject(errorBody)
+                                                        val errorMessage = jsonObject.optString("message", "")
+                                                        if (errorMessage.isNotEmpty()) {
+                                                            Toast.makeText(context, ErrorUtils.parseErrorMessage(errorMessage), Toast.LENGTH_LONG).show()
+                                                        } else {
+                                                            Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG).show()
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 } catch (e: Exception) {
                                     withContext(Dispatchers.Main) {
-                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                        Log.d("ActividadCarousel", "Error:"+e)
+                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"), Toast.LENGTH_LONG).show()
+                                        Log.d("ActividadDetalle", "Error: $e")
                                     }
                                 } finally {
                                     isLoading.value = false
@@ -1047,6 +1072,7 @@ fun ActividadDetalleContent(
                             }
                         }
                     },
+
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),

@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -74,7 +72,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,9 +92,8 @@ import com.example.socialme_interfazgrafica.model.DenunciaCreateDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
 import com.example.socialme_interfazgrafica.navigation.AppScreen
 import com.example.socialme_interfazgrafica.utils.ErrorUtils
-import com.example.socialme_interfazgrafica.utils.FunctionUtils
+import com.example.socialme_interfazgrafica.utils.DialogReportUtils
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -110,7 +106,6 @@ import okhttp3.OkHttpClient
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.Date
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -119,7 +114,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
-    val utils = FunctionUtils
+    val utils = DialogReportUtils
 
     val isUserParticipating = remember { mutableStateOf(false) }
 
@@ -355,7 +350,7 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                     val jsonObject = JSONObject(errorBody)
                                     val errorMessage = jsonObject.optString("error", "")
                                     if (errorMessage.isNotEmpty()) {
-                                        Toast.makeText(context, errorMessage, Toast.LENGTH_LONG)
+                                        Toast.makeText(context, ErrorUtils.parseErrorMessage(errorBody), Toast.LENGTH_LONG)
                                             .show()
                                     } else {
                                         Toast.makeText(
@@ -676,7 +671,6 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(color = Color.LightGray, thickness = 1.dp)
-
                 Button(
                     onClick = {
                         if (!isLoading.value && username.value.isNotEmpty()) {
@@ -708,11 +702,31 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
                                                     cantidadUsuarios.value += 1
                                                 } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Error al unirse: ${response.message()}",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
+                                                    // Parsear correctamente el error del servidor
+                                                    val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                                                    try {
+                                                        val jsonObject = JSONObject(errorBody)
+                                                        val errorMessage = jsonObject.optString("message", "")
+                                                        if (errorMessage.isNotEmpty()) {
+                                                            Toast.makeText(
+                                                                context,
+                                                                ErrorUtils.parseErrorMessage(errorMessage),
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        } else {
+                                                            Toast.makeText(
+                                                                context,
+                                                                ErrorUtils.parseErrorMessage(errorBody),
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(
+                                                            context,
+                                                            ErrorUtils.parseErrorMessage(errorBody),
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+                                                    }
                                                 }
                                             }
                                         } else {
@@ -757,11 +771,31 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                                             cantidadUsuarios.value -= 1
                                                         }
                                                     } else {
-                                                        Toast.makeText(
-                                                            context,
-                                                            "Error al abandonar: ${response.message()}",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
+                                                        // Parsear correctamente el error del servidor
+                                                        val errorBody = response.errorBody()?.string() ?: "Error desconocido"
+                                                        try {
+                                                            val jsonObject = JSONObject(errorBody)
+                                                            val errorMessage = jsonObject.optString("message", "")
+                                                            if (errorMessage.isNotEmpty()) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    ErrorUtils.parseErrorMessage(errorMessage),
+                                                                    Toast.LENGTH_LONG
+                                                                ).show()
+                                                            } else {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Error al abandonar: ${ErrorUtils.parseErrorMessage(errorBody)}",
+                                                                    Toast.LENGTH_LONG
+                                                                ).show()
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Error al abandonar: ${ErrorUtils.parseErrorMessage(errorBody)}",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        }
                                                     }
                                                 }
                                             }
@@ -771,8 +805,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(
                                             context,
-                                            "Error: ${e.message}",
-                                            Toast.LENGTH_SHORT
+                                            ErrorUtils.parseErrorMessage(e.message ?: "Error de conexión"),
+                                            Toast.LENGTH_LONG
                                         ).show()
                                         Log.e("ComunidadDetalle", "Error: $e")
                                     }
@@ -857,7 +891,8 @@ fun ComunidadDetalleScreen(comunidad: ComunidadDTO, authToken: String, navContro
 
                 CarruselActividadesComunidad(
                     comunidadUrl = comunidad.url,
-                    navController = navController
+                    navController = navController,
+                    username=username.value
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1113,7 +1148,7 @@ fun CarruselImagenes(
     }
 }
 @Composable
-fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavController) {
+fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavController, username:String) {
     val context = LocalContext.current
     val apiService = RetrofitService.RetrofitServiceFactory.makeRetrofitService()
 
@@ -1141,9 +1176,9 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
             Log.d("CarruselActividadesComunidad", "Realizando petición API con token: ${token.take(5)}... para comunidad: $comunidadUrl")
 
             val response = if (mostrarSoloProximas) {
-                apiService.verActividadesPorComunidadFechaSuperior(authToken, comunidadUrl)
+                apiService.verActividadesPorComunidadFechaSuperior(token=authToken, comunidad = comunidadUrl)
             } else {
-                apiService.verActividadesPorComunidadCualquierFecha(authToken, comunidadUrl)
+                apiService.verActividadesPorComunidadCualquierFecha(token=authToken, comunidad= comunidadUrl)
             }
 
             if (response.isSuccessful) {
@@ -1297,7 +1332,7 @@ fun CarruselActividadesComunidad(comunidadUrl: String, navController: NavControl
                 ) {
                     items(
                         items = actividades,
-                        key = { it.nombre }
+                        key = { it._id  }
                     ) { actividad ->
                         Log.d("CarruselActividadesComunidad", "Cargando actividad: ${actividad.nombre}")
                         ActividadCard(actividad = actividad, navController = navController)

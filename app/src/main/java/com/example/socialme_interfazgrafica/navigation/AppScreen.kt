@@ -13,8 +13,10 @@ sealed class AppScreen(val route: String) {
     object CrearComunidadScreen : AppScreen("crear_comunidad_screen")
     object ComprarPremiumScreen : AppScreen("comprar_premium_screen")
     object DenunciasScreen : AppScreen("denuncias_screen")
+    object SolicitudesAmistadScreen : AppScreen("solicitudes_amistad")
+    object UsuariosBloqueadosScreen : AppScreen("usuarios_bloqueados")
 
-    // Nuevas rutas con argumentos
+    // Rutas con argumentos
     object ActividadDetalleScreen : AppScreen("actividadDetalle/{actividadId}") {
         fun createRoute(actividadId: String) = "actividadDetalle/$actividadId"
     }
@@ -85,9 +87,4 @@ sealed class AppScreen(val route: String) {
             return "chat_comunidad/$comunidadUrl/$nombreEncoded"
         }
     }
-    object SolicitudesAmistadScreen : AppScreen("solicitudes_amistad")
-
-    object NotificacionesScreen : AppScreen("notificaciones_screen")
-
-    object UsuariosBloqueadosScreen : AppScreen("usuarios_bloqueados")
 }

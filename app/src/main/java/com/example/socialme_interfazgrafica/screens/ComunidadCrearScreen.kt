@@ -573,7 +573,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                     shape = CircleShape
                                 ) {
                                     Icon(
-                                        Icons.Default.Call,
+                                        Icons.Default.LocationOn,
                                         contentDescription = "Mi ubicación",
                                         tint = Color.White
                                     )
@@ -597,7 +597,7 @@ fun CrearComunidadScreen(navController: NavController) {
                                         .background(Color.White.copy(alpha = 0.8f), CircleShape)
                                 ) {
                                     Icon(
-                                        if (isMapExpanded) Icons.Default.Home else Icons.Default.Settings,
+                                        if (isMapExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                         contentDescription = if (isMapExpanded) "Contraer" else "Expandir",
                                         tint = colorResource(R.color.azulPrimario),
                                     )
@@ -888,7 +888,7 @@ fun CrearComunidadScreen(navController: NavController) {
                     }
                 }
 
-                // Componente de error movido aquí, fuera de la Card
+                // Componente de error
                 errorMessage.value?.let { error ->
                     Card(
                         modifier = Modifier
@@ -941,7 +941,7 @@ fun CrearComunidadScreen(navController: NavController) {
     }
 }
 
-// Función simplificada que usa Madrid como ubicación por defecto
+// Función que usa Madrid como ubicación por defecto
 fun obtenerUbicacionActual(context: Context, onLocationReceived: (Location) -> Unit) {
     try {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
