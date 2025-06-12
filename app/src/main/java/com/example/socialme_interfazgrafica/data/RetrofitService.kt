@@ -16,10 +16,7 @@ import com.example.socialme_interfazgrafica.model.MensajeCreateDTO
 import com.example.socialme_interfazgrafica.model.MensajeDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesActividadDTO
 import com.example.socialme_interfazgrafica.model.ParticipantesComunidadDTO
-import com.example.socialme_interfazgrafica.model.PaymentRequestDTO
 import com.example.socialme_interfazgrafica.model.PaymentResponseDTO
-import com.example.socialme_interfazgrafica.model.PaymentStatusDTO
-import com.example.socialme_interfazgrafica.model.PaymentVerificationDTO
 import com.example.socialme_interfazgrafica.model.SolicitudAmistadDTO
 import com.example.socialme_interfazgrafica.model.UsuarioDTO
 import com.example.socialme_interfazgrafica.model.UsuarioLoginDTO
