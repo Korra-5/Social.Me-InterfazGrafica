@@ -489,7 +489,7 @@ fun CambiarContrasenaSection() {
                             val jsonObject = JSONObject(errorBody)
                             jsonObject.optString("error", "Error al cambiar la contraseña")
                         } catch (e: Exception) {
-                            "Error al cambiar la contraseña"
+                            "Error al cambiar la contraseña, verifica tu contraseña actual"
                         }
                     }
                     cambiandoContrasena = false
@@ -859,7 +859,6 @@ fun PrivacidadSection() {
                         )
                     }
                 } else {
-                    // Dropdown 1: Quien puede ver tus comunidades
                     Box {
                         Row(
                             modifier = Modifier

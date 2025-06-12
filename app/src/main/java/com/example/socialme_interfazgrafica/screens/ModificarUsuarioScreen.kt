@@ -788,8 +788,8 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                 }
 
                                 val direccionObj = Direccion(
-                                    municipio = municipio.value,
-                                    provincia = provincia.value
+                                    municipio = municipio.value.trim(),
+                                    provincia = provincia.value.trim()
                                 )
 
                                 val usernameCambiado = normalizarUsername(newUsername.value) != username
@@ -799,9 +799,9 @@ fun ModificarUsuarioScreen(username: String, navController: NavController) {
                                     currentUsername = username,
                                     newUsername = if (usernameCambiado) normalizarUsername(newUsername.value) else null,
                                     email = email.value,
-                                    nombre = nombre.value,
-                                    apellido = apellido.value,
-                                    descripcion = descripcion.value,
+                                    nombre = nombre.value.trim(),
+                                    apellido = apellido.value.trim(),
+                                    descripcion = descripcion.value.trim(),
                                     intereses = intereses.value,
                                     fotoPerfilBase64 = if (!fotoPerfilBase64.value.isNullOrEmpty()) {
                                         fotoPerfilBase64.value

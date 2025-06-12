@@ -416,6 +416,9 @@ object ErrorUtils {
             errorMsg.contains("El username de un usuario no puede ser superior a 30 caracteres") ->
                 "El username de un usuario no puede ser superior a 30 caracteres"
 
+            errorMsg.contains("El nombre de un usuario no puede ser superior a 30 caracteres") ->
+                "El username de un usuario no puede ser superior a 30 caracteres"
+
             // ERRORES DE FORMATO
             errorMsg.contains("Formato de coordenadas inválido") ->
                 "Coordenadas inválidas"
